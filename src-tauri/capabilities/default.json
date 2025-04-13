@@ -1,0 +1,184 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:path:default",
+    "core:event:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
+    "core:event:allow-emit-to",
+    "core:event:allow-unlisten",
+    "core:window:default",
+    "core:window:allow-set-shadow",
+    "core:window:allow-set-size",
+    "core:window:allow-available-monitors",
+    "core:window:allow-create",
+    "core:window:allow-current-monitor",
+    "core:window:allow-cursor-position",
+    "core:window:allow-center",
+    "core:window:allow-set-title",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-minimize",
+    "core:window:allow-unminimize",
+    "core:window:allow-close",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-destroy",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-set-position",
+    "core:app:default",
+    "core:image:default",
+    "core:resources:default",
+    "core:menu:default",
+    "core:tray:default",
+    "shell:allow-open",
+    "fs:default",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$APPDATA"
+        },
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APPDATA/*"
+        },
+        {
+          "path": "$APPDATA/"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DOCUMENT/*"
+        },
+        {
+          "path": "$DOCUMENT/"
+        },
+        {
+          "path": "$DOCUMENT"
+        },
+        {
+          "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$DOWNLOAD/*"
+        },
+        {
+          "path": "$DOWNLOAD/"
+        },
+        {
+          "path": "$DOWNLOAD"
+        },
+        {
+          "path": "$AUDIO/**"
+        },
+        {
+          "path": "$AUDIO/*"
+        },
+        {
+          "path": "$AUDIO/"
+        },
+        {
+          "path": "$AUDIO"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "$DESKTOP/*"
+        },
+        {
+          "path": "$DESKTOP/"
+        },
+        {
+          "path": "$DESKTOP"
+        },
+        {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$HOME/*"
+        },
+        {
+          "path": "$HOME/"
+        },
+        {
+          "path": "$HOME"
+        },
+        {
+          "path": "$PICTURE/**"
+        },
+        {
+          "path": "$PICTURE/*"
+        },
+        {
+          "path": "$PICTURE/"
+        },
+        {
+          "path": "$PICTURE"
+        },
+        {
+          "path": "$PUBLIC/**"
+        },
+        {
+          "path": "$PUBLIC/*"
+        },
+        {
+          "path": "$PUBLIC/"
+        },
+        {
+          "path": "$PUBLIC"
+        },
+        {
+          "path": "$VIDEO/**"
+        },
+        {
+          "path": "$VIDEO/*"
+        },
+        {
+          "path": "$VIDEO/"
+        },
+        {
+          "path": "$VIDEO"
+        }
+      ]
+    },
+    "fs:write-all",
+    "fs:allow-app-write",
+    "fs:allow-app-read",
+    "fs:scope-appdata",
+    "fs:allow-appdata-read",
+    "fs:allow-appdata-write",
+    "fs:allow-appdata-write-recursive",
+    "fs:allow-appdata-meta",
+    "fs:allow-appdata-meta-recursive",
+    "fs:allow-appdata-read-recursive",
+    "fs:scope-appdata-index",
+    "fs:allow-applocaldata-read",
+    "fs:allow-applocaldata-write",
+    "fs:create-app-specific-dirs",
+    "fs:allow-create",
+    "fs:allow-read-dir",
+    "fs:allow-data-write",
+    "fs:allow-mkdir",
+    "fs:read-all",
+    "fs:read-dirs",
+    "fs:allow-open",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-write-file",
+    "fs:default",
+    "shell:default"
+  ]
+}
