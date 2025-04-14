@@ -2,20 +2,117 @@ package inputDetectionAdapter
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
+	"unsafe"
 )
+
+const (
+    WH_KEYBOARD_LL = 13
+    WM_KEYDOWN     = 0x0100
+)
+
+type KBDLLHOOKSTRUCT struct {
+    VKCode    uint32
+    ScanCode  uint32
+    Flags     uint32
+    Time      uint32
+    ExtraInfo uintptr
+}
 
 var (
-    user32               = syscall.NewLazyDLL("user32.dll")
-    getAsyncKeyStateProc = user32.NewProc("GetAsyncKeyState")
+    user32           = syscall.NewLazyDLL("user32.dll")
+    setWindowsHookEx = user32.NewProc("SetWindowsHookExW")
+    callNextHookEx   = user32.NewProc("CallNextHookEx")
+    getMessage       = user32.NewProc("GetMessageW")
+    hook            syscall.Handle
 )
 
-// Map of key names to virtual key codes
+// KeyboardHook represents a keyboard hook instance
+type KeyboardHook struct {
+    callback   func(key int) bool
+    isPressed  bool
+    modKeys    []int
+    targetKey  int
+}
+
+func NewKeyboardHook(modifiers []int, key int, callback func(key int) bool) *KeyboardHook {
+    return &KeyboardHook{
+        callback:  callback,
+        modKeys:   modifiers,
+        targetKey: key,
+    }
+}
+
+func (kh *KeyboardHook) hookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
+    if nCode == 0 {
+        kbd := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
+        
+        if wParam == WM_KEYDOWN {
+            if int(kbd.VKCode) == kh.targetKey && kh.checkModifiers() {
+                if !kh.isPressed {
+                    kh.isPressed = true
+                    if kh.callback != nil {
+                        kh.callback(int(kbd.VKCode))
+                    }
+                }
+                // Prevent the key event from being passed to other applications
+                return 1
+            }
+        } else {
+            if kh.isPressed {
+                kh.isPressed = false
+            }
+        }
+    }
+    
+    ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+    return ret
+}
+
+func (kh *KeyboardHook) Start() error {
+    hookProc := syscall.NewCallback(kh.hookProc)
+    
+    ret, _, err := setWindowsHookEx.Call(
+        uintptr(WH_KEYBOARD_LL),
+        hookProc,
+        0,
+        0,
+    )
+    
+    hook = syscall.Handle(ret)
+    if hook == 0 {
+        return fmt.Errorf("failed to set keyboard hook: %v", err)
+    }
+
+    var msg struct {
+        hwnd   uintptr
+        msg    uint32
+        wParam uintptr
+        lParam uintptr
+        time   uint32
+        pt     struct{ x, y int32 }
+    }
+
+    // Message loop
+    for {
+        getMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+    }
+}
+
+const (
+    VK_SHIFT   = 0x10
+    VK_CONTROL = 0x11
+    VK_ALT     = 0x12
+    // Add any other virtual key codes you need
+)
+
+
 var KeyMap = map[string]int{
     // Modifier keys
-    "Ctrl":   0x11,
-    "Shift":  0x10,
-    "Alt":    0x12,
+    "Shift": VK_SHIFT,
+    "Ctrl":  VK_CONTROL,
+    "Alt":   VK_ALT,
     "Win":    0x5B, // Left Windows key
 
     // Letters
@@ -74,51 +171,52 @@ var KeyMap = map[string]int{
     "Quote":     0xDE,
 }
 
+// type KeyCodeEvalutaor func(int) bool
+type Shortcut [3]int
 
-type KeyCodeEvalutaor func(vkCode int) bool
-
-func IsKeyPressed(vkCode int) bool {
-    // Call GetAsyncKeyState to check if the key is pressed
-    ret, _, _ := getAsyncKeyStateProc.Call(uintptr(vkCode))
-    return ret&0x8000 != 0
+func (kh *KeyboardHook) checkModifiers() bool {
+    getKeyState := user32.NewProc("GetKeyState")
+    for _, mod := range kh.modKeys {
+        state, _, _ := getKeyState.Call(uintptr(mod))
+        if (state & 0x8000) == 0 {
+            return false
+        }
+    }
+    return true
 }
 
-type Shortcut []int
-
-var (
-    isModAPressed = false
-    isModBPressed = false
-	isPressed = false
-)
-
-// TODO: Implement the use of more or no modifiers
-func MyInputDetector(isKeyPressed_checker KeyCodeEvalutaor, shortcut Shortcut) bool {
-
-	// for {
-		// Check if the primary key (A) is pressed
-		otherKey := isKeyPressed_checker(shortcut[2])
-
-		// Handle shortcut press
-		if otherKey && isModAPressed && isModBPressed {
-			if !isPressed {
-				fmt.Println("Shortcut pressed!")
-			}
-			isPressed = true
-		} else {
-			// Handle shortcut release
-			if isPressed {
-				fmt.Println("Shortcut released!")
-			}
-			isPressed = false
-		}
-
-		// Update modifier key states
-		if otherKey {
-			return isPressed
-		}
-		isModAPressed = isKeyPressed_checker(shortcut[0])
-		isModBPressed = isKeyPressed_checker(shortcut[1])
-	// }
-    return false
+func FindKeyByValue(value int) string {
+    for key, val := range KeyMap {
+        if val == value {
+            return key
+        }
+    }
+    return ""
 }
 
+// TODO: Make input detector work with more or no modifiers
+func MyInputDetector(shortcut Shortcut) bool {
+    hook := NewKeyboardHook(
+        []int{shortcut[0], shortcut[1]}, // modifiers
+        shortcut[2],                     // target key
+        func(key int) bool {
+			// Print the shortcut name
+			shortcutNames := []string{}
+			for _, keyValue := range shortcut {
+				shortcutNames = append(shortcutNames, FindKeyByValue(keyValue))
+			}
+			shortcutString := strings.Join(shortcutNames, " + ")
+			fmt.Printf("Shortcut %s pressed!\n", shortcutString)
+
+			return true
+        },
+    )
+
+    err := hook.Start()
+    if err != nil {
+        fmt.Printf("Error starting keyboard hook: %v\n", err)
+        return false
+    }
+
+    return true
+}

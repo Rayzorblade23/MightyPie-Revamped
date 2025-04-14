@@ -5,12 +5,19 @@ import (
 )
 
 func main() {
-	var shortcutKeys = []int{
-		inputDetectionAdapter.KeyMap["Shift"], // Modifier key "Shift"
-		inputDetectionAdapter.KeyMap["Ctrl"],  // Modifier key "Ctrl"
-		inputDetectionAdapter.KeyMap["A"],     // Single key "A"
+	keys := []string{
+		"Shift",
+		"Ctrl",
+		"D",
 	}
-	for {
-		inputDetectionAdapter.MyInputDetector(inputDetectionAdapter.IsKeyPressed, shortcutKeys)
+
+	// Initialize the shortcut using the values from the slice
+	shortcut := inputDetectionAdapter.Shortcut{
+		inputDetectionAdapter.KeyMap[keys[0]],
+		inputDetectionAdapter.KeyMap[keys[1]],
+		inputDetectionAdapter.KeyMap[keys[2]],
 	}
+
+    // Create and start the keyboard hook
+	inputDetectionAdapter.MyInputDetector(shortcut)
 }
