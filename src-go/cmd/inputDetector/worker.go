@@ -5,6 +5,10 @@ import (
 )
 
 func main() {
+	inputDetectionAdapter.StartNATS_Connection ()
+
+	println("NATS connection established")
+
 	keys := []string{
 		"Shift",
 		"Ctrl",

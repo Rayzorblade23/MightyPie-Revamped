@@ -208,6 +208,18 @@ func MyInputDetector(shortcut Shortcut) bool {
 			shortcutString := strings.Join(shortcutNames, " + ")
 			fmt.Printf("Shortcut %s pressed!\n", shortcutString)
 
+            // Publish the message to NATS
+            message := EventMessage{
+                ShortcutDetected: 1,
+                MousePosition: MousePosition{
+                    X: 300,
+                    Y: 300,
+                },
+            }
+
+            PublishMessage("mightyPie.events.pie_menu.open", message)
+            println("Message published to NATS")
+
 			return true
         },
     )
