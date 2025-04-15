@@ -4,13 +4,22 @@ import (
 	"fmt"
 	"strings"
 	"syscall"
+
 	"unsafe"
+
+	"github.com/go-vgo/robotgo"
 )
 
 const (
     WH_KEYBOARD_LL = 13
     WM_KEYDOWN     = 0x0100
 )
+
+const (
+    WM_KEYUP     = 0x0101
+    WM_SYSKEYUP  = 0x0105
+)
+
 
 type KBDLLHOOKSTRUCT struct {
     VKCode    uint32
@@ -36,6 +45,35 @@ type KeyboardHook struct {
     targetKey  int
 }
 
+// TODO: Make input detector work with more or no modifiers
+func MyInputDetector(shortcut Shortcut) bool {
+    hook := NewKeyboardHook(
+        []int{shortcut[0], shortcut[1]}, // modifiers
+        shortcut[2],                     // target key
+        func(key int) bool {
+			// Print the shortcut name
+            printShortcut(shortcut[:])
+
+            x, y := robotgo.Location()
+	        fmt.Printf("Mouse position: x=%d, y=%d\n", x, y)
+            
+            // Publish the message to NATS
+            publishMessage(1, MousePosition{X: x, Y: y})
+
+
+			return true
+        },
+    )
+
+    err := hook.Start()
+    if err != nil {
+        fmt.Printf("Error starting keyboard hook: %v\n", err)
+        return false
+    }
+
+    return true
+}
+
 func NewKeyboardHook(modifiers []int, key int, callback func(key int) bool) *KeyboardHook {
     return &KeyboardHook{
         callback:  callback,
@@ -59,9 +97,15 @@ func (kh *KeyboardHook) hookProc(nCode int, wParam uintptr, lParam uintptr) uint
                 // Prevent the key event from being passed to other applications
                 return 1
             }
-        } else {
-            if kh.isPressed {
+        } else if wParam == WM_KEYUP || wParam == WM_SYSKEYUP {
+            if int(kbd.VKCode) == kh.targetKey && kh.isPressed {
                 kh.isPressed = false
+
+                // Send a message here on shortcut release
+                fmt.Printf("Shortcut released!\n")
+
+                // Pusblish message with default mouse position
+                publishMessage(0)
             }
         }
     }
@@ -107,6 +151,51 @@ const (
     // Add any other virtual key codes you need
 )
 
+type Shortcut [3]int
+
+func (kh *KeyboardHook) checkModifiers() bool {
+    getKeyState := user32.NewProc("GetKeyState")
+    for _, mod := range kh.modKeys {
+        state, _, _ := getKeyState.Call(uintptr(mod))
+        if (state & 0x8000) == 0 {
+            return false
+        }
+    }
+    return true
+}
+
+func FindKeyByValue(value int) string {
+    for key, val := range KeyMap {
+        if val == value {
+            return key
+        }
+    }
+    return ""
+}
+
+func printShortcut(shortcut []int) {
+    shortcutNames := []string{}
+    for _, keyValue := range shortcut {
+        shortcutNames = append(shortcutNames, FindKeyByValue(keyValue))
+    }
+    shortcutString := strings.Join(shortcutNames, " + ")
+    fmt.Printf("Shortcut %s pressed!\n", shortcutString)
+}
+
+func publishMessage(shortcutDetected int, mousePos ...MousePosition) {
+    msg := EventMessage{
+        ShortcutDetected: shortcutDetected,
+    }
+
+    if len(mousePos) > 0 {
+        msg.MousePosition = mousePos[0]
+    } else {
+        msg.MousePosition = MousePosition{X: 100, Y: 100}
+    }
+
+    PublishMessage("mightyPie.events.pie_menu.open", msg)
+    println("Message published to NATS")
+}
 
 var KeyMap = map[string]int{
     // Modifier keys
@@ -169,66 +258,4 @@ var KeyMap = map[string]int{
     "Backtick":  0xC0, "BracketOpen": 0xDB,
     "Backslash": 0xDC, "BracketClose": 0xDD,
     "Quote":     0xDE,
-}
-
-// type KeyCodeEvalutaor func(int) bool
-type Shortcut [3]int
-
-func (kh *KeyboardHook) checkModifiers() bool {
-    getKeyState := user32.NewProc("GetKeyState")
-    for _, mod := range kh.modKeys {
-        state, _, _ := getKeyState.Call(uintptr(mod))
-        if (state & 0x8000) == 0 {
-            return false
-        }
-    }
-    return true
-}
-
-func FindKeyByValue(value int) string {
-    for key, val := range KeyMap {
-        if val == value {
-            return key
-        }
-    }
-    return ""
-}
-
-// TODO: Make input detector work with more or no modifiers
-func MyInputDetector(shortcut Shortcut) bool {
-    hook := NewKeyboardHook(
-        []int{shortcut[0], shortcut[1]}, // modifiers
-        shortcut[2],                     // target key
-        func(key int) bool {
-			// Print the shortcut name
-			shortcutNames := []string{}
-			for _, keyValue := range shortcut {
-				shortcutNames = append(shortcutNames, FindKeyByValue(keyValue))
-			}
-			shortcutString := strings.Join(shortcutNames, " + ")
-			fmt.Printf("Shortcut %s pressed!\n", shortcutString)
-
-            // Publish the message to NATS
-            message := EventMessage{
-                ShortcutDetected: 1,
-                MousePosition: MousePosition{
-                    X: 300,
-                    Y: 300,
-                },
-            }
-
-            PublishMessage("mightyPie.events.pie_menu.open", message)
-            println("Message published to NATS")
-
-			return true
-        },
-    )
-
-    err := hook.Start()
-    if err != nil {
-        fmt.Printf("Error starting keyboard hook: %v\n", err)
-        return false
-    }
-
-    return true
 }
