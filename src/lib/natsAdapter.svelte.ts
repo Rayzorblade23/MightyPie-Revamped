@@ -26,7 +26,7 @@ export function getShortcutDetected() {
     return shortcutDetected;
 }
 
-export function getOpenAtMousePosition() {
+export function pieMenuTargetPos() {
     return mousePosition;
 }
 

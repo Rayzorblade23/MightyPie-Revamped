@@ -2,25 +2,21 @@
     import '../../app.css';
     import PieMenu from '$lib/components/PieMenu.svelte';
     import {getCurrentWindow, LogicalPosition, PhysicalPosition} from '@tauri-apps/api/window';
-    import {getOpenAtMousePosition} from '$lib/natsAdapter.svelte.ts';
+    import {pieMenuTargetPos} from '$lib/natsAdapter.svelte.ts';
     import {invoke} from "@tauri-apps/api/core";
     import {onDestroy} from "svelte";
 
-    let position: { x: number, y: number };
 
     const innerRadius = 150
+    const window = getCurrentWindow();
+
+    let position: { x: number, y: number };
+    let activeSlice = $state(-1);
 
     $effect(() => {
         // Define a synchronous function that calls the asynchronous logic
         const updatePosition = async () => {
-            position = getOpenAtMousePosition();
-            const window = getCurrentWindow();
-            const size = await window.outerSize();
-
-            const centeredX = position.x - size.width / 2;
-            const centeredY = position.y - size.height / 2;
-
-            await window.setPosition(new LogicalPosition(centeredX, centeredY));
+            await centerWindowAtMouse()
 
             console.log(`This is position ${position.x} ${position.y}`);
         };
@@ -28,7 +24,16 @@
         updatePosition();
     });
 
-    function getMouseSlice(x: number, y: number, winSize: { width: number; height: number }, innerRadius: number) {
+
+    async function centerWindowAtMouse() {
+        position = pieMenuTargetPos();
+        const size = await window.outerSize();
+        const centeredX = position.x - size.width / 2;
+        const centeredY = position.y - size.height / 2;
+        await window.setPosition(new LogicalPosition(centeredX, centeredY));
+    }
+
+    function getActivePieSlice(x: number, y: number, winSize: { width: number; height: number }, innerRadius: number) {
         const centerX = winSize.width / 2;
         const centerY = winSize.height / 2;
 
@@ -81,7 +86,6 @@
             // Log the position clearly indicating it's from the interval
             // console.log(`Interval Update (150ms) - Mouse X: ${x}, Y: ${y}`);
 
-            const window = getCurrentWindow();
             const winPos: PhysicalPosition = await window.outerPosition();
             const winSize = await window.outerSize();
 
@@ -92,12 +96,12 @@
             const relY = y - winPos.y;
 
             // Get the slice using the helper function
-            const slice = getMouseSlice(relX, relY, winSize, innerRadius);
+            activeSlice = getActivePieSlice(relX, relY, winSize, innerRadius);
 
-            if (slice === -1) {
+            if (activeSlice === -1) {
                 console.log("Mouse is inside the inner radius (dead zone).");
             } else {
-                console.log(`Mouse is in slice: ${slice}`);
+                console.log(`Mouse is in slice: ${activeSlice}`);
             }
 
         } catch (error) {
@@ -143,6 +147,6 @@
                 <span data-tauri-drag-region class="text-white">Drag Here</span>
             </button>
         </div>
-        <PieMenu/>
+        <PieMenu slice={activeSlice}/>
     </div>
 </main>
