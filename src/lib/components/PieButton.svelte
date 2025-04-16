@@ -1,5 +1,4 @@
 ﻿<script lang="ts">
-    import {Button} from "flowbite-svelte";
 
     export let index: number;
     export let x: number;
@@ -11,7 +10,7 @@
 </script>
 
 <div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
-    <Button class="w-[8.75rem] h-[2.125rem] flex items-center justify-normal">
+    <button class="bg-amber-400 w-[8.75rem] h-[2.125rem] flex items-center justify-normal">
         {buttonText}
-    </Button>
+    </button>
 </div>
