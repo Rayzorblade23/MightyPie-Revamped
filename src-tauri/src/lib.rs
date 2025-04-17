@@ -1,5 +1,5 @@
 use enigo::{Enigo, Mouse, Settings};
-
+use tauri::Manager;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -21,6 +21,11 @@ fn get_mouse_pos() -> (i32, i32) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            window.set_always_on_top(true)?;
+            Ok(())
+        })
 //         .plugin(tauri_plugin_log::Builder::new()
 // //           .level(log::LevelFilter::Trace)
 //             .format(|out, message, record| {

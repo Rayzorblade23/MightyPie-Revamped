@@ -7,8 +7,7 @@
     import {onDestroy} from "svelte";
 
 
-    const innerRadius = 150
-    const window = getCurrentWindow();
+    const deadzoneRadius = 18
 
     let position: { x: number, y: number };
     let activeSlice = $state(-1);
@@ -27,13 +26,23 @@
 
     async function centerWindowAtMouse() {
         position = pieMenuTargetPos();
-        const size = await window.outerSize();
+        const window = getCurrentWindow();
+        const size = await window.outerSize(); // physical pixels
+
+
         const centeredX = position.x - size.width / 2;
         const centeredY = position.y - size.height / 2;
-        await window.setPosition(new LogicalPosition(centeredX, centeredY));
+
+        console.log(`Center of window (logical?): ${centeredX}, ${centeredY}`);
+        console.log(`Size of window (physical?): ${size.width}, ${size.height}`);
+
+        await window.setPosition(new LogicalPosition(1920 - 222, 1540));
     }
 
-    function getActivePieSlice(x: number, y: number, winSize: { width: number; height: number }, innerRadius: number) {
+    function getActivePieSlice(x: number, y: number, winSize: {
+        width: number;
+        height: number
+    }, deadzoneRadius: number) {
         const centerX = winSize.width / 2;
         const centerY = winSize.height / 2;
 
@@ -52,7 +61,7 @@
         const r = Math.sqrt(dx * dx + dy * dy);
 
         // If the distance is smaller than the inner radius, return -1 (dead zone)
-        if (r < innerRadius) {
+        if (r < deadzoneRadius) {
             return -1; // Inside inner radius
         }
 
@@ -80,8 +89,10 @@
 
 
     // The function to get the mouse position via Tauri invoke
-    async function getMousePos() {
+    async function handleActivePieSlice() {
         try {
+            const window = getCurrentWindow();
+
             const [x, y] = await invoke<[number, number]>("get_mouse_pos");
             // Log the position clearly indicating it's from the interval
             // console.log(`Interval Update (150ms) - Mouse X: ${x}, Y: ${y}`);
@@ -96,7 +107,7 @@
             const relY = y - winPos.y;
 
             // Get the slice using the helper function
-            activeSlice = getActivePieSlice(relX, relY, winSize, innerRadius);
+            activeSlice = getActivePieSlice(relX, relY, winSize, deadzoneRadius);
 
             if (activeSlice === -1) {
                 console.log("Mouse is inside the inner radius (dead zone).");
@@ -125,7 +136,7 @@
     // --- Start the Interval ---
     // When the component mounts, start calling getMousePos every 150ms
     console.log("Starting mouse position interval (150ms)...");
-    intervalId = setInterval(getMousePos, 150); // 150 milliseconds interval
+    intervalId = setInterval(handleActivePieSlice, 150); // 150 milliseconds interval
 
     // --- Setup Cleanup ---
     // Use onDestroy to ensure the interval is cleared when the component is destroyed
@@ -141,10 +152,10 @@
     <div class="absolute bg-black/20 border-0 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
         <div class="absolute z-10 pt-0.5 top-19/20 left-19/20">
             <button
-                    data-tauri-drag-region
                     class="w-[140px] h-[34px] flex items-center justify-center-safe"
+                    data-tauri-drag-region
             >
-                <span data-tauri-drag-region class="text-white">Drag Here</span>
+                <span class="text-white" data-tauri-drag-region>Drag Here</span>
             </button>
         </div>
         <PieMenu slice={activeSlice}/>

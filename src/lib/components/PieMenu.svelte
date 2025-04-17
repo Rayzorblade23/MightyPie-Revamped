@@ -87,17 +87,6 @@
     });
 </script>
 
-<button
-        class="
-    px-4 py-2 rounded text-white transition-colors
-    bg-blue-500
-    hover:bg-blue-700
-  "
-class:bg-blue-700={props.slice === 3}
->
-My {props.slice}
-</button>
-
 <div class="relative" style="width: {width}px; height: {height}px;">
     {#each buttonPositions as position, i}
         <PieButton index={i} x={position.x} y={position.y} hovered={props.slice === i}/>

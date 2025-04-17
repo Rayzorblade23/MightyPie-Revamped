@@ -6,8 +6,6 @@ import (
 	"syscall"
 
 	"unsafe"
-
-	"github.com/go-vgo/robotgo"
 )
 
 const (
@@ -45,6 +43,23 @@ type KeyboardHook struct {
     targetKey  int
 }
 
+type point struct {
+	X int32
+	Y int32
+}
+
+func getMousePosition() (int, int, error) {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	getCursorPos := user32.NewProc("GetCursorPos")
+
+	var pt point
+	ret, _, err := getCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	if ret == 0 {
+		return 0, 0, err
+	}
+	return int(pt.X), int(pt.Y), nil
+}
+
 // TODO: Make input detector work with more or no modifiers
 func MyInputDetector(shortcut Shortcut) bool {
     hook := NewKeyboardHook(
@@ -54,7 +69,7 @@ func MyInputDetector(shortcut Shortcut) bool {
 			// Print the shortcut name
             printShortcut(shortcut[:])
 
-            x, y := robotgo.Location()
+            x, y, _ := getMousePosition()
 	        fmt.Printf("Mouse position: x=%d, y=%d\n", x, y)
             
             // Publish the message to NATS
