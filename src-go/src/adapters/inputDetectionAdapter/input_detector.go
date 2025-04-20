@@ -73,7 +73,7 @@ func MyInputDetector(shortcut Shortcut) bool {
 	        fmt.Printf("Mouse position: x=%d, y=%d\n", x, y)
             
             // Publish the message to NATS
-            publishMessage(1, MousePosition{X: x, Y: y})
+            publishMessage(1)
 
 
 			return true
@@ -197,18 +197,15 @@ func printShortcut(shortcut []int) {
     fmt.Printf("Shortcut %s pressed!\n", shortcutString)
 }
 
-func publishMessage(shortcutDetected int, mousePos ...MousePosition) {
+func publishMessage(shortcutDetected int) {
     msg := EventMessage{
         ShortcutDetected: shortcutDetected,
     }
-
-    if len(mousePos) > 0 {
-        msg.MousePosition = mousePos[0]
+    if shortcutDetected == 1 {
+        PublishMessage("mightyPie.events.shortcut_detected", msg)
     } else {
-        msg.MousePosition = MousePosition{X: 100, Y: 100}
+        PublishMessage("mightyPie.events.shortcut_released", msg)
     }
-
-    PublishMessage("mightyPie.events.pie_menu.open", msg)
     println("Message published to NATS")
 }
 

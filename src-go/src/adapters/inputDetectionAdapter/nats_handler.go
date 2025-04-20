@@ -7,14 +7,8 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type MousePosition struct {
-    X int `json:"x"`
-    Y int `json:"y"`
-}
-
 type EventMessage struct {
     ShortcutDetected int           `json:"shortcutDetected"`
-    MousePosition    MousePosition `json:"mousePosition"`
 }
 
 // Global NATS connection

@@ -1,5 +1,6 @@
 ﻿import type {NatsConnection} from 'nats.ws';
 import {connect, Events, JSONCodec, StringCodec} from 'nats.ws';
+import type {Msg} from "nats";
 
 const sc = StringCodec();
 const jc = JSONCodec(); // Example if using JSON
@@ -7,7 +8,7 @@ const jc = JSONCodec(); // Example if using JSON
 
 // Subjects
 export const WINDOW_OPEN_EVENT = "mightyPie.events.window.open";
-export const PIE_MENU_OPEN_EVENT = "mightyPie.events.pie_menu.open";
+export const SHORTCUT_DETECTED_EVENT = "mightyPie.events.shortcut_detected";
 
 // NATS Server WebSocket URL (replace with your actual URL)
 const natsServerUrl = 'ws://localhost:9090'; // Use wss:// for secure
@@ -17,18 +18,6 @@ let natsConnection: NatsConnection | null = null;
 let connectionStatus: string = 'Disconnected';
 let receivedMessages: string[] = [];
 let errorMessage: string = '';
-
-// Reactive variables (using Runes)
-let shortcutDetected = $state(0);
-let mousePosition = $state<MousePosition>({x: 0, y: 0});
-
-export function getShortcutDetected() {
-    return shortcutDetected;
-}
-
-export function pieMenuTargetPos() {
-    return mousePosition;
-}
 
 async function connectToNats() {
     try {
@@ -63,42 +52,43 @@ async function connectToNats() {
                         break;
                 }
             }
-        })();
+        })()
 
-        // Subscribe to a topic
-        const sub = nc.subscribe(PIE_MENU_OPEN_EVENT);
-        (async () => {
-            console.log(`Subscribed to ${sub.getSubject()}`);
-            for await (const msg of sub) {
-                const messageText = sc.decode(msg.data);
-                console.log(`Received message on '${msg.subject}': ${messageText}`);
-
-                try {
-                    // Example of extracting values
-                    const pie_menu_message: IPieMenuMessage = JSON.parse(messageText);
-                    console.log(`Pie_menu_message: ${pie_menu_message}`);
-                    shortcutDetected = pie_menu_message.shortcutDetected; // Update with Runes
-                    if (pie_menu_message.shortcutDetected != 0) {
-                        console.log("Shortcut pressed!");
-                        mousePosition = pie_menu_message.mousePosition; // Update with Runes
-                    }
-
-                } catch (e) {
-                    console.error('Failed to parse message:', e);
-                }
-
-                receivedMessages = [...receivedMessages, messageText]; // Update array with spread
-            }
-            console.log(`Subscription to ${sub.getSubject()} closed.`);
-        })().catch((err: unknown) => {
-            console.error(`Subscription error for ${sub.getSubject()}:`, err);
-            errorMessage = `Subscription error: ${(err as Error).message}`;
-        });
     } catch (err: unknown) {
         console.error('Failed to connect to NATS:', err);
         connectionStatus = 'Connection Failed';
         errorMessage = (err as Error).message || 'Could not connect to NATS server.';
         natsConnection = null;
+    }
+}
+
+export async function subscribeToTopic(topic: string, handleMessage: (message: Msg) => void) {
+    if (!natsConnection || natsConnection.isClosed()) {
+        errorMessage = 'Cannot subscribe: Not connected to NATS.';
+        console.error(errorMessage);
+        await new Promise(f => setTimeout(f, 1000));
+        await subscribeToTopic(topic, handleMessage);
+        return;
+    }
+
+    try {
+        const sub = natsConnection.subscribe(topic);
+        console.log(`Subscribed to topic: ${topic}`);
+
+        (async () => {
+            for await (const msg of sub) {
+                const messageText = sc.decode(msg.data);
+                console.log(`Received message on '${msg.subject}': ${messageText}`);
+                handleMessage(msg); // Use the provided callback to handle the message
+            }
+            console.log(`Subscription to ${topic} closed.`);
+        })().catch((err: unknown) => {
+            console.error(`Subscription error for ${topic}:`, err);
+            errorMessage = `Subscription error: ${(err as Error).message}`;
+        });
+    } catch (err: unknown) {
+        console.error(`Failed to subscribe to topic '${topic}':`, err);
+        errorMessage = `Failed to subscribe: ${(err as Error).message}`;
     }
 }
 
