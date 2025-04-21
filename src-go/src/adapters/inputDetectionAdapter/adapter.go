@@ -6,6 +6,8 @@ import (
 	"syscall"
 
 	"unsafe"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 )
 
 const (
@@ -198,13 +200,13 @@ func printShortcut(shortcut []int) {
 }
 
 func publishMessage(shortcutDetected int) {
-    msg := EventMessage{
+    msg := natsAdapter.EventMessage{
         ShortcutDetected: shortcutDetected,
     }
     if shortcutDetected == 1 {
-        PublishMessage("mightyPie.events.shortcut_detected", msg)
+        natsAdapter.PublishMessage("mightyPie.events.shortcut.detected", msg)
     } else {
-        PublishMessage("mightyPie.events.shortcut_released", msg)
+        natsAdapter.PublishMessage("mightyPie.events.shortcut.released", msg)
     }
     println("Message published to NATS")
 }

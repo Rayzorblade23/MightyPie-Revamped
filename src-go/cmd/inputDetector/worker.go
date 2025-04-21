@@ -2,10 +2,12 @@ package main
 
 import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/inputDetectionAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 )
 
 func main() {
-	inputDetectionAdapter.StartNATS_Connection ()
+	natsConnection := natsAdapter.StartConnection()
+	defer natsConnection.Close()
 
 	println("NATS connection established")
 

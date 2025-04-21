@@ -8,20 +8,17 @@ const jc = JSONCodec(); // Example if using JSON
 
 // Subjects
 export const WINDOW_OPEN_EVENT = "mightyPie.events.window.open";
-export const SHORTCUT_DETECTED_EVENT = "mightyPie.events.shortcut_detected";
+export const SHORTCUT_DETECTED_EVENT = "mightyPie.events.shortcut.detected";
 
 // NATS Server WebSocket URL (replace with your actual URL)
 const natsServerUrl = 'ws://localhost:9090'; // Use wss:// for secure
 const authToken = '5LQ5V4KWPKGRC2LJ8JQGS';
 
 let natsConnection: NatsConnection | null = null;
-let connectionStatus: string = 'Disconnected';
-let receivedMessages: string[] = [];
 let errorMessage: string = '';
 
 async function connectToNats() {
     try {
-        connectionStatus = 'Connecting...';
         const nc = await connect({
             servers: [natsServerUrl],
             reconnectTimeWait: 5000,
@@ -30,33 +27,28 @@ async function connectToNats() {
         });
 
         natsConnection = nc;
-        connectionStatus = `Connected to ${nc.getServer()}`;
         errorMessage = '';
         console.log(`Connected to NATS server: ${nc.getServer()}`);
 
         // Handle connection status events
-        (async () => {
+        let promise = (async () => {
             for await (const status of nc.status()) {
                 console.info(`NATS status event: ${status.type}`, status.data);
                 switch (status.type) {
                     case Events.Disconnect:
-                        connectionStatus = `Disconnected. ${status.data ? `Reason: ${status.data}` : ''}`;
                         break;
                     case Events.Reconnect:
-                        connectionStatus = `Reconnected to ${nc.getServer()}`;
                         break;
                     case Events.Error:
-                        connectionStatus = `Connection Error`;
                         errorMessage = (status.data as { message?: string })?.message || 'Unknown NATS Error';
                         console.error('NATS Error:', status.data);
                         break;
                 }
             }
-        })()
+        })();
 
     } catch (err: unknown) {
         console.error('Failed to connect to NATS:', err);
-        connectionStatus = 'Connection Failed';
         errorMessage = (err as Error).message || 'Could not connect to NATS server.';
         natsConnection = null;
     }
@@ -108,10 +100,9 @@ function closeNatsConnection() {
     }
 }
 
-export interface IMessage {
-    name: string;
-    handle: string;
-    something: number;
+export interface INatsMessage {
+    header: string;
+    body: string;
 }
 
 interface MousePosition {
@@ -124,7 +115,7 @@ export interface IPieMenuMessage {
     mousePosition: MousePosition;
 }
 
-export function publishMessage(subject: string, message: IMessage) {
+export function publishMessage(subject: string, message: INatsMessage) {
     if (!natsConnection || natsConnection.isClosed()) {
         errorMessage = 'Cannot publish: Not connected to NATS.';
         return;

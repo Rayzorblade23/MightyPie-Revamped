@@ -1,4 +1,4 @@
-package inputDetectionAdapter
+package natsAdapter
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type EventMessage struct {
 var natsConnection *nats.Conn
 
 // Handle incoming messages
-func HandleMessage(msg *nats.Msg) {
+func PrintMessage(msg *nats.Msg) {
     var event EventMessage
     if err := json.Unmarshal(msg.Data, &event); err != nil {
         log.Printf("Error unmarshaling message data: %v", err)
@@ -46,12 +46,7 @@ func PublishMessage(subject string, message EventMessage) {
 }
 
 
-func StartNATS_Connection () {
-	go start_Connection()
-}
-
-
-func start_Connection () {
+func StartConnection () (*nats.Conn) {
     // Connect to NATS server with token authentication
     token := "5LQ5V4KWPKGRC2LJ8JQGS"
 	var err error
@@ -59,15 +54,13 @@ func start_Connection () {
     if err != nil {
         log.Fatalf("Error connecting to NATS: %v", err)
     }
-    defer natsConnection.Close()
 
     // // Subscribe to a subject
     // subject := "mightyPie.events.window.open"
-    // _, err = natsConnection.Subscribe(subject, HandleMessage)
+    // _, err = natsConnection.Subscribe(subject, PrintMessage)
     // if err != nil {
     //     log.Fatalf("Error subscribing to subject: %v", err)
     // }
 
-    // Keep the connection alive
-    select {}
+    return natsConnection
 }
