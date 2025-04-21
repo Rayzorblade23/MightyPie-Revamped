@@ -1,6 +1,5 @@
 ﻿import type {NatsConnection} from 'nats.ws';
 import {connect, Events, JSONCodec, StringCodec} from 'nats.ws';
-import type {Msg} from "nats";
 
 const sc = StringCodec();
 const jc = JSONCodec(); // Example if using JSON
@@ -54,32 +53,34 @@ async function connectToNats() {
     }
 }
 
-export async function subscribeToTopic(topic: string, handleMessage: (message: Msg) => void) {
+export async function subscribeToTopic(
+    subject: string,
+    handleMessage: (decodedMsg: string) => void) {
     if (!natsConnection || natsConnection.isClosed()) {
         errorMessage = 'Cannot subscribe: Not connected to NATS.';
         console.error(errorMessage);
         await new Promise(f => setTimeout(f, 1000));
-        await subscribeToTopic(topic, handleMessage);
+        await subscribeToTopic(subject, handleMessage);
         return;
     }
 
     try {
-        const sub = natsConnection.subscribe(topic);
-        console.log(`Subscribed to topic: ${topic}`);
+        const sub = natsConnection.subscribe(subject);
+        console.log(`Subscribed to topic: ${subject}`);
 
         (async () => {
             for await (const msg of sub) {
-                const messageText = sc.decode(msg.data);
-                console.log(`Received message on '${msg.subject}': ${messageText}`);
-                handleMessage(msg); // Use the provided callback to handle the message
+                const decodedString = sc.decode(msg.data);
+                console.log(`Received message on '${msg.subject}': ${decodedString}`);
+                handleMessage(decodedString);
             }
-            console.log(`Subscription to ${topic} closed.`);
+            console.log(`Subscription to ${subject} closed.`);
         })().catch((err: unknown) => {
-            console.error(`Subscription error for ${topic}:`, err);
+            console.error(`Subscription error for ${subject}:`, err);
             errorMessage = `Subscription error: ${(err as Error).message}`;
         });
     } catch (err: unknown) {
-        console.error(`Failed to subscribe to topic '${topic}':`, err);
+        console.error(`Failed to subscribe to topic '${subject}':`, err);
         errorMessage = `Failed to subscribe: ${(err as Error).message}`;
     }
 }
@@ -100,28 +101,17 @@ function closeNatsConnection() {
     }
 }
 
-export interface INatsMessage {
-    header: string;
-    body: string;
-}
 
-interface MousePosition {
-    x: number;
-    y: number;
-}
-
-export interface IPieMenuMessage {
-    shortcutDetected: number;
-    mousePosition: MousePosition;
-}
-
-export function publishMessage(subject: string, message: INatsMessage) {
+export function publishMessage<T>(subject: string, message: T) {
     if (!natsConnection || natsConnection.isClosed()) {
         errorMessage = 'Cannot publish: Not connected to NATS.';
         return;
     }
+
     try {
+        // Ensure message is JSON stringified
         const payload = JSON.stringify(message);
+        // Publish the message using the StringCodec
         natsConnection.publish(subject, sc.encode(payload));
         console.log(`Published to ${subject}: ${payload}`);
         errorMessage = '';
@@ -130,6 +120,7 @@ export function publishMessage(subject: string, message: INatsMessage) {
         errorMessage = `Publish error: ${(err as Error).message}`;
     }
 }
+
 
 // Automatically connect to NATS when this module is loaded
 connectToNats();

@@ -3,20 +3,17 @@ package natsAdapter
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
-type EventMessage struct {
-    ShortcutDetected int           `json:"shortcutDetected"`
-}
-
 // Global NATS connection
 var natsConnection *nats.Conn
 
-// Handle incoming messages
+// Print incoming messages
 func PrintMessage(msg *nats.Msg) {
-    var event EventMessage
+    var event map[string]interface{}
     if err := json.Unmarshal(msg.Data, &event); err != nil {
         log.Printf("Error unmarshaling message data: %v", err)
         return
@@ -24,8 +21,8 @@ func PrintMessage(msg *nats.Msg) {
     log.Printf("Received message on subject %s: %+v", msg.Subject, event)
 }
 
-// Function to publish a message
-func PublishMessage(subject string, message EventMessage) {
+
+func PublishMessage(subject string, message interface{}) {
     if natsConnection == nil {
         log.Println("NATS connection is not established")
         return
@@ -44,6 +41,33 @@ func PublishMessage(subject string, message EventMessage) {
         log.Printf("Message successfully published to subject: %s", subject)
     }
 }
+
+func SubscribeToTopic(subject string, handleMessage func(*nats.Msg)) {
+    if natsConnection == nil || natsConnection.IsClosed() {
+        log.Printf("Cannot subscribe: Not connected to NATS. Retrying in 1s...")
+        time.Sleep(1 * time.Second)
+        SubscribeToTopic(subject, handleMessage)
+        return
+    }
+
+    sub, err := natsConnection.Subscribe(subject, func(msg *nats.Msg) {
+        log.Printf("Received message on '%s': %s", msg.Subject, string(msg.Data))
+        handleMessage(msg)
+    })
+
+    if err != nil {
+        log.Printf("Failed to subscribe to topic '%s': %v", subject, err)
+        return
+    }
+
+    log.Printf("Subscribed to topic: %s", subject)
+
+    // Optional: keep sub alive or handle lifecycle explicitly
+    // Add cleanup/Unsubscribe logic as needed
+    _ = sub
+}
+
+
 
 
 func StartConnection () (*nats.Conn) {

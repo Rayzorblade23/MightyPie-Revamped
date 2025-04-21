@@ -1,4 +1,4 @@
-package inputDetectionAdapter
+package shortcutDetectionAdapter
 
 import (
 	"fmt"
@@ -63,7 +63,7 @@ func getMousePosition() (int, int, error) {
 }
 
 // TODO: Make input detector work with more or no modifiers
-func MyInputDetector(shortcut Shortcut) bool {
+func ShortcutDetector(shortcut Shortcut) bool {
     hook := NewKeyboardHook(
         []int{shortcut[0], shortcut[1]}, // modifiers
         shortcut[2],                     // target key
@@ -199,10 +199,16 @@ func printShortcut(shortcut []int) {
     fmt.Printf("Shortcut %s pressed!\n", shortcutString)
 }
 
+type EventMessage struct {
+    ShortcutDetected int `json:"shortcutDetected"`
+}
+
 func publishMessage(shortcutDetected int) {
-    msg := natsAdapter.EventMessage{
+
+    msg := EventMessage{
         ShortcutDetected: shortcutDetected,
     }
+
     if shortcutDetected == 1 {
         natsAdapter.PublishMessage("mightyPie.events.shortcut.detected", msg)
     } else {

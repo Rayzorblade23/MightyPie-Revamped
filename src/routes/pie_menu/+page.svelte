@@ -3,30 +3,32 @@
     import PieMenu from '$lib/components/PieMenu.svelte';
     import {currentMonitor, getCurrentWindow, LogicalPosition, monitorFromPoint} from '@tauri-apps/api/window';
     import {getMousePosition} from "$lib/mouseFunctions.ts";
+    import {onMount} from "svelte";
     import {SHORTCUT_DETECTED_EVENT, subscribeToTopic} from "$lib/natsAdapter.ts";
-    import {StringCodec} from "nats.ws";
 
 
     let mousePosition: { x: number, y: number };
 
+    interface IShortcutDetectedMessage {
+        shortcutDetected: number;
+    }
 
     subscribeToTopic(SHORTCUT_DETECTED_EVENT, message => {
-        centerWindowAtMouse();
-        const messageText = StringCodec().decode(message.data);
-        console.log(`Received message on '${message.subject}': ${messageText}`);
+        try {
+            const shortcutDetectedMsg: IShortcutDetectedMessage = JSON.parse(message);
+
+            if (shortcutDetectedMsg.shortcutDetected == 1) {
+                centerWindowAtMouse();
+            }
+        } catch (e) {
+            console.error('Failed to parse message:', e);
+        }
     })
 
-
-    // $effect(() => {
-    //     // Define a synchronous function that calls the asynchronous logic
-    //     const updatePosition = async () => {
-    //         await centerWindowAtMouse()
-    //
-    //         console.log(`This is position ${position.x} ${position.y}`);
-    //     };
-    //
-    //     updatePosition();
-    // });
+    onMount(() => {
+        centerWindowAtMouse();
+        console.log("Pie Menu opened!");
+    });
 
 
     async function centerWindowAtMouse() {
