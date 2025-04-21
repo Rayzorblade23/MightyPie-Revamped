@@ -14,6 +14,7 @@ var (
 	getMessage           = user32.NewProc("GetMessageW")
 
 	mouseHook syscall.Handle
+	hookEnabled bool
 )
 
 const (
@@ -25,8 +26,11 @@ const (
 	WM_RBUTTONUP   = 0x0205
 )
 
-
 func Run() {
+	go startMouseHook()
+}
+
+func startMouseHook() {
 	hookProc := syscall.NewCallback(mouseHookProc)
 	h, _, _ := setWindowsHookEx.Call(uintptr(WH_MOUSE_LL), hookProc, 0, 0)
 	mouseHook = syscall.Handle(h)
@@ -48,6 +52,11 @@ func Run() {
 }
 
 func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
+	if !hookEnabled {
+		ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+		return ret
+	}
+
 	if nCode == 0 {
 		switch wParam {
 		case WM_LBUTTONDOWN:
@@ -63,9 +72,19 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 
 // You can define these handlers however you want
 func handleLeftClick() {
-	fmt.Println("Left click detected and blocked")
+	fmt.Println("Left click detected and blocked!")
 }
 
 func handleRightClick() {
-	fmt.Println("Right click detected and blocked")
+	fmt.Println("Right click detected and passed!")
+}
+
+// setMouseHookState enables or disables the mouse hook
+func SetMouseHookState(enable bool) {
+	hookEnabled = enable
+	if hookEnabled {
+		fmt.Println("Mouse hook enabled")
+	} else {
+		fmt.Println("Mouse hook disabled")
+	}
 }

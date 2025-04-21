@@ -1,6 +1,6 @@
 <script lang="ts">
     import '../app.css'; // Import from src/app.css
-    import {publishMessage, SHORTCUT_DETECTED_EVENT, subscribeToTopic, WINDOW_OPEN_EVENT,} from "$lib/natsAdapter.ts";
+    import {publishMessage, SHORTCUT_DETECTED_EVENT, subscribeToTopic,} from "$lib/natsAdapter.ts";
     import {onMount} from "svelte";
     import {getCurrentWindow, LogicalPosition} from "@tauri-apps/api/window";
     import {goto} from "$app/navigation";
@@ -33,10 +33,9 @@
 
     <div class="bg-amber-950 w-screen h-screen flex items-center justify-center">
         <button class="absolute top-4 right-4 bg-amber-200" onclick={
-        () => publishMessage(WINDOW_OPEN_EVENT,{
-            name:"Peter",
-            handle: "myHandle",
-            something: 3.14})
+        () => publishMessage(SHORTCUT_DETECTED_EVENT,{
+            shortcutDetected: 1
+        })
             }>
             Publish some message, I guess.
         </button>

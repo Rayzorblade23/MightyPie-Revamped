@@ -21,15 +21,22 @@ func main() {
 
 	natsAdapter.SubscribeToTopic("mightyPie.events.shortcut.detected", func(msg *nats.Msg) {
     
-		var event EventMessage
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
+		var message EventMessage
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			println("Failed to decode message: %v", err)
 			return
 		}
 
-		fmt.Printf("Shortcut detected: %+v", event)
+		fmt.Printf("Shortcut detected: %+v", message)
+
+		if message.ShortcutDetected == 1 {
+			mouseInputAdapter.SetMouseHookState(true)	
+		}
 	})
 
 
 	println("Mouse input handler started")
+
+	select {} // blocks forever
+
 }
