@@ -1,13 +1,15 @@
 ﻿<script lang="ts">
     import '../../app.css';
     import PieMenu from '$lib/components/PieMenu.svelte';
-    import {currentMonitor, getCurrentWindow, LogicalPosition, monitorFromPoint} from '@tauri-apps/api/window';
+    import {getCurrentWindow, LogicalPosition, monitorFromPoint} from '@tauri-apps/api/window';
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {onMount} from "svelte";
     import {SHORTCUT_DETECTED_EVENT, subscribeToTopic} from "$lib/natsAdapter.ts";
 
 
     let mousePosition: { x: number, y: number };
+
+    let monitorScaleFactor: number = 1;
 
     interface IShortcutDetectedMessage {
         shortcutDetected: number;
@@ -36,50 +38,42 @@
 
         const monitor = await monitorFromPoint(mousePosition.x, mousePosition.y);
 
-        // TODO: Check if changing from currentWindowMonitor to targetMonitor
-        const currentWindowMonitor = await currentMonitor();
+        if (!monitor) return console.log("Monitor not found");
 
-        if (!monitor) {
-            console.log("Monitor not found");
-            return;
+        const targetMonitorScaleFactor = monitor.scaleFactor;
+
+        // Get window properties
+        const window = getCurrentWindow();
+        const size = await window.outerSize();
+        const windowScaleFactor = await window.scaleFactor();
+
+        let windowSizeAdjX = 0;
+        let windowSizeAdjY = 0;
+
+        if (targetMonitorScaleFactor != monitorScaleFactor) {
+            console.log("Monitor Status: First time on this monitor!");
+            monitorScaleFactor = targetMonitorScaleFactor;
+            windowSizeAdjX = size.width * (targetMonitorScaleFactor / windowScaleFactor);
+            windowSizeAdjY = size.height * (targetMonitorScaleFactor / windowScaleFactor);
+        } else {
+            console.log("Monitor Status: Been on this monitor before!");
+            windowSizeAdjX = size.width;
+            windowSizeAdjY = size.height;
         }
 
-        const monitorPosition = monitor.position;
+        const windowPosCenteredX = mousePosition.x - windowSizeAdjX / 2
+        const windowPosCenteredY = mousePosition.y - windowSizeAdjY / 2
 
-        // console.log(`Monitor position: ${monitorPosition.x} ${monitorPosition.y}`);
+        // Make logical and pixel perfect
+        const centeredX = Math.floor(windowPosCenteredX / windowScaleFactor);
+        const centeredY = Math.floor(windowPosCenteredY / windowScaleFactor);
 
-        const window = getCurrentWindow();
-        const size = await window.outerSize(); // physical pixels
-
-        let windowScaleFactor = await window.scaleFactor();
-        console.log(`Window Scale Factor): ${windowScaleFactor}`);
-
-        let targetMonitorScaleFactor = monitor.scaleFactor;
-        // console.log(`Position Physical: ${mousePosition.x}, ${mousePosition.y}`);
-
-        let windowSizeAdjX = size.width;
-        let windowSizeAdjY = size.height;
-
-        console.log(`Size of window (physical?): ${windowSizeAdjX}, ${windowSizeAdjY}`);
-        console.log(`Current Scale Factor): ${targetMonitorScaleFactor}`);
-
-        const targetMonitorPosX = monitorPosition ? monitorPosition.x : 0;
-        const targetMonitorPosY = monitorPosition ? monitorPosition.y : 0;
-
-        const currentMonMousePosY = mousePosition.y - targetMonitorPosY;
-        const currentMonMousePosX = mousePosition.x - targetMonitorPosX;
-
-        const X = Math.floor(targetMonitorPosX / windowScaleFactor + currentMonMousePosX / windowScaleFactor);
-        const Y = Math.floor(targetMonitorPosY / windowScaleFactor + currentMonMousePosY / windowScaleFactor);
-
-
-        const centeredX = Math.floor(X - windowSizeAdjX / 2 * (1 + targetMonitorScaleFactor - windowScaleFactor));
-        const centeredY = Math.floor(Y - windowSizeAdjY / 2 * (1 + targetMonitorScaleFactor - windowScaleFactor));
-
+        console.log("Target Monitor Scale Factor: ", targetMonitorScaleFactor);
+        console.log("Window Scale Factor:", windowScaleFactor)
 
         await window.setPosition(new LogicalPosition(centeredX, centeredY));
 
-        // console.log(`Center of window (logical?): ${centeredX}, ${centeredY}`);
+        console.log(`Center of window (logical?): ${centeredX}, ${centeredY}`);
     }
 
 
