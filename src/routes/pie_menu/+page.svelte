@@ -33,16 +33,33 @@
     });
 
 
+    function clampToBounds(
+        x: number,
+        y: number,
+        windowWidth: number,
+        windowHeight: number,
+        monitorWidth: number,
+        monitorHeight: number,
+        monitorX: number,
+        monitorY: number
+    ) {
+        const minX = monitorX;
+        const minY = monitorY;
+        const maxX = monitorX + monitorWidth - windowWidth;
+        const maxY = monitorY + monitorHeight - windowHeight;
+
+        return {
+            x: Math.min(Math.max(x, minX), maxX),
+            y: Math.min(Math.max(y, minY), maxY),
+        };
+    }
+
     async function centerWindowAtMouse() {
         mousePosition = await getMousePosition();
-
         const monitor = await monitorFromPoint(mousePosition.x, mousePosition.y);
-
         if (!monitor) return console.log("Monitor not found");
 
         const targetMonitorScaleFactor = monitor.scaleFactor;
-
-        // Get window properties
         const window = getCurrentWindow();
         const size = await window.outerSize();
         const windowScaleFactor = await window.scaleFactor();
@@ -50,7 +67,7 @@
         let windowSizeAdjX = 0;
         let windowSizeAdjY = 0;
 
-        if (targetMonitorScaleFactor != monitorScaleFactor) {
+        if (targetMonitorScaleFactor !== monitorScaleFactor) {
             console.log("Monitor Status: First time on this monitor!");
             monitorScaleFactor = targetMonitorScaleFactor;
             windowSizeAdjX = size.width * (targetMonitorScaleFactor / windowScaleFactor);
@@ -61,19 +78,27 @@
             windowSizeAdjY = size.height;
         }
 
-        const windowPosCenteredX = mousePosition.x - windowSizeAdjX / 2
-        const windowPosCenteredY = mousePosition.y - windowSizeAdjY / 2
+        let windowPosCenteredX = mousePosition.x - windowSizeAdjX / 2;
+        let windowPosCenteredY = mousePosition.y - windowSizeAdjY / 2;
 
-        // Make logical and pixel perfect
-        const centeredX = Math.floor(windowPosCenteredX / windowScaleFactor);
-        const centeredY = Math.floor(windowPosCenteredY / windowScaleFactor);
+        // Clamp to monitor bounds
+        const clamped = clampToBounds(
+            windowPosCenteredX,
+            windowPosCenteredY,
+            windowSizeAdjX,
+            windowSizeAdjY,
+            monitor.size.width,
+            monitor.size.height,
+            monitor.position.x,
+            monitor.position.y
+        );
 
-        console.log("Target Monitor Scale Factor: ", targetMonitorScaleFactor);
-        console.log("Window Scale Factor:", windowScaleFactor)
+        const logicalX = Math.floor(clamped.x / windowScaleFactor);
+        const logicalY = Math.floor(clamped.y / windowScaleFactor);
 
-        await window.setPosition(new LogicalPosition(centeredX, centeredY));
+        await window.setPosition(new LogicalPosition(logicalX, logicalY));
 
-        console.log(`Center of window (logical?): ${centeredX}, ${centeredY}`);
+        console.log(`Window centered to (logical): ${logicalX}, ${logicalY}`);
     }
 
 
