@@ -1,10 +1,45 @@
 package mouseInputAdapter
 
 import (
+	"encoding/json"
 	"fmt"
 	"syscall"
 	"unsafe"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/nats-io/nats.go"
 )
+
+const subject = "mightyPie.events.shortcut.detected"
+
+type EventMessage struct {
+	ShortcutDetected int `json:"shortcutDetected"`
+}
+
+type MouseInputAdapter struct {
+	natsAdapter *natsAdapter.NatsAdapter
+}
+
+func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
+	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
+		
+		var message EventMessage
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			println("Failed to decode message: %v", err)
+			return
+		}
+		
+		fmt.Printf("Shortcut detected: %+v", message)
+		
+		if message.ShortcutDetected == 1 {
+			SetMouseHookState(true)	
+		}
+	})
+	return &MouseInputAdapter{
+		natsAdapter: natsAdapter,
+	}
+}
+
 
 var (
 	user32               = syscall.NewLazyDLL("user32.dll")
@@ -26,11 +61,10 @@ const (
 	WM_RBUTTONUP   = 0x0205
 )
 
-func Run() {
-	go startMouseHook()
-}
 
-func startMouseHook() {
+func (a *MouseInputAdapter) Run() {
+	
+
 	hookProc := syscall.NewCallback(mouseHookProc)
 	h, _, _ := setWindowsHookEx.Call(uintptr(WH_MOUSE_LL), hookProc, 0, 0)
 	mouseHook = syscall.Handle(h)

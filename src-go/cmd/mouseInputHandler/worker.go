@@ -1,42 +1,19 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/mouseInputAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
-	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	natsConnection := natsAdapter.StartConnection()
-	defer natsConnection.Close()
-
-	mouseInputAdapter.Run()
-
-	type EventMessage struct {
-		ShortcutDetected int `json:"shortcutDetected"`
+	natsAdapter, err := natsAdapter.New()
+	if err != nil {
+		panic(err)
 	}
-
-	natsAdapter.SubscribeToTopic("mightyPie.events.shortcut.detected", func(msg *nats.Msg) {
-    
-		var message EventMessage
-		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			println("Failed to decode message: %v", err)
-			return
-		}
-
-		fmt.Printf("Shortcut detected: %+v", message)
-
-		if message.ShortcutDetected == 1 {
-			mouseInputAdapter.SetMouseHookState(true)	
-		}
-	})
-
+	
+	mouseInputAdapter := mouseInputAdapter.New(natsAdapter)
 
 	println("Mouse input handler started")
-
-	select {} // blocks forever
-
+	
+	mouseInputAdapter.Run()
 }

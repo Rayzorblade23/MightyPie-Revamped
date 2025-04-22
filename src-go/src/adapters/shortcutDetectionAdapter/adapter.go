@@ -1,6 +1,7 @@
 package shortcutDetectionAdapter
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"syscall"
@@ -8,7 +9,67 @@ import (
 	"unsafe"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/nats-io/nats.go"
 )
+
+const subject = "mightyPie.events.shortcut.detected"
+
+type ShortcutDetectionAdapter struct {
+	natsAdapter *natsAdapter.NatsAdapter
+    keyboardHook *KeyboardHook
+}
+
+func New (natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
+	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
+		
+		var message EventMessage
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			println("Failed to decode message: %v", err)
+			return
+		}
+		
+		fmt.Printf("Shortcut detected: %+v", message)
+
+	})
+
+	keys := []string{
+		"Shift",
+		"Ctrl",
+		"D",
+	}
+
+	shortcut := Shortcut{
+		KeyMap[keys[0]],
+		KeyMap[keys[1]],
+		KeyMap[keys[2]],
+	}
+
+    shortcutDetectionAdapter := &ShortcutDetectionAdapter{
+        natsAdapter: natsAdapter,
+    }
+
+    hook := NewKeyboardHook(
+        []int{shortcut[0], shortcut[1]}, // modifiers
+        shortcut[2],                     // target key
+        func(key int) bool {
+			// Print the shortcut name
+            printShortcut(shortcut[:])
+
+            x, y, _ := getMousePosition()
+	        fmt.Printf("Mouse position: x=%d, y=%d\n", x, y)
+            
+            // Publish the message to NATS
+            shortcutDetectionAdapter.publishMessage(1)
+
+			return true
+        },
+    )
+
+    shortcutDetectionAdapter.keyboardHook = hook
+
+	return shortcutDetectionAdapter
+}
+
 
 const (
     WH_KEYBOARD_LL = 13
@@ -62,35 +123,6 @@ func getMousePosition() (int, int, error) {
 	return int(pt.X), int(pt.Y), nil
 }
 
-// TODO: Make input detector work with more or no modifiers
-func ShortcutDetector(shortcut Shortcut) bool {
-    hook := NewKeyboardHook(
-        []int{shortcut[0], shortcut[1]}, // modifiers
-        shortcut[2],                     // target key
-        func(key int) bool {
-			// Print the shortcut name
-            printShortcut(shortcut[:])
-
-            x, y, _ := getMousePosition()
-	        fmt.Printf("Mouse position: x=%d, y=%d\n", x, y)
-            
-            // Publish the message to NATS
-            publishMessage(1)
-
-
-			return true
-        },
-    )
-
-    err := hook.Start()
-    if err != nil {
-        fmt.Printf("Error starting keyboard hook: %v\n", err)
-        return false
-    }
-
-    return true
-}
-
 func NewKeyboardHook(modifiers []int, key int, callback func(key int) bool) *KeyboardHook {
     return &KeyboardHook{
         callback:  callback,
@@ -99,30 +131,30 @@ func NewKeyboardHook(modifiers []int, key int, callback func(key int) bool) *Key
     }
 }
 
-func (kh *KeyboardHook) hookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
+func (a *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
     if nCode == 0 {
         kbd := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
         
         if wParam == WM_KEYDOWN {
-            if int(kbd.VKCode) == kh.targetKey && kh.checkModifiers() {
-                if !kh.isPressed {
-                    kh.isPressed = true
-                    if kh.callback != nil {
-                        kh.callback(int(kbd.VKCode))
+            if int(kbd.VKCode) == a.keyboardHook.targetKey && a.keyboardHook.checkModifiers() {
+                if !a.keyboardHook.isPressed {
+                    a.keyboardHook.isPressed = true
+                    if a.keyboardHook.callback != nil {
+                        a.keyboardHook.callback(int(kbd.VKCode))
                     }
                 }
                 // Prevent the key event from being passed to other applications
                 return 1
             }
         } else if wParam == WM_KEYUP || wParam == WM_SYSKEYUP {
-            if int(kbd.VKCode) == kh.targetKey && kh.isPressed {
-                kh.isPressed = false
+            if int(kbd.VKCode) == a.keyboardHook.targetKey && a.keyboardHook.isPressed {
+                a.keyboardHook.isPressed = false
 
                 // Send a message here on shortcut release
                 fmt.Printf("Shortcut released!\n")
 
                 // Pusblish message with default mouse position
-                publishMessage(0)
+                a.publishMessage(0)
             }
         }
     }
@@ -131,8 +163,8 @@ func (kh *KeyboardHook) hookProc(nCode int, wParam uintptr, lParam uintptr) uint
     return ret
 }
 
-func (kh *KeyboardHook) Start() error {
-    hookProc := syscall.NewCallback(kh.hookProc)
+func (a *ShortcutDetectionAdapter) Run() error {
+    hookProc := syscall.NewCallback(a.hookProc)
     
     ret, _, err := setWindowsHookEx.Call(
         uintptr(WH_KEYBOARD_LL),
@@ -203,16 +235,16 @@ type EventMessage struct {
     ShortcutDetected int `json:"shortcutDetected"`
 }
 
-func publishMessage(shortcutDetected int) {
+func (a *ShortcutDetectionAdapter) publishMessage(shortcutDetected int) {
 
     msg := EventMessage{
         ShortcutDetected: shortcutDetected,
     }
 
     if shortcutDetected == 1 {
-        natsAdapter.PublishMessage("mightyPie.events.shortcut.detected", msg)
+        a.natsAdapter.PublishMessage("mightyPie.events.shortcut.detected", msg)
     } else {
-        natsAdapter.PublishMessage("mightyPie.events.shortcut.released", msg)
+        a.natsAdapter.PublishMessage("mightyPie.events.shortcut.released", msg)
     }
     println("Message published to NATS")
 }

@@ -1,15 +1,16 @@
 ﻿<script lang="ts">
     import '../../app.css';
     import PieMenu from '$lib/components/PieMenu.svelte';
-    import {getCurrentWindow, LogicalPosition, monitorFromPoint} from '@tauri-apps/api/window';
+    import {getCurrentWindow, LogicalPosition, LogicalSize, monitorFromPoint,} from '@tauri-apps/api/window';
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {onMount} from "svelte";
     import {SHORTCUT_DETECTED_EVENT, subscribeToTopic} from "$lib/natsAdapter.ts";
+    import {PhysicalPosition, PhysicalSize} from "@tauri-apps/api/dpi";
 
 
     let mousePosition: { x: number, y: number };
 
-    let monitorScaleFactor: number = 1;
+    let _monitorScaleFactor: number = 1;
 
     interface IShortcutDetectedMessage {
         shortcutDetected: number;
@@ -34,63 +35,58 @@
 
 
     function clampToBounds(
-        x: number,
-        y: number,
-        windowWidth: number,
-        windowHeight: number,
-        monitorWidth: number,
-        monitorHeight: number,
-        monitorX: number,
-        monitorY: number
-    ) {
-        const minX = monitorX;
-        const minY = monitorY;
-        const maxX = monitorX + monitorWidth - windowWidth;
-        const maxY = monitorY + monitorHeight - windowHeight;
+        pos: LogicalPosition | PhysicalPosition,
+        windowSize: LogicalSize | PhysicalSize,
+        monitorSize: LogicalSize | PhysicalSize,
+        monitorPos: LogicalPosition | PhysicalPosition,
+    ): LogicalPosition | PhysicalPosition {
+        const minX = monitorPos.x;
+        const minY = monitorPos.y;
+        const maxX = monitorPos.x + monitorSize.width - windowSize.width;
+        const maxY = monitorPos.y + monitorSize.height - windowSize.height;
 
-        return {
-            x: Math.min(Math.max(x, minX), maxX),
-            y: Math.min(Math.max(y, minY), maxY),
-        };
+        if (pos instanceof LogicalPosition) {
+            return new LogicalPosition(Math.min(Math.max(pos.x, minX), maxX), Math.min(Math.max(pos.y, minY), maxY));
+        } else {
+            return new PhysicalPosition(Math.min(Math.max(pos.x, minX), maxX), Math.min(Math.max(pos.y, minY), maxY));
+        }
+
     }
 
     async function centerWindowAtMouse() {
+        const window = getCurrentWindow();
+        const outerSize = await window.outerSize();
+        const innerSize = await window.innerSize();
+        await window.setSize(new PhysicalSize(0, 0));
+
         mousePosition = await getMousePosition();
         const monitor = await monitorFromPoint(mousePosition.x, mousePosition.y);
         if (!monitor) return console.log("Monitor not found");
 
-        const targetMonitorScaleFactor = monitor.scaleFactor;
-        const window = getCurrentWindow();
-        const size = await window.outerSize();
+        const newScaleFactor = monitor.scaleFactor;
+
         const windowScaleFactor = await window.scaleFactor();
 
-        let windowSizeAdjX = 0;
-        let windowSizeAdjY = 0;
+        let windowSizeAdj = new LogicalSize(0, 0);
 
-        if (targetMonitorScaleFactor !== monitorScaleFactor) {
+        if (newScaleFactor !== _monitorScaleFactor) {
             console.log("Monitor Status: First time on this monitor!");
-            monitorScaleFactor = targetMonitorScaleFactor;
-            windowSizeAdjX = size.width * (targetMonitorScaleFactor / windowScaleFactor);
-            windowSizeAdjY = size.height * (targetMonitorScaleFactor / windowScaleFactor);
+            windowSizeAdj.width = outerSize.width * (newScaleFactor / windowScaleFactor);
+            windowSizeAdj.height = outerSize.height * (newScaleFactor / windowScaleFactor);
         } else {
             console.log("Monitor Status: Been on this monitor before!");
-            windowSizeAdjX = size.width;
-            windowSizeAdjY = size.height;
+            windowSizeAdj.width = outerSize.width;
+            windowSizeAdj.height = outerSize.height;
         }
+        _monitorScaleFactor = newScaleFactor;
 
-        let windowPosCenteredX = mousePosition.x - windowSizeAdjX / 2;
-        let windowPosCenteredY = mousePosition.y - windowSizeAdjY / 2;
+        let windowPosCentered = new LogicalPosition(mousePosition.x - windowSizeAdj.width / 2, mousePosition.y - windowSizeAdj.height / 2);
 
-        // Clamp to monitor bounds
         const clamped = clampToBounds(
-            windowPosCenteredX,
-            windowPosCenteredY,
-            windowSizeAdjX,
-            windowSizeAdjY,
-            monitor.size.width,
-            monitor.size.height,
-            monitor.position.x,
-            monitor.position.y
+            windowPosCentered,
+            windowSizeAdj,
+            monitor.size,
+            monitor.position,
         );
 
         const logicalX = Math.floor(clamped.x / windowScaleFactor);
@@ -98,7 +94,9 @@
 
         await window.setPosition(new LogicalPosition(logicalX, logicalY));
 
-        console.log(`Window centered to (logical): ${logicalX}, ${logicalY}`);
+        let newSize = new LogicalSize(innerSize.width / windowScaleFactor, innerSize.height / windowScaleFactor);
+
+        await window.setSize(newSize);
     }
 
 
