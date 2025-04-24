@@ -104,14 +104,6 @@
 
 <main>
     <div class="absolute bg-black/20 border-0 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        <div class="absolute z-10 pt-0.5 top-19/20 left-19/20">
-            <button
-                    class="w-[140px] h-[34px] flex items-center justify-center-safe"
-                    data-tauri-drag-region
-            >
-                <span class="text-white" data-tauri-drag-region>Drag Here</span>
-            </button>
-        </div>
         <PieMenu/>
     </div>
 </main>

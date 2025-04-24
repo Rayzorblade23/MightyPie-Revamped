@@ -3,6 +3,7 @@
     import {onDestroy, onMount} from 'svelte';
     import {getCurrentWindow, PhysicalPosition} from "@tauri-apps/api/window";
     import {getMousePosition} from "$lib/mouseFunctions.ts";
+    import {fly} from 'svelte/transition';
 
     const numButtons = 8;
     const radius = 150;
@@ -69,7 +70,10 @@
         return {x, y};
     }
 
-    function getActivePieSlice(x: number, y: number, winSize: { width: number; height: number }, deadzoneRadius: number) {
+    function getActivePieSlice(x: number, y: number, winSize: {
+        width: number;
+        height: number
+    }, deadzoneRadius: number) {
         const centerX = winSize.width / 2;
         const centerY = winSize.height / 2;
 
@@ -175,16 +179,28 @@
 </script>
 
 <div class="relative" style="width: {width}px; height: {height}px;">
-{#each buttonPositions as position, i}
-    <PieButton index={i} x={position.x} y={position.y} hovered={activeSlice === i}/>
-{/each}
+    {#each buttonPositions as position, i}
+        <div
+                style="position: absolute; left: {position.x}px; top: {position.y}px;"
+                transition:fly={{
+                x: -(position.x - width/2),
+                y: -(position.y - height/2),
+                duration: 150,
+                opacity: 0
+
+            }}
+        >
+            <PieButton index={i} x={0} y={0} hovered={activeSlice === i}/>
+        </div>
+    {/each}
 </div>
 
 <style>
-.relative {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    backdrop-filter: brightness(50%);
-}
+    .relative {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: brightness(50%);
+        position: relative;
+    }
 </style>
