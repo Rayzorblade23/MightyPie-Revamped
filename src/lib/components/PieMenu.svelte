@@ -20,6 +20,24 @@
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
 
+    interface MouseEvent {
+        left_down: string;
+        left_up: string;
+        right_down: string;
+        right_up: string;
+        middle_down: string;
+        middle_up: string;
+    }
+
+    const mouseEvents: MouseEvent = {
+        left_down: "left_down",
+        left_up: "left_up",
+        right_down: "right_down",
+        right_up: "right_up",
+        middle_down: "middle_down",
+        middle_up: "middle_up",
+    };
+
     interface IPiemenuOpenedMessage {
         piemenuOpened: boolean;
     }
@@ -28,16 +46,19 @@
         click: string;
     }
 
+    // TODO: Send the clicked slice info to a Trigger Adapter
     subscribeToTopic(NatsSubjects.PIEMENU.CLICK, message => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
 
-            if (clickMsg.click == "left") {
-                console.log("Left click from Go!");
-            } else if (clickMsg.click == "right") {
-                console.log("Right click from Go!");
+            if (clickMsg.click == mouseEvents.left_up) {
+                console.log(`Left click in Slice: ${activeSlice}!`);
+            } else if (clickMsg.click == mouseEvents.right_up) {
+                console.log(`Right click in Slice: ${activeSlice}!`);
                 publishMessage<IPiemenuOpenedMessage>(NatsSubjects.PIEMENU.OPENED, {piemenuOpened: false})
                 goto('/');
+            } else if (clickMsg.click == mouseEvents.middle_up) {
+                console.log(`Middle click in Slice: ${activeSlice}!`);
             }
         } catch (e) {
             console.error('Failed to parse message:', e);
@@ -159,11 +180,11 @@
 
             activeSlice = getActivePieSlice(relX, relY, winSize, deadzoneRadius);
 
-            if (activeSlice === -1) {
-                console.log("Mouse is inside the inner radius (dead zone).");
-            } else {
-                console.log(`Mouse is in slice: ${activeSlice}`);
-            }
+            // if (activeSlice === -1) {
+            //     console.log("Mouse is inside the inner radius (dead zone).");
+            // } else {
+            //     console.log(`Mouse is in slice: ${activeSlice}`);
+            // }
         } catch (error) {
             console.log("Error fetching mouse position:", error);
         }

@@ -48,6 +48,10 @@ func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 	}
 }
 
+type MouseEvent struct {
+    Button string // "left", "right", "middle"
+    State  string // "down", "up"
+}
 
 var (
 	user32               = syscall.NewLazyDLL("user32.dll")
@@ -68,6 +72,8 @@ const (
 	WM_LBUTTONUP   = 0x0202
 	WM_RBUTTONDOWN = 0x0204
 	WM_RBUTTONUP   = 0x0205
+	WM_MBUTTONDOWN = 0x0207
+	WM_MBUTTONUP   = 0x0208
 )
 
 
@@ -99,43 +105,44 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 		ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 		return ret
 	}
-
-	if nCode == 0 {
-		switch wParam {
-		case WM_LBUTTONDOWN:
-			adapter.handleLeftClick()
-			return 1 // block
-		case WM_RBUTTONDOWN:
-			adapter.handleRightClick()
-		}
+	
+    if nCode == 0 {
+        switch wParam {
+        case WM_LBUTTONDOWN:
+            adapter.handleClick("left", "down")
+            return 1 // block
+        case WM_LBUTTONUP:
+            adapter.handleClick("left", "up")
+            return 1 // block
+        case WM_RBUTTONDOWN:
+            adapter.handleClick("right", "down")
+            return 1 // block
+        case WM_RBUTTONUP:
+            adapter.handleClick("right", "up")
+            return 1 // block
+        case WM_MBUTTONDOWN:
+            adapter.handleClick("middle", "down")
+            return 1 // block
+        case WM_MBUTTONUP:
+            adapter.handleClick("middle", "up")
+            return 1 // block
+        }
 	}
 	ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 	return ret
 }
 
-// You can define these handlers however you want
-func (a *MouseInputAdapter) handleLeftClick() {
-	fmt.Println("Left click detected and blocked!")
-	a.publishMessage("left")
-
+func (a *MouseInputAdapter) handleClick(button string, state string) {
+    fmt.Printf("%s button %s detected and blocked!\n", button, state)
+    a.publishMessage(MouseEvent{Button: button, State: state})
 }
 
-func (a *MouseInputAdapter) handleRightClick() {
-	fmt.Println("Right click detected and passed!")
-	a.publishMessage("right")
-}
-
-func (a *MouseInputAdapter) publishMessage(clickType string) {
-
+// Update publishMessage to handle the new MouseEvent type
+func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
     msg := piemenuClick_Message{
-        Click: clickType,
+        Click: fmt.Sprintf("%s_%s", event.Button, event.State),
     }
-
-    if clickType == "left" {
-        a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
-    } else if clickType == "right" {
-        a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
-    }
+    a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
     println("Message published to NATS")
 }
 
