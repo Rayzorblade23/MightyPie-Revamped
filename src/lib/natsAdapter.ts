@@ -5,10 +5,6 @@ const sc = StringCodec();
 const jc = JSONCodec(); // Example if using JSON
 
 
-// Subjects
-export const WINDOW_OPEN_EVENT = "mightyPie.events.window.open";
-export const SHORTCUT_DETECTED_EVENT = "mightyPie.events.shortcut.detected";
-
 // NATS Server WebSocket URL (replace with your actual URL)
 const natsServerUrl = 'ws://localhost:9090'; // Use wss:// for secure
 const authToken = '5LQ5V4KWPKGRC2LJ8JQGS';

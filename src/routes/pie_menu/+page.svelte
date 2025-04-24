@@ -4,8 +4,9 @@
     import {getCurrentWindow, LogicalPosition, LogicalSize, monitorFromPoint,} from '@tauri-apps/api/window';
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {onMount} from "svelte";
-    import {SHORTCUT_DETECTED_EVENT, subscribeToTopic} from "$lib/natsAdapter.ts";
+    import {subscribeToTopic} from "$lib/natsAdapter.ts";
     import {PhysicalPosition, PhysicalSize} from "@tauri-apps/api/dpi";
+    import {NatsSubjects} from "$lib/natsSubjects.ts";
 
 
     let mousePosition: { x: number, y: number };
@@ -16,7 +17,7 @@
         shortcutDetected: number;
     }
 
-    subscribeToTopic(SHORTCUT_DETECTED_EVENT, message => {
+    subscribeToTopic(NatsSubjects.SHORTCUT.DETECTED, message => {
         try {
             const shortcutDetectedMsg: IShortcutDetectedMessage = JSON.parse(message);
 

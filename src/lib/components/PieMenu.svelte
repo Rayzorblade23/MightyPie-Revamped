@@ -4,6 +4,9 @@
     import {getCurrentWindow, PhysicalPosition} from "@tauri-apps/api/window";
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {fly} from 'svelte/transition';
+    import {publishMessage, subscribeToTopic} from "$lib/natsAdapter.ts";
+    import {NatsSubjects} from "$lib/natsSubjects.ts";
+    import {goto} from "$app/navigation";
 
     const numButtons = 8;
     const radius = 150;
@@ -16,6 +19,30 @@
     let activeSlice = $state(-1);
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
+
+    interface IPiemenuOpenedMessage {
+        piemenuOpened: boolean;
+    }
+
+    interface IPiemenuClickMessage {
+        click: string;
+    }
+
+    subscribeToTopic(NatsSubjects.PIEMENU.CLICK, message => {
+        try {
+            const clickMsg: IPiemenuClickMessage = JSON.parse(message);
+
+            if (clickMsg.click == "left") {
+                console.log("Left click from Go!");
+            } else if (clickMsg.click == "right") {
+                console.log("Right click from Go!");
+                publishMessage<IPiemenuOpenedMessage>(NatsSubjects.PIEMENU.OPENED, {piemenuOpened: false})
+                goto('/');
+            }
+        } catch (e) {
+            console.error('Failed to parse message:', e);
+        }
+    })
 
     function convertRemToPixels(rem: number) {
         return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -160,6 +187,7 @@
 
     onMount(() => {
         console.log("PieMenu.svelte: onMount hook running");
+        publishMessage<IPiemenuOpenedMessage>(NatsSubjects.PIEMENU.OPENED, {piemenuOpened: true})
 
         let newButtonPositions: { x: number; y: number }[] = [];
 

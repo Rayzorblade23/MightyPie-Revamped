@@ -1,16 +1,17 @@
 <script lang="ts">
     import '../app.css'; // Import from src/app.css
-    import {publishMessage, SHORTCUT_DETECTED_EVENT, subscribeToTopic,} from "$lib/natsAdapter.ts";
+    import {publishMessage, subscribeToTopic,} from "$lib/natsAdapter.ts";
     import {onMount} from "svelte";
     import {getCurrentWindow, LogicalPosition} from "@tauri-apps/api/window";
     import {goto} from "$app/navigation";
+    import {NatsSubjects} from "$lib/natsSubjects.ts";
 
 
     interface IShortcutDetectedMessage {
         shortcutDetected: number;
     }
 
-    subscribeToTopic(SHORTCUT_DETECTED_EVENT, message => {
+    subscribeToTopic(NatsSubjects.SHORTCUT.DETECTED, message => {
         try {
             const shortcutDetectedMsg: IShortcutDetectedMessage = JSON.parse(message);
 
@@ -33,7 +34,7 @@
 
     <div class="bg-amber-950 w-screen h-screen flex items-center justify-center">
         <button class="absolute top-4 right-4 bg-amber-200" onclick={
-        () => publishMessage(SHORTCUT_DETECTED_EVENT,{
+        () => publishMessage<IShortcutDetectedMessage>(NatsSubjects.SHORTCUT.DETECTED,{
             shortcutDetected: 1
         })
             }>

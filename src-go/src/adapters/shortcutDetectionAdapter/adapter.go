@@ -28,7 +28,7 @@ func New (natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 			return
 		}
 		
-		fmt.Printf("Shortcut detected: %+v", message)
+		fmt.Printf("Shortcut detected: %+v\n", message)
 
 	})
 

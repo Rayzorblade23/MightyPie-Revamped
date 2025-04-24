@@ -10,10 +10,16 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const subject = "mightyPie.events.shortcut.detected"
+const piemenuOpened_Subject = "mightyPie.events.piemenu.opened"
 
-type EventMessage struct {
-	ShortcutDetected int `json:"shortcutDetected"`
+const piemenuClick_Subject = "mightyPie.events.piemenu.click"
+
+type piemenuOpened_Message struct {
+	PiemenuOpened bool `json:"piemenuOpened"`
+}
+
+type piemenuClick_Message struct {
+	Click string `json:"click"`
 }
 
 type MouseInputAdapter struct {
@@ -21,18 +27,20 @@ type MouseInputAdapter struct {
 }
 
 func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
-	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(piemenuOpened_Subject, func(msg *nats.Msg) {
 		
-		var message EventMessage
+		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			println("Failed to decode message: %v", err)
 			return
 		}
 		
-		fmt.Printf("Shortcut detected: %+v", message)
+		fmt.Printf("Shortcut detected: %+v\n", message)
 		
-		if message.ShortcutDetected == 1 {
+		if message.PiemenuOpened {
 			SetMouseHookState(true)	
+		} else if !message.PiemenuOpened {
+			SetMouseHookState(false)	
 		}
 	})
 	return &MouseInputAdapter{
@@ -50,6 +58,7 @@ var (
 
 	mouseHook syscall.Handle
 	hookEnabled bool
+	adapter *MouseInputAdapter
 )
 
 const (
@@ -63,7 +72,7 @@ const (
 
 
 func (a *MouseInputAdapter) Run() {
-	
+	adapter = a
 
 	hookProc := syscall.NewCallback(mouseHookProc)
 	h, _, _ := setWindowsHookEx.Call(uintptr(WH_MOUSE_LL), hookProc, 0, 0)
@@ -94,10 +103,10 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 	if nCode == 0 {
 		switch wParam {
 		case WM_LBUTTONDOWN:
-			handleLeftClick()
+			adapter.handleLeftClick()
 			return 1 // block
 		case WM_RBUTTONDOWN:
-			handleRightClick()
+			adapter.handleRightClick()
 		}
 	}
 	ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
@@ -105,12 +114,29 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 }
 
 // You can define these handlers however you want
-func handleLeftClick() {
+func (a *MouseInputAdapter) handleLeftClick() {
 	fmt.Println("Left click detected and blocked!")
+	a.publishMessage("left")
+
 }
 
-func handleRightClick() {
+func (a *MouseInputAdapter) handleRightClick() {
 	fmt.Println("Right click detected and passed!")
+	a.publishMessage("right")
+}
+
+func (a *MouseInputAdapter) publishMessage(clickType string) {
+
+    msg := piemenuClick_Message{
+        Click: clickType,
+    }
+
+    if clickType == "left" {
+        a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
+    } else if clickType == "right" {
+        a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
+    }
+    println("Message published to NATS")
 }
 
 // setMouseHookState enables or disables the mouse hook
