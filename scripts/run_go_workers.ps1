@@ -7,12 +7,19 @@ $script:workerProcesses = @()
 # Cleanup function to terminate all processes
 function Cleanup {
     Write-Host "`nTerminating all workers..." -ForegroundColor Yellow
+    
     foreach ($worker in $script:workerProcesses) {
-        if (-not $worker.Process.HasExited) {
-            $worker.Process.Kill()
-            $worker.Process.WaitForExit()
+        if ($worker.Process -and -not $worker.Process.HasExited) {
+            try {
+                $worker.Process.Kill()
+                $worker.Process.WaitForExit()
+                $worker.Process.Close()
+                $worker.Process.Dispose()
+            }
+            catch { }
         }
     }
+    
     Write-Host "All workers terminated." -ForegroundColor Yellow
 }
 
@@ -36,57 +43,24 @@ if ($workerFiles.Count -eq 0) {
 foreach ($file in $workerFiles) {
     Write-Host "`nStarting: $($file.FullName)" -ForegroundColor Cyan
     
-    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $processInfo.FileName = "go"
-    $processInfo.Arguments = "run worker.go"
-    $processInfo.RedirectStandardOutput = $true
-    $processInfo.RedirectStandardError = $true
-    $processInfo.UseShellExecute = $false
-    $processInfo.CreateNoWindow = $true
-    $processInfo.WorkingDirectory = $file.DirectoryName
+    $process = Start-Process -FilePath "go" -ArgumentList "run worker.go" `
+        -WorkingDirectory $file.DirectoryName -NoNewWindow -PassThru
 
-    $process = Start-Process -FilePath $processInfo.FileName -ArgumentList $processInfo.Arguments -WorkingDirectory $processInfo.WorkingDirectory -NoNewWindow -PassThru
+    $workerName = Split-Path $file.DirectoryName -Leaf
 
-    # Store process info for later
+    # Store process info
     $script:workerProcesses += @{
         Process = $process
         File = $file.FullName
     }
-
-    # Create job to handle output asynchronously
-    $null = Start-Job -ScriptBlock {
-        param($processId, $workerName)
-        $process = Get-Process -Id $processId
-        while (!$process.HasExited) {
-            $line = $process.StandardOutput.ReadLine()
-            if ($line) {
-                Write-Host "[$workerName] $line" -ForegroundColor Green
-            }
-        }
-    } -ArgumentList $process.Id, (Split-Path $file.DirectoryName -Leaf)
-
-    # Create job to handle errors asynchronously
-    $null = Start-Job -ScriptBlock {
-        param($processId, $workerName)
-        $process = Get-Process -Id $processId
-        while (!$process.HasExited) {
-            $line = $process.StandardError.ReadLine()
-            if ($line) {
-                Write-Host "[$workerName] $line" -ForegroundColor Red
-            }
-        }
-    } -ArgumentList $process.Id, (Split-Path $file.DirectoryName -Leaf)
 }
 
 try {
-    # Wait for all processes to complete or user interrupt
     Write-Host "`nPress Ctrl+C to terminate all workers..." -ForegroundColor Yellow
     while ($script:workerProcesses | Where-Object { -not $_.Process.HasExited }) {
-        Start-Sleep -Seconds 1
+        Start-Sleep -Milliseconds 100
     }
 }
 finally {
-    # Ensure cleanup runs
     Cleanup
-    Get-Job | Remove-Job -Force
 }
