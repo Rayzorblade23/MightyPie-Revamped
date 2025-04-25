@@ -6,13 +6,10 @@ import (
 	"syscall"
 	"unsafe"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/nats-io/nats.go"
 )
-
-const piemenuOpened_Subject = "mightyPie.events.piemenu.opened"
-
-const piemenuClick_Subject = "mightyPie.events.piemenu.click"
 
 type piemenuOpened_Message struct {
 	PiemenuOpened bool `json:"piemenuOpened"`
@@ -27,7 +24,7 @@ type MouseInputAdapter struct {
 }
 
 func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
-	natsAdapter.SubscribeToSubject(piemenuOpened_Subject, func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_PIEMENU_OPENED"), func(msg *nats.Msg) {
 		
 		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -142,7 +139,7 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
     msg := piemenuClick_Message{
         Click: fmt.Sprintf("%s_%s", event.Button, event.State),
     }
-    a.natsAdapter.PublishMessage(piemenuClick_Subject, msg)
+    a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_PIEMENU_CLICK"), msg)
     println("Message published to NATS")
 }
 

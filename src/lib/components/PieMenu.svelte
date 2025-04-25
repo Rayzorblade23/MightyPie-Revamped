@@ -5,8 +5,8 @@
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {fly} from 'svelte/transition';
     import {publishMessage, subscribeToTopic} from "$lib/natsAdapter.ts";
-    import {NatsSubjects} from "$lib/natsSubjects.ts";
     import {goto} from "$app/navigation";
+    import {getEnvVar} from "$lib/envHandler.ts";
 
     const numButtons = 8;
     const radius = 150;
@@ -47,7 +47,7 @@
     }
 
     // TODO: Send the clicked slice info to a Trigger Adapter
-    subscribeToTopic(NatsSubjects.PIEMENU.CLICK, message => {
+    subscribeToTopic(getEnvVar("NATSSUBJECT_PIEMENU_CLICK"), message => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
 
@@ -55,7 +55,7 @@
                 console.log(`Left click in Slice: ${activeSlice}!`);
             } else if (clickMsg.click == mouseEvents.right_up) {
                 console.log(`Right click in Slice: ${activeSlice}!`);
-                publishMessage<IPiemenuOpenedMessage>(NatsSubjects.PIEMENU.OPENED, {piemenuOpened: false})
+                publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: false})
                 goto('/');
             } else if (clickMsg.click == mouseEvents.middle_up) {
                 console.log(`Middle click in Slice: ${activeSlice}!`);
@@ -208,7 +208,7 @@
 
     onMount(() => {
         console.log("PieMenu.svelte: onMount hook running");
-        publishMessage<IPiemenuOpenedMessage>(NatsSubjects.PIEMENU.OPENED, {piemenuOpened: true})
+        publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: true})
 
         let newButtonPositions: { x: number; y: number }[] = [];
 

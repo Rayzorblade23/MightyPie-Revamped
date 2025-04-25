@@ -6,22 +6,22 @@
     import {onMount} from "svelte";
     import {subscribeToTopic} from "$lib/natsAdapter.ts";
     import {PhysicalPosition, PhysicalSize} from "@tauri-apps/api/dpi";
-    import {NatsSubjects} from "$lib/natsSubjects.ts";
+    import {getEnvVar} from "$lib/envHandler.ts";
 
 
     let mousePosition: { x: number, y: number };
 
     let _monitorScaleFactor: number = 1;
 
-    interface IShortcutDetectedMessage {
-        shortcutDetected: number;
+    interface IShortcutPressedMessage {
+        shortcutPressed: number;
     }
 
-    subscribeToTopic(NatsSubjects.SHORTCUT.DETECTED, message => {
+    subscribeToTopic(getEnvVar("NATSSUBJECT_SHORTCUT_PRESSED"), message => {
         try {
-            const shortcutDetectedMsg: IShortcutDetectedMessage = JSON.parse(message);
+            const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
-            if (shortcutDetectedMsg.shortcutDetected == 1) {
+            if (shortcutDetectedMsg.shortcutPressed == 1) {
                 centerWindowAtMouse();
             }
         } catch (e) {

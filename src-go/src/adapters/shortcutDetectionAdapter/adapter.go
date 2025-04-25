@@ -8,11 +8,10 @@ import (
 
 	"unsafe"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/nats-io/nats.go"
 )
-
-const subject = "mightyPie.events.shortcut.detected"
 
 type ShortcutDetectionAdapter struct {
 	natsAdapter *natsAdapter.NatsAdapter
@@ -20,7 +19,7 @@ type ShortcutDetectionAdapter struct {
 }
 
 func New (natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
-	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), func(msg *nats.Msg) {
 		
 		var message EventMessage
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -28,7 +27,7 @@ func New (natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 			return
 		}
 		
-		fmt.Printf("Shortcut detected: %+v\n", message)
+		fmt.Printf("Shortcut pressed: %+v\n", message)
 
 	})
 
@@ -232,19 +231,19 @@ func printShortcut(shortcut []int) {
 }
 
 type EventMessage struct {
-    ShortcutDetected int `json:"shortcutDetected"`
+    ShortcutPressed int `json:"shortcutPressed"`
 }
 
-func (a *ShortcutDetectionAdapter) publishMessage(shortcutDetected int) {
+func (a *ShortcutDetectionAdapter) publishMessage(shortcutPressed int) {
 
     msg := EventMessage{
-        ShortcutDetected: shortcutDetected,
+        ShortcutPressed: shortcutPressed,
     }
 
-    if shortcutDetected == 1 {
-        a.natsAdapter.PublishMessage("mightyPie.events.shortcut.detected", msg)
+    if shortcutPressed == 1 {
+        a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), msg)
     } else {
-        a.natsAdapter.PublishMessage("mightyPie.events.shortcut.released", msg)
+        a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_SHORTCUT_RELEASED"), msg)
     }
     println("Message published to NATS")
 }
