@@ -8,6 +8,8 @@
     import {goto} from "$app/navigation";
     import {getEnvVar} from "$lib/envHandler.ts";
 
+    export const menu_index = 0;
+
     const numButtons = 8;
     const radius = 150;
     const buttonWidth = 8.75;
@@ -19,6 +21,9 @@
     let activeSlice = $state(-1);
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
+
+    let currentMouseEvent = $state<string>('');
+
 
     interface MouseEvent {
         left_down: string;
@@ -50,6 +55,7 @@
     subscribeToTopic(getEnvVar("NATSSUBJECT_PIEMENU_CLICK"), message => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
+            currentMouseEvent = clickMsg.click;
 
             if (clickMsg.click == mouseEvents.left_up) {
                 console.log(`Left click in Slice: ${activeSlice}!`);
@@ -239,7 +245,21 @@
 
             }}
         >
-            <PieButton index={i} x={0} y={0} hovered={activeSlice === i}/>
+            <PieButton
+                    menu_index={menu_index}
+                    button_index={i}
+                    x={0}
+                    y={0}
+                    mouseState={{
+                        hovered: activeSlice === i,
+                        leftDown: activeSlice === i && currentMouseEvent === mouseEvents.left_down,
+                        leftUp: activeSlice === i && currentMouseEvent === mouseEvents.left_up,
+                        rightDown: activeSlice === i && currentMouseEvent === mouseEvents.right_down,
+                        rightUp: activeSlice === i && currentMouseEvent === mouseEvents.right_up,
+                        middleDown: activeSlice === i && currentMouseEvent === mouseEvents.middle_down,
+                        middleUp: activeSlice === i && currentMouseEvent === mouseEvents.middle_up
+                    }}
+            />
         </div>
     {/each}
 </div>
