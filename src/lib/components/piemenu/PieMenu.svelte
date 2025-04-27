@@ -8,13 +8,14 @@
     import {
         calculateButtonPosition,
         calculateOffsets,
-        getActivePieSliceFromMousePosition
+        getActivePieSliceAndAngleFromMousePosition
     } from "$lib/components/piemenu/piemenuUtils.ts";
     import {
         type IPiemenuClickMessage,
         type IPiemenuOpenedMessage,
         mouseEvents
     } from "$lib/components/piemenu/piemenuTypes.ts";
+    import {loadAndProcessSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
 
     export const menu_index = 0;
 
@@ -29,8 +30,9 @@
     let activeSlice = $state(-1);
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
-
     let currentMouseEvent = $state<string>('');
+    let indicator = $state("");
+    let indicatorRotation = $state(0);
 
 
     // TODO: Send the clicked slice info to a Trigger Adapter
@@ -55,7 +57,10 @@
 
     function startAnimationLoop() {
         const update = async () => {
-            activeSlice = await getActivePieSliceFromMousePosition(deadzoneRadius);
+            let {slice, mouseAngle} = await getActivePieSliceAndAngleFromMousePosition(deadzoneRadius);
+            activeSlice = slice;
+            indicatorRotation = mouseAngle;
+
             animationFrameId = requestAnimationFrame(update);
         };
         animationFrameId = requestAnimationFrame(update);
@@ -69,9 +74,11 @@
         }
     }
 
-    onMount(() => {
+    onMount(async () => {
         console.log("PieMenu.svelte: onMount hook running");
         publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: true})
+
+        indicator = await loadAndProcessSVG();
 
         let newButtonPositions: { x: number; y: number }[] = [];
 
@@ -91,6 +98,11 @@
 </script>
 
 <div class="relative" style="width: {width}px; height: {height}px;">
+    <div class="absolute left-1/2 top-1/2 z-10"
+         style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);">
+        <img alt="indicator" height="300" src={indicator} width="300"/>
+    </div>
+
     {#each buttonPositions as position, i}
         <div
                 style="position: absolute; left: {position.x}px; top: {position.y}px;"

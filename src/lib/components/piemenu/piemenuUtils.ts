@@ -56,15 +56,18 @@ export function calculateButtonPosition(
     return {x, y};
 }
 
-export function getActivePieSliceFromPosition(x: number, y: number, winSize: {
+export function getActivePieSliceAndAngleFromPosition(x: number, y: number, winSize: {
     width: number;
     height: number
-}, deadzoneRadius: number) {
+}, deadzoneRadius: number): { slice: number; theta: number } {
     const centerX = winSize.width / 2;
     const centerY = winSize.height / 2;
 
     const dx = x - centerX;
     const dy = y - centerY;
+
+    const numberSlices = 8;
+    const sliceAngle = 360 / numberSlices;
 
     let theta = Math.atan2(dy, dx) * (180 / Math.PI);
 
@@ -75,12 +78,11 @@ export function getActivePieSliceFromPosition(x: number, y: number, winSize: {
     const r = Math.sqrt(dx * dx + dy * dy);
 
     if (r < deadzoneRadius) {
-        return -1;
+        return {slice: -1, theta: theta + sliceAngle / 2};
     }
 
     type PieSlice = { start: number; end: number };
 
-    const numberSlices = 8;
     const startAngle = 247.5;
 
     let thetaNormalized = (theta - startAngle) % 360;
@@ -90,23 +92,25 @@ export function getActivePieSliceFromPosition(x: number, y: number, winSize: {
     }
 
     const pieSlices: PieSlice[] = Array.from({length: numberSlices}, (_, i) => {
-        const angleSize = 360 / numberSlices;
 
-        const start = (i * angleSize) % 360;
-        const end = (start + angleSize) % 360;
+        const start = (i * sliceAngle) % 360;
+        const end = (start + sliceAngle) % 360;
         return {start, end};
     });
 
     for (let i = 0; i < pieSlices.length; i++) {
         if (pieSlices[i].start <= thetaNormalized && thetaNormalized < pieSlices[i].end) {
-            return i;
+            return {slice: i, theta: theta + sliceAngle / 2};
         }
     }
 
-    return 7;
+    return {slice: 7, theta: theta + sliceAngle / 2};
 }
 
-export async function getActivePieSliceFromMousePosition(deadzoneRadius: number): Promise<number> {
+export async function getActivePieSliceAndAngleFromMousePosition(deadzoneRadius: number): Promise<{
+    slice: number;
+    mouseAngle: number
+}> {
     try {
         const mousePosition = await getMousePosition();
         const window = getCurrentWindow();
@@ -116,17 +120,17 @@ export async function getActivePieSliceFromMousePosition(deadzoneRadius: number)
         const relX = mousePosition.x - winPos.x;
         const relY = mousePosition.y - winPos.y;
 
-        const activeSlice = getActivePieSliceFromPosition(relX, relY, winSize, deadzoneRadius);
+        const result = getActivePieSliceAndAngleFromPosition(relX, relY, winSize, deadzoneRadius);
 
-        if (activeSlice === -1) {
+        if (result.slice === -1) {
             console.log("Mouse is inside the inner radius (dead zone).");
         } else {
-            console.log(`Mouse is in slice: ${activeSlice}`);
+            console.log(`Mouse is in slice: ${result.slice}`);
         }
 
-        return activeSlice;
+        return {slice: result.slice, mouseAngle: result.theta};
     } catch (error) {
         console.log("Error fetching mouse position:", error);
-        return -1;
+        return {slice: -1, mouseAngle: 0};
     }
 }
