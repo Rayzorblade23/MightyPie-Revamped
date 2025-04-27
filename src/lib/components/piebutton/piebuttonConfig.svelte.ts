@@ -4,7 +4,7 @@
     type RawNestedConfigData,
     type Task,
     TaskType
-} from "$lib/buttonData/buttonTypes.ts";
+} from "$lib/components/piebutton/piebuttonTypes.ts";
 
 // TODO: Replace with read-in config json
 const rawNestedMenuConfigData: RawNestedConfigData = {

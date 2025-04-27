@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-    import {getTaskProperties, getTaskType} from "$lib/buttonData/buttonConfig.svelte.ts";
+    import {getTaskProperties, getTaskType} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
 
     interface MouseState {
         hovered: boolean;

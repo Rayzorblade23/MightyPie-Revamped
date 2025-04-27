@@ -1,12 +1,12 @@
 ﻿<script lang="ts">
     import '../../app.css';
-    import PieMenu from '$lib/components/PieMenu.svelte';
     import {getCurrentWindow, LogicalPosition, LogicalSize, monitorFromPoint,} from '@tauri-apps/api/window';
     import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {onMount} from "svelte";
     import {subscribeToTopic} from "$lib/natsAdapter.ts";
     import {PhysicalPosition, PhysicalSize} from "@tauri-apps/api/dpi";
     import {getEnvVar} from "$lib/envHandler.ts";
+    import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
 
 
     let mousePosition: { x: number, y: number };
