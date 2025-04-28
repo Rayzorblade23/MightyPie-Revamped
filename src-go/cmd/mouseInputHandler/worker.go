@@ -11,6 +11,8 @@ func main() {
 		panic(err)
 	}
 	
+	println("MouseInputAdapter: NATS connection established")
+
 	mouseInputAdapter := mouseInputAdapter.New(natsAdapter)
 
 	println("Mouse input handler started")

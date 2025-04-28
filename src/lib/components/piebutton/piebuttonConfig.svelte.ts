@@ -15,7 +15,7 @@ const rawNestedMenuConfigData: RawNestedConfigData = {
                 "button_text_upper": "Youtube",
                 "button_text_lower": "Vivaldi",
                 "app_icon_path": "",
-                "window_handle": "",
+                "window_handle": 0,
                 "exe_path": "",
             }
         },
@@ -25,18 +25,25 @@ const rawNestedMenuConfigData: RawNestedConfigData = {
                 "button_text_upper": "Something else",
                 "button_text_lower": "YO",
                 "app_icon_path": "",
-                "window_handle": "",
+                "window_handle": 0,
+                "exe_path": "",
+            }
+        },
+        "2": {
+            "task_type": "show_any_window",
+            "properties": {
+                "button_text_upper": "Another",
+                "button_text_lower": "One",
+                "app_icon_path": "",
+                "window_handle": 0,
                 "exe_path": "",
             }
         },
         "3": {
-            "task_type": "show_program_window",
+            "task_type": "call_function",
             "properties": {
                 "button_text_upper": "Function",
                 "button_text_lower": "",
-                "app_icon_path": "",
-                "window_handle": "",
-                "exe_path": "",
             }
         },
     }

@@ -245,7 +245,6 @@ func (a *ShortcutDetectionAdapter) publishMessage(shortcutPressed int) {
     } else {
         a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_SHORTCUT_RELEASED"), msg)
     }
-    println("Message published to NATS")
 }
 
 var KeyMap = map[string]int{

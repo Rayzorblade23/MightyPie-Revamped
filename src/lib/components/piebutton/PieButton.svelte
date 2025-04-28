@@ -1,5 +1,8 @@
 ﻿<script lang="ts">
     import {getTaskProperties, getTaskType} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+    import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
+    import {publishMessage} from "$lib/natsAdapter.ts";
+    import {getEnvVar} from "$lib/envHandler.ts";
 
     interface MouseState {
         hovered: boolean;
@@ -26,6 +29,66 @@
     const buttonTextUpper = $derived(taskProperties?.button_text_upper ?? `Button ${button_index + 1}`);
     const buttonTextLower = $derived(taskProperties?.button_text_lower ?? "");
 
+    let prevLeftUp = false;
+    let prevMiddleUp = false;
+    let prevRightUp = false;
+
+    let wasLeftDown = false;
+    let wasMiddleDown = false;
+    let wasRightDown = false;
+
+    $effect(() => {
+        if (mouseState.leftDown) {
+            wasLeftDown = true;
+        }
+
+        if (mouseState.leftUp && !prevLeftUp && wasLeftDown && mouseState.hovered) {
+            console.log(`Left click on Button ${button_index}: Task type is ${taskType}`);
+            publishButtonClick("left_up");
+            wasLeftDown = false;
+        }
+        prevLeftUp = mouseState.leftUp;
+    });
+
+    $effect(() => {
+        if (mouseState.middleDown) {
+            wasMiddleDown = true;
+        }
+
+        if (mouseState.middleUp && !prevMiddleUp && wasMiddleDown && mouseState.hovered) {
+            console.log(`Middle click on Button ${button_index}: Task type is ${taskType}`);
+            publishButtonClick("middle_up");
+            wasMiddleDown = false;
+        }
+        prevMiddleUp = mouseState.middleUp;
+    });
+
+    $effect(() => {
+        if (mouseState.rightDown) {
+            wasRightDown = true;
+        }
+
+        if (mouseState.rightUp && !prevRightUp && wasRightDown && mouseState.hovered) {
+            console.log(`Right click on Button ${button_index}: Task type is ${taskType}`);
+            publishButtonClick("right_up");
+            wasRightDown = false;
+        }
+        prevRightUp = mouseState.rightUp;
+    });
+
+    function publishButtonClick(clickType: string) {
+        if (!taskProperties || !taskType) return;
+
+        const message: IPieButtonExecuteMessage = {
+            menu_index,
+            button_index,
+            task_type: taskType,
+            properties: taskProperties,
+            click_type: clickType
+        };
+
+        publishMessage<IPieButtonExecuteMessage>(getEnvVar("NATSSUBJECT_PIEBUTTON_EXECUTE"), message);
+    }
 
 </script>
 

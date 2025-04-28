@@ -1,4 +1,12 @@
-﻿export enum TaskType {
+﻿export interface IPieButtonExecuteMessage {
+    menu_index: number;
+    button_index: number;
+    task_type: TaskType;
+    properties: any;
+    click_type: string;
+}
+
+export enum TaskType {
     ShowProgramWindow = 'show_program_window',
     ShowAnyWindow = 'show_any_window',
     CallFunction = 'call_function',
@@ -43,6 +51,7 @@ export type Task =
     | { task_type: TaskType.CallFunction; properties: CallFunctionProperties }
     | { task_type: TaskType.LaunchProgram; properties: LaunchProgramProperties }
     | { task_type: TaskType.Disabled };
+
 
 // Represents the structure like: { "0": { "0": RawTaskData, "1": RawTaskData }, "1": { ... } }
 export type RawNestedConfigData = Record<string, Record<string, RawTaskData>>;

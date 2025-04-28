@@ -32,7 +32,7 @@ func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 			return
 		}
 		
-		fmt.Printf("Shortcut detected: %+v\n", message)
+		fmt.Printf("Pie Menu opened: %+v\n", message)
 		
 		if message.PiemenuOpened {
 			SetMouseHookState(true)	
@@ -140,7 +140,7 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
         Click: fmt.Sprintf("%s_%s", event.Button, event.State),
     }
     a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_PIEMENU_CLICK"), msg)
-    println("Message published to NATS")
+    fmt.Printf("Mouse %s\n", msg.Click)
 }
 
 // setMouseHookState enables or disables the mouse hook
