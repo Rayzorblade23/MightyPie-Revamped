@@ -42,7 +42,14 @@ const rawNestedMenuConfigData: RawNestedConfigData = {
         "3": {
             "task_type": "call_function",
             "properties": {
-                "button_text_upper": "Function",
+                "button_text_upper": "Maximize Window",
+                "button_text_lower": "",
+            }
+        },
+        "4": {
+            "task_type": "call_function",
+            "properties": {
+                "button_text_upper": "Minimize Window",
                 "button_text_lower": "",
             }
         },

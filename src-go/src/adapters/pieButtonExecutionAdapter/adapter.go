@@ -13,14 +13,6 @@ type PieButtonExecutionAdapter struct {
     natsAdapter *natsAdapter.NatsAdapter
 }
 
-type pieButtonExecute_Message struct {
-    MenuIndex   int         `json:"menu_index"`
-    ButtonIndex int         `json:"button_index"`
-    TaskType    TaskType    `json:"task_type"`
-    Properties  interface{} `json:"properties"`
-    ClickType   string      `json:"click_type"`
-}
-
 func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
     a := &PieButtonExecutionAdapter{
         natsAdapter: natsAdapter,
@@ -40,40 +32,6 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
     })
 
     return a
-}
-
-// TaskType represents the available task types
-type TaskType string
-
-const (
-    TaskTypeShowProgramWindow TaskType = "show_program_window"
-    TaskTypeShowAnyWindow    TaskType = "show_any_window"
-    TaskTypeCallFunction     TaskType = "call_function"
-    TaskTypeLaunchProgram    TaskType = "launch_program"
-    TaskTypeDisabled         TaskType = "disabled"
-)
-
-// ShowWindowProperties contains common properties for window-related tasks
-type ShowWindowProperties struct {
-    ButtonTextUpper string `json:"button_text_upper"` // window title
-    ButtonTextLower string `json:"button_text_lower"` // app name
-    IconPath        string `json:"icon_path"`
-    WindowHandle    int64  `json:"window_handle"`
-    ExePath         string `json:"exe_path"`
-}
-
-// LaunchProgramProperties contains properties for launching programs
-type LaunchProgramProperties struct {
-    ButtonTextUpper string `json:"button_text_upper"` // app name
-    ButtonTextLower string `json:"button_text_lower"` // " - Launch - "
-    IconPath        string `json:"icon_path"`
-    ExePath         string `json:"exe_path"`
-}
-
-// CallFunctionProperties contains properties for function calls
-type CallFunctionProperties struct {
-    ButtonTextUpper string `json:"button_text_upper"` // function name
-    ButtonTextLower string `json:"button_text_lower"` // empty string
 }
 
 func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecute_Message) error {
@@ -110,7 +68,7 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
         return fmt.Errorf("failed to unmarshal ShowWindowProperties: %v", err)
     }
 
-    fmt.Printf("Showing program window: %+v\n", windowProps)
+    fmt.Printf("Button %+v - Showing program window: %+v\n", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
     return nil
 }
 
@@ -127,23 +85,7 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
         return fmt.Errorf("failed to unmarshal ShowWindowProperties: %v", err)
     }
 
-    fmt.Printf("Showing any window: %+v\n", windowProps)
-    return nil
-}
-
-func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
-    props, ok := executionInfo.Properties.(map[string]interface{})
-    if !ok {
-        return fmt.Errorf("invalid properties type for call_function")
-    }
-
-    var functionProps CallFunctionProperties
-    propsBytes, _ := json.Marshal(props)
-    if err := json.Unmarshal(propsBytes, &functionProps); err != nil {
-        return fmt.Errorf("failed to unmarshal CallFunctionProperties: %v", err)
-    }
-
-    fmt.Printf("Calling function: %+v\n", functionProps.ButtonTextUpper)
+    fmt.Printf("Button %+v - Showing any window: %+v\n", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
     return nil
 }
 
@@ -159,11 +101,63 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
         return fmt.Errorf("failed to unmarshal LaunchProgramProperties: %v", err)
     }
 
-    fmt.Printf("Launching program: %+v\n", launchProps)
+    fmt.Printf("Button %+v - Launching program: %+v\n", executionInfo.ButtonIndex, launchProps.ButtonTextUpper)
     return nil
+}
+
+func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
+    props, ok := executionInfo.Properties.(map[string]interface{})
+    if !ok {
+        return fmt.Errorf("invalid properties type for call_function")
+    }
+
+    var functionProps CallFunctionProperties
+    propsBytes, _ := json.Marshal(props)
+    if err := json.Unmarshal(propsBytes, &functionProps); err != nil {
+        return fmt.Errorf("failed to unmarshal CallFunctionProperties: %v", err)
+    }
+
+    // Look up the function handler
+    handler, exists := functionHandlers[functionProps.ButtonTextUpper]
+    if !exists {
+        return fmt.Errorf("unknown function: %s", functionProps.ButtonTextUpper)
+    }
+
+    // Execute the function
+    return handler()
 }
 
 func (a *PieButtonExecutionAdapter) Run() error {
     fmt.Println("PieButtonExecutor started")
     select {} 
+}
+
+// Add these types near the top of the file
+type FunctionHandler func() error
+
+var functionHandlers = map[string]FunctionHandler{
+    "Maximize Window": MaximizeWindow,
+    "Minimize Window": MinimizeWindow,
+    // Add more handlers as needed
+}
+
+// Add these functions after the existing code
+func MaximizeWindow() error {
+    fmt.Println("Maximizing window")
+    return nil
+}
+
+func MinimizeWindow() error {
+    fmt.Println("Minimizing window")
+    return nil
+}
+
+func CloseWindow() error {
+    fmt.Println("Closing window")
+    return nil
+}
+
+func ToggleTopmost() error {
+    fmt.Println("Toggling window topmost state")
+    return nil
 }
