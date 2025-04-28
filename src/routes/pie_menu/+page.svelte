@@ -1,106 +1,32 @@
 ﻿<script lang="ts">
     import '../../app.css';
-    import {getCurrentWindow, LogicalPosition, LogicalSize, monitorFromPoint,} from '@tauri-apps/api/window';
-    import {getMousePosition} from "$lib/mouseFunctions.ts";
     import {onMount} from "svelte";
     import {subscribeToTopic} from "$lib/natsAdapter.ts";
-    import {PhysicalPosition, PhysicalSize} from "@tauri-apps/api/dpi";
     import {getEnvVar} from "$lib/envHandler.ts";
     import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
+    import type {IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
+    import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
 
-
-    let mousePosition: { x: number, y: number };
-
-    let _monitorScaleFactor: number = 1;
-
-    interface IShortcutPressedMessage {
-        shortcutPressed: number;
-    }
+    let monitorScaleFactor: number = 1;
 
     subscribeToTopic(getEnvVar("NATSSUBJECT_SHORTCUT_PRESSED"), message => {
         try {
             const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
             if (shortcutDetectedMsg.shortcutPressed == 1) {
-                centerWindowAtMouse();
+                centerWindowAtCursor(monitorScaleFactor).then(result => {
+                    monitorScaleFactor = result;
+                });
             }
         } catch (e) {
             console.error('Failed to parse message:', e);
         }
     })
 
-    onMount(() => {
-        centerWindowAtMouse();
+    onMount(async () => {
+        monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
         console.log("Pie Menu opened!");
     });
-
-
-    function clampToBounds(
-        pos: LogicalPosition | PhysicalPosition,
-        windowSize: LogicalSize | PhysicalSize,
-        monitorSize: LogicalSize | PhysicalSize,
-        monitorPos: LogicalPosition | PhysicalPosition,
-    ): LogicalPosition | PhysicalPosition {
-        const minX = monitorPos.x;
-        const minY = monitorPos.y;
-        const maxX = monitorPos.x + monitorSize.width - windowSize.width;
-        const maxY = monitorPos.y + monitorSize.height - windowSize.height;
-
-        if (pos instanceof LogicalPosition) {
-            return new LogicalPosition(Math.min(Math.max(pos.x, minX), maxX), Math.min(Math.max(pos.y, minY), maxY));
-        } else {
-            return new PhysicalPosition(Math.min(Math.max(pos.x, minX), maxX), Math.min(Math.max(pos.y, minY), maxY));
-        }
-
-    }
-
-    async function centerWindowAtMouse() {
-        const window = getCurrentWindow();
-        const outerSize = await window.outerSize();
-        const innerSize = await window.innerSize();
-        await window.setSize(new PhysicalSize(0, 0));
-
-        mousePosition = await getMousePosition();
-        const monitor = await monitorFromPoint(mousePosition.x, mousePosition.y);
-        if (!monitor) return console.log("Monitor not found");
-
-        const newScaleFactor = monitor.scaleFactor;
-
-        const windowScaleFactor = await window.scaleFactor();
-
-        let windowSizeAdj = new LogicalSize(0, 0);
-
-        if (newScaleFactor !== _monitorScaleFactor) {
-            console.log("Monitor Status: First time on this monitor!");
-            windowSizeAdj.width = outerSize.width * (newScaleFactor / windowScaleFactor);
-            windowSizeAdj.height = outerSize.height * (newScaleFactor / windowScaleFactor);
-        } else {
-            console.log("Monitor Status: Been on this monitor before!");
-            windowSizeAdj.width = outerSize.width;
-            windowSizeAdj.height = outerSize.height;
-        }
-        _monitorScaleFactor = newScaleFactor;
-
-        let windowPosCentered = new LogicalPosition(mousePosition.x - windowSizeAdj.width / 2, mousePosition.y - windowSizeAdj.height / 2);
-
-        const clamped = clampToBounds(
-            windowPosCentered,
-            windowSizeAdj,
-            monitor.size,
-            monitor.position,
-        );
-
-        const logicalX = Math.floor(clamped.x / windowScaleFactor);
-        const logicalY = Math.floor(clamped.y / windowScaleFactor);
-
-        await window.setPosition(new LogicalPosition(logicalX, logicalY));
-
-        let newSize = new LogicalSize(innerSize.width / windowScaleFactor, innerSize.height / windowScaleFactor);
-
-        await window.setSize(newSize);
-    }
-
-
 </script>
 
 <main>

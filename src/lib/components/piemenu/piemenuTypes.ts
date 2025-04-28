@@ -23,3 +23,7 @@ export interface IPiemenuOpenedMessage {
 export interface IPiemenuClickMessage {
     click: string;
 }
+
+export interface IShortcutPressedMessage {
+    shortcutPressed: number;
+}

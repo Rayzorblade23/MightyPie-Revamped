@@ -6,16 +6,16 @@
     import {getEnvVar} from "$lib/envHandler.ts";
     import PieButton from "$lib/components/piebutton/PieButton.svelte";
     import {
-        calculateButtonPosition,
-        calculateOffsets,
-        getActivePieSliceAndAngleFromMousePosition
+        calculatePieButtonPosition,
+        calculatePieButtonOffsets,
+        detectActivePieSlice
     } from "$lib/components/piemenu/piemenuUtils.ts";
     import {
         type IPiemenuClickMessage,
         type IPiemenuOpenedMessage,
         mouseEvents
     } from "$lib/components/piemenu/piemenuTypes.ts";
-    import {loadAndProcessSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
+    import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
 
     export const menu_index = 0;
 
@@ -33,7 +33,6 @@
     let currentMouseEvent = $state<string>('');
     let indicator = $state("");
     let indicatorRotation = $state(0);
-
 
     // TODO: Send the clicked slice info to a Trigger Adapter
     subscribeToTopic(getEnvVar("NATSSUBJECT_PIEMENU_CLICK"), message => {
@@ -57,7 +56,7 @@
 
     function startAnimationLoop() {
         const update = async () => {
-            let {slice, mouseAngle} = await getActivePieSliceAndAngleFromMousePosition(deadzoneRadius);
+            let {slice, mouseAngle} = await detectActivePieSlice(deadzoneRadius);
             activeSlice = slice;
             indicatorRotation = mouseAngle;
 
@@ -78,13 +77,13 @@
         console.log("PieMenu.svelte: onMount hook running");
         publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: true})
 
-        indicator = await loadAndProcessSVG();
+        indicator = await loadAndProcessIndicatorSVG();
 
         let newButtonPositions: { x: number; y: number }[] = [];
 
         for (let i = 0; i < numButtons; i++) {
-            const {offsetX, offsetY} = calculateOffsets(i, buttonWidth, buttonHeight);
-            const {x, y} = calculateButtonPosition(i, numButtons, offsetX, offsetY, radius, width, height);
+            const {offsetX, offsetY} = calculatePieButtonOffsets(i, buttonWidth, buttonHeight);
+            const {x, y} = calculatePieButtonPosition(i, numButtons, offsetX, offsetY, radius, width, height);
             newButtonPositions = [...newButtonPositions, {x: x, y: y}];
         }
         buttonPositions = newButtonPositions;

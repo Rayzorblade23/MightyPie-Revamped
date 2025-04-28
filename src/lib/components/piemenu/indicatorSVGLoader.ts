@@ -1,5 +1,9 @@
-﻿// src/lib/utils/svgLoader.ts
-export async function loadAndProcessSVG() {
+﻿/**
+ * Loads an SVG file from the public directory and processes its color placeholders.
+ * @returns Promise<string> Base64 encoded data URL of the processed SVG
+ * @throws Error if SVG loading or processing fails
+ */
+export async function loadAndProcessIndicatorSVG() {
     try {
         const response = await fetch("/indicator.svg");
         let svg = await response.text();
