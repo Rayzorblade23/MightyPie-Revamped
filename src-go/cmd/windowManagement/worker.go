@@ -11,7 +11,7 @@ func main() {
 		panic(err)
 	}
 
-	println("ShortcutDetectionAdapter: NATS connection established")
+	println("windowManagementAdapter: NATS connection established")
 
     // Create and start the keyboard hook
 	windowManagementAdapter := windowManagementAdapter.New(natsAdapter)
