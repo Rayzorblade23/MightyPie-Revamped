@@ -26,4 +26,6 @@ export interface IPiemenuClickMessage {
 
 export interface IShortcutPressedMessage {
     shortcutPressed: number;
+    mouseX : number;
+    mouseY : number;
 }

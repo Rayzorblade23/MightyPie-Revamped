@@ -31,6 +31,18 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
         }
     })
 
+    natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), func(msg *nats.Msg) {
+        var message shortcutPressed_Message
+        if err := json.Unmarshal(msg.Data, &message); err != nil {
+            fmt.Printf("Failed to decode command: %v\n", err)
+            return
+        }
+
+		fmt.Printf("PieButtonExecutionAdapter knows a Shortcut is pressed: %d\n", message.ShortcutPressed)
+		fmt.Printf("PieButtonExecutionAdapter also knows where: X: %d, Y: %d\n", message.MouseX, message.MouseY)
+
+    })
+
     return a
 }
 
