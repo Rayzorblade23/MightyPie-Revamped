@@ -16,6 +16,8 @@ import (
 
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
+	FetchExecutableApplicationMap()
+
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
 	windowWatcher := NewWindowWatcher()
