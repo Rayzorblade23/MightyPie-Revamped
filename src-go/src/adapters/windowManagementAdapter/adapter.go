@@ -3,7 +3,10 @@ package windowManagementAdapter
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	// Use lxn/win for HWND type consistency if desired, otherwise use windows.HWND
@@ -19,8 +22,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	discoveredApps = FetchExecutableApplicationMap()
 	ProcessIcons()
 
-	// b, _ := json.MarshalIndent(discoveredApps, "", "  ")
-	// fmt.Println(string(b))
+	b, _ := json.MarshalIndent(discoveredApps, "", "  ")
+	fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
@@ -192,4 +195,45 @@ func (a *WindowManagementAdapter) monitorWindows() {
 			lastUpdateTime = time.Now()
 		}
 	}
+}
+
+
+// RunApp launches an application from discoveredApps using its path.
+// Returns error if the app cannot be launched.
+func RunApp(exePath string) error {
+    app, exists := discoveredApps[exePath]
+    if !exists {
+        return fmt.Errorf("application not found: %s", exePath)
+    }
+
+    // Prepare command
+    cmd := exec.Command(exePath)
+    
+    // Set working directory if specified
+    if app.WorkingDirectory != "" {
+        // If working directory is relative, make it relative to exe path
+        if !filepath.IsAbs(app.WorkingDirectory) {
+            cmd.Dir = filepath.Join(filepath.Dir(exePath), app.WorkingDirectory)
+        } else {
+            cmd.Dir = app.WorkingDirectory
+        }
+    } else {
+        // Default to exe's directory
+        cmd.Dir = filepath.Dir(exePath)
+    }
+
+    // Add arguments if specified
+    if app.Args != "" {
+        // Split args respecting quoted strings
+        args := strings.Fields(app.Args)
+        cmd.Args = append([]string{exePath}, args...)
+    }
+
+    // Start the application
+    if err := cmd.Start(); err != nil {
+        return fmt.Errorf("failed to start %s: %w", app.Name, err)
+    }
+
+    logger.Printf("Started application: %s (Path: %s)", app.Name, exePath)
+    return nil
 }
