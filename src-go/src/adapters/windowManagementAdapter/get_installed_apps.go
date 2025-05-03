@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +30,8 @@ var (
 		"wizard", "register", "activate", "bootstrapper", "dotnet", "vcredist", "redist", "driver",
 		"service", "agent", "sync", "verifier", "manual", "documentation", "docs", "guide",
 		"keymap", "shortcuts", "website", "homepage", "link", "url", "example", "demo",
+		"appvlp", "hxtsr", "searchhost", "createdump", "apphost", "dllhost", "migration",
+		"devhome", "gamebar", "hxcalendarappimm", "hxoutlook",
 	}
 	nonExecExtensions = []string{
 		".txt", ".pdf", ".html", ".htm", ".url", ".lnk", ".log", ".ini", ".xml", ".chm", ".msi",
@@ -453,38 +456,50 @@ func getUWPApps() []AppEntry {
 
 // --- Main Execution ---
 
-func FetchExecutableApplicationMap() {
+func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 	// Step 1: Discover EXE apps from LNK files.
+	// Keep using your existing getExeApps function.
 	exeApps, seenExeTargets, exeLnkPaths := getExeApps()
+	// Log errors from getExeApps if it were modified to return them, otherwise
+	// assume it logs internally or they are handled in processLnkEntry.
 
 	// Step 2: Discover UWP apps and resolve executables.
+	// Keep using your existing getUWPApps function.
 	uwpAppsResolved := getUWPApps()
+	// Log errors from getUWPApps if it returned them.
 
 	// Step 3: Combine lists, ensuring UWP entries don't duplicate already found EXEs.
-	combinedApps := make([]AppEntry, 0, len(exeApps)+len(uwpAppsResolved))
-	combinedApps = append(combinedApps, exeApps...)
+	// Keep your existing combination logic.
+	combinedAppEntries := make([]AppEntry, 0, len(exeApps)+len(uwpAppsResolved))
+	combinedAppEntries = append(combinedAppEntries, exeApps...)
 	for _, uwpApp := range uwpAppsResolved {
+		// Assuming uwpApp is of type AppEntry now
 		lowerUwpPath := strings.ToLower(uwpApp.Path)
 		if !seenExeTargets[lowerUwpPath] {
-			combinedApps = append(combinedApps, uwpApp)
+			combinedAppEntries = append(combinedAppEntries, uwpApp)
+			// Add to seen targets to prevent duplicates if UWP list has them
+			seenExeTargets[lowerUwpPath] = true
 		}
 	}
 
 	// Step 4: Sort the combined list for consistent output order.
-	sort.Slice(combinedApps, func(i, j int) bool {
-		normNameI := normalizeAppName(combinedApps[i].Name)
-		normNameJ := normalizeAppName(combinedApps[j].Name)
+	// Keep your existing sorting logic.
+	sort.Slice(combinedAppEntries, func(i, j int) bool {
+		normNameI := normalizeAppName(combinedAppEntries[i].Name)
+		normNameJ := normalizeAppName(combinedAppEntries[j].Name)
 		if normNameI != normNameJ {
 			return normNameI < normNameJ
 		}
-		return strings.ToLower(combinedApps[i].Path) < strings.ToLower(combinedApps[j].Path)
+		// Fallback sort by path
+		return strings.ToLower(combinedAppEntries[i].Path) < strings.ToLower(combinedAppEntries[j].Path)
 	})
 
 	// Step 5: Build final output map (Path -> FinalAppOutput).
-	jsonOutputMap := make(map[string]FinalAppOutput, len(combinedApps))
-	processedPathsForOutput := make(map[string]bool, len(combinedApps))
+	// Keep your existing logic for building the map and extracting LNK details.
+	finalMap := make(map[string]FinalAppOutput, len(combinedAppEntries))
+	processedPathsForOutput := make(map[string]bool, len(combinedAppEntries))
 
-	for _, appEntry := range combinedApps {
+	for _, appEntry := range combinedAppEntries {
 		pathKey := appEntry.Path // The absolute path is the key
 		lowerPathKey := strings.ToLower(pathKey)
 
@@ -493,43 +508,33 @@ func FetchExecutableApplicationMap() {
 			continue
 		}
 
-		// --- Create the FinalAppOutput value ---
-		outputValue := FinalAppOutput{ Name: appEntry.Name } // Start with the name
+		// Create the FinalAppOutput value
+		outputValue := FinalAppOutput{Name: appEntry.Name}
 
-		// Check if this app originated from an LNK file
+		// Check if this app originated from an LNK file to get extra data
 		if originalLnkPath, found := exeLnkPaths[lowerPathKey]; found {
 			// Re-parse the LNK to get extra data.
 			linkFile, err := lnk.File(originalLnkPath)
-			// Check only if parsing succeeded
 			if err == nil {
-				// Access the flag map
 				flagMap := linkFile.Header.LinkFlags
-
-				// Check flags using STRING LITERAL KEYS
 				if flagMap["HasWorkingDir"] {
+					// Consider making WD absolute relative to LNK or Target Dir
 					outputValue.WorkingDirectory = linkFile.StringData.WorkingDir
 				}
 				if flagMap["HasArguments"] {
 					outputValue.Args = linkFile.StringData.CommandLineArguments
 				}
-				// Removed IconLocation check and assignment
+			} else {
+				log.Printf("Warning: Failed to re-parse LNK '%s' for extra data: %v\n", originalLnkPath, err)
 			}
-			// Optional: Log re-parse error if needed
-			// else if err != nil {
-			// 	fmt.Fprintf(os.Stderr, "Warning (main): Failed to re-parse LNK '%s' for extra data: %v\n", originalLnkPath, err)
-			// }
 		}
-		// UWP apps will naturally have empty extra fields (omitted in JSON).
+		// UWP apps will naturally have empty extra fields.
 
-		jsonOutputMap[pathKey] = outputValue
+		finalMap[pathKey] = outputValue
 		processedPathsForOutput[lowerPathKey] = true // Mark path as added.
 	}
 
-	// Step 6: Marshal and print final JSON to stdout.
-	jsonData, err := json.MarshalIndent(jsonOutputMap, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error marshalling final JSON: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(string(jsonData))
+	// Step 6: Return the result map (removed JSON marshaling/printing)
+	log.Printf("Application discovery finished. Found %d unique applications.", len(finalMap))
+	return finalMap
 }

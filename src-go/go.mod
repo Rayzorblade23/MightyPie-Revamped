@@ -3,6 +3,7 @@ module github.com/Rayzorblade23/MightyPie-Revamped
 go 1.24.2
 
 require (
+	github.com/gonutz/w32/v2 v2.12.1
 	github.com/joho/godotenv v1.5.1
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/nats-io/nats.go v1.41.2

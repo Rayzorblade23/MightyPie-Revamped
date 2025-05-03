@@ -16,7 +16,11 @@ import (
 
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
-	FetchExecutableApplicationMap()
+	discoveredApps = FetchExecutableApplicationMap()
+	ProcessIcons()
+
+	b, _ := json.MarshalIndent(discoveredApps, "", "  ")
+	fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
@@ -102,7 +106,6 @@ func (a *WindowManagementAdapter) Stop() {
 		logger.Println("[STOP] WindowWatcher is nil.")
 	}
 }
-
 
 // monitorWindows runs in a goroutine, listens for change signals, and updates the window list.
 func (a *WindowManagementAdapter) monitorWindows() {

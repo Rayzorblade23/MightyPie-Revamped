@@ -32,21 +32,21 @@ var (
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
 	// DLL procs
-	procSetWinEventHook            = user32.NewProc("SetWinEventHook")
-	procUnhookWinEvent             = user32.NewProc("UnhookWinEvent")
-	procGetMessageW                = user32.NewProc("GetMessageW")
-	procTranslateMessage           = user32.NewProc("TranslateMessage")
-	procDispatchMessageW           = user32.NewProc("DispatchMessageW")
-	procPostThreadMessageW         = user32.NewProc("PostThreadMessageW")
-	procGetCurrentThreadId         = kernel32.NewProc("GetCurrentThreadId")
-	procGetWindowTextW             = user32.NewProc("GetWindowTextW")
-	procGetWindowTextLengthW       = user32.NewProc("GetWindowTextLengthW")
-	procIsWindowVisible            = user32.NewProc("IsWindowVisible")
-	procGetAncestor                = user32.NewProc("GetAncestor")
-	procEnumWindows                = user32.NewProc("EnumWindows")
-	procGetClassNameW              = user32.NewProc("GetClassNameW")
-	procGetWindowThreadProcessId   = user32.NewProc("GetWindowThreadProcessId")
-	procDwmGetWindowAttribute      = dwmapi.NewProc("DwmGetWindowAttribute")
+	procSetWinEventHook          = user32.NewProc("SetWinEventHook")
+	procUnhookWinEvent           = user32.NewProc("UnhookWinEvent")
+	procGetMessageW              = user32.NewProc("GetMessageW")
+	procTranslateMessage         = user32.NewProc("TranslateMessage")
+	procDispatchMessageW         = user32.NewProc("DispatchMessageW")
+	procPostThreadMessageW       = user32.NewProc("PostThreadMessageW")
+	procGetCurrentThreadId       = kernel32.NewProc("GetCurrentThreadId")
+	procGetWindowTextW           = user32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW     = user32.NewProc("GetWindowTextLengthW")
+	procIsWindowVisible          = user32.NewProc("IsWindowVisible")
+	procGetAncestor              = user32.NewProc("GetAncestor")
+	procEnumWindows              = user32.NewProc("EnumWindows")
+	procGetClassNameW            = user32.NewProc("GetClassNameW")
+	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+	procDwmGetWindowAttribute    = dwmapi.NewProc("DwmGetWindowAttribute")
 
 	// Global variables
 	hwndToExclude      []win.HWND
@@ -58,4 +58,6 @@ var (
 
 	// Mutex for thread safety when accessing activeWindowWatcher
 	activeWatcherMutex sync.RWMutex
+
+	discoveredApps map[string]FinalAppOutput
 )
