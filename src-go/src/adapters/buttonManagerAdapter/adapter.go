@@ -40,19 +40,20 @@ func (a *ButtonManagerAdapter) Run() error {
 
 // // PrintWindowList prints the current window list for debugging
 func PrintWindowList(mapping map[int]WindowInfo_Message) {
-	fmt.Println("------------------ Current Window List ------------------")
-	if len(mapping) == 0 {
-		fmt.Println("(empty)")
-		return
-	}
-	for hwnd, info := range mapping { // info is type WindowInfo_Message
-		fmt.Printf("Window Handle: %d\n", hwnd)
-		fmt.Printf("  Title: %s\n", info.Title)
-		fmt.Printf("  ExeName: %s\n", info.ExeName)
-		fmt.Printf("  ExePath: %s\n", info.ExePath)
-		fmt.Printf("  AppName: %s\n", info.AppName)
-		fmt.Printf("  Instance: %d\n", info.Instance)
-		fmt.Println()
-	}
-	fmt.Println("---------------------------------------------------------")
+    fmt.Println("------------------ Current Window List ------------------")
+    if len(mapping) == 0 {
+        fmt.Println("(empty)")
+        return
+    }
+    for hwnd, info := range mapping {
+        fmt.Printf("Window Handle: %d\n", hwnd)
+        fmt.Printf("  Title: %s\n", info.Title)
+        fmt.Printf("  ExeName: %s\n", info.ExeName)
+        fmt.Printf("  ExePath: %s\n", info.ExePath)
+        fmt.Printf("  AppName: %s\n", info.AppName)
+        fmt.Printf("  Instance: %d\n", info.Instance)
+        fmt.Printf("  IconPath: %s\n", info.IconPath)
+        fmt.Println()
+    }
+    fmt.Println("---------------------------------------------------------")
 }

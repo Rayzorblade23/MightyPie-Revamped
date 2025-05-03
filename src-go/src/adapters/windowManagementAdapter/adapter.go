@@ -69,7 +69,7 @@ func (a *WindowManagementAdapter) Run() error {
 	initialWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0))
 	a.winManager.UpdateOpenWindowsInfo(initialWindows)
 	logger.Printf("Initial window list created with %d windows.\n", len(initialWindows))
-	PrintWindowList(initialWindows)
+	// PrintWindowList(initialWindows)
 
 	// Start window watcher and monitoring goroutine
 	if err := a.windowWatcher.Start(); err != nil {
@@ -190,7 +190,7 @@ func (a *WindowManagementAdapter) monitorWindows() {
 			a.winManager.UpdateOpenWindowsInfo(currentWindows)
 			previousWindows = currentWindows
 			lastUpdateTime = time.Now()
-			PrintWindowList(currentWindows)
+			// PrintWindowList(currentWindows)
 			a.publishWindowListUpdate(currentWindows)
 		} else {
 			lastUpdateTime = time.Now()

@@ -7,6 +7,7 @@ type WindowInfo_Message struct {
     ExePath  string `json:"ExePath"`
     AppName  string `json:"AppName"`
     Instance int    `json:"Instance"`
+    IconPath string `json:"IconPath"`
 }
 
 type WindowInfo struct {
@@ -14,7 +15,8 @@ type WindowInfo struct {
     ExeName  string
     ExePath  string
     AppName  string
-    Instance int   
+    Instance int
+    IconPath string
 }
 
 type WindowsUpdate_Message map[int]WindowInfo_Message

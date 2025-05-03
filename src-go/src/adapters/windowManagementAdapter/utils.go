@@ -77,6 +77,7 @@ func cleanWindowTitles(mapping WindowMapping, entry WindowMapping, appName strin
             ExeName:  info.ExeName,
             ExePath:  info.ExePath,
             AppName:  info.AppName,
+            IconPath: info.IconPath,
             Instance: 0,
         }
     }
@@ -144,7 +145,14 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
         if pid != 0 {
             exePath, err := getProcessExePath(pid)
             if err != nil {
-                result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", ExePath: "", AppName: "Unknown App", Instance: 0}
+                result[hwnd] = WindowInfo{
+                    Title: windowTitle, 
+                    ExeName: "Unknown App", 
+                    ExePath: "", 
+                    AppName: "Unknown App", 
+                    Instance: 0,
+                    IconPath: "",  // Empty for unknown apps
+                }
                 return result, "Unknown App"
             }
             if fileExists(exePath) {
@@ -162,17 +170,34 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
                         }
                     }
                 }
+
+                // Get icon path
+                iconPath := ""
+                if strings.HasSuffix(strings.ToLower(exePath), ".exe") {
+                    if path, err := GetIconPathForExe(exePath); err == nil {
+                        iconPath = path
+                    }
+                }
+
                 result[hwnd] = WindowInfo{
                     Title:    windowTitle,
                     ExeName:  exeName,
                     ExePath:  exePath,
                     AppName:  appName,
                     Instance: 0,
+                    IconPath: iconPath,
                 }
                 return result, appName
             }
         }
-        result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", ExePath: "", AppName: "Unknown App", Instance: 0}
+        result[hwnd] = WindowInfo{
+            Title: windowTitle, 
+            ExeName: "Unknown App", 
+            ExePath: "", 
+            AppName: "Unknown App", 
+            Instance: 0,
+            IconPath: "",
+        }
     }
     return result, "Unknown App"
 }

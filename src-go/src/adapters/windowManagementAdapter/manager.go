@@ -83,14 +83,16 @@ func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND) Wi
 
 // PrintWindowList prints the current window list for debugging
 func PrintWindowList(mapping WindowMapping) {
-	fmt.Println("------------------ Current Window List ------------------")
-	for hwnd, info := range mapping {
-		fmt.Printf("Window Handle: %v\n", hwnd)
-		fmt.Printf("  Title: %s\n", info.Title)
-		fmt.Printf("  ExeName: %s\n", info.ExeName)
-		fmt.Printf("  ExePath: %s\n", info.ExePath)
-		fmt.Printf("  AppName: %s\n", info.AppName)
-		fmt.Printf("  Instance: %d\n", info.Instance)
-		fmt.Println()
-	}
+    fmt.Println("------------------ Current Window List ------------------")
+    for hwnd, info := range mapping {
+        fmt.Printf("Window Handle: %v\n", hwnd)
+        fmt.Printf("  Title: %s\n", info.Title)
+        fmt.Printf("  ExeName: %s\n", info.ExeName)
+        fmt.Printf("  ExePath: %s\n", info.ExePath)
+        fmt.Printf("  AppName: %s\n", info.AppName)
+        fmt.Printf("  Instance: %d\n", info.Instance)
+        fmt.Printf("  IconPath: %s\n", info.IconPath)
+        fmt.Println()
+    }
+    fmt.Println("---------------------------------------------------------")
 }

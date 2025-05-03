@@ -30,7 +30,8 @@ type WindowInfo struct {
     ExeName  string
     ExePath  string
     AppName  string
-    Instance int   
+    Instance int
+	IconPath string
 }
 
 // WindowMapping maps window handles to window information
