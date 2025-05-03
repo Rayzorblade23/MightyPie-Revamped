@@ -436,6 +436,100 @@ func ExtractAndSaveIcons(appMap map[string]FinalAppOutput) error {
 	return nil // Only setup errors are returned from this function
 }
 
+
+// CleanOrphanedIcons scans the icon storage directory and removes any icon files
+// that do not correspond to an executable path currently listed in the provided appMap.
+// It logs the number of icons checked and deleted.
+//
+// Args:
+//
+//	appMap (map[string]FinalAppOutput): The map of currently known/discovered applications,
+//	                                    where keys are the full executable paths.
+//
+// Returns:
+//
+//	error: An error if the icon storage directory cannot be accessed or read,
+//	       otherwise nil (even if individual file deletions fail, which are logged).
+func CleanOrphanedIcons(appMap map[string]FinalAppOutput) error {
+	log.Println("Starting cleanup of orphaned icons...")
+
+	// 1. Get the icon storage directory path.
+	iconStorageDir, err := getIconStorageDir()
+	if err != nil {
+		// This is critical, can't proceed without the directory.
+		return fmt.Errorf("failed to get icon storage directory for cleanup: %w", err)
+	}
+
+	// 2. Build a set of *expected* icon filenames based on the current appMap.
+	// Using a map[string]struct{} acts as a lightweight set for efficient lookups.
+	expectedIconFiles := make(map[string]struct{}, len(appMap))
+	for exePath := range appMap {
+		// Only consider .exe files for generating expected icon names, mirroring extraction logic.
+		if strings.HasSuffix(strings.ToLower(exePath), ".exe") {
+			expectedFilename := generateIconFilename(exePath)
+			expectedIconFiles[expectedFilename] = struct{}{} // Add filename to the set
+		}
+	}
+	log.Printf("Expecting icons for %d known executables.", len(expectedIconFiles))
+
+
+	// 3. Read the contents of the actual icon storage directory.
+	dirEntries, err := os.ReadDir(iconStorageDir)
+	if err != nil {
+		// If we can't read the directory, we can't clean it.
+		return fmt.Errorf("failed to read icon storage directory '%s': %w", iconStorageDir, err)
+	}
+
+	// 4. Iterate through actual files and delete orphans.
+	foundCount := 0
+	deletedCount := 0
+	for _, entry := range dirEntries {
+		// Skip subdirectories, focus on files.
+		if entry.IsDir() {
+			continue
+		}
+
+		filename := entry.Name()
+
+		// Optional: Only consider .png files if you might have other file types there.
+		// if !strings.HasSuffix(strings.ToLower(filename), ".png") {
+		//  continue
+		// }
+		foundCount++
+
+
+		// Check if this filename exists in our set of expected icons.
+		if _, expected := expectedIconFiles[filename]; !expected {
+			// This icon file is not associated with any current app in the map. It's an orphan.
+			orphanPath := filepath.Join(iconStorageDir, filename)
+			log.Printf("Deleting orphaned icon: %s", filename)
+			err := os.Remove(orphanPath)
+			if err != nil {
+				// Log deletion errors but continue the process for other files.
+				log.Printf("Warning: Failed to delete orphaned icon '%s': %v", orphanPath, err)
+				// You might want to add a counter for failed deletions if needed.
+			} else {
+				deletedCount++
+			}
+		}
+	}
+
+	log.Printf("Orphaned icon cleanup complete. Checked: %d files, Deleted: %d orphans.", foundCount, deletedCount)
+	return nil // Return nil as the primary operation (reading dir) succeeded.
+}
+
+// Example of how you might call it (e.g., during startup or periodically):
+func RunOrphanedIconsCleanup() {
+    if len(discoveredApps) > 0 { // Or some other condition to trigger cleanup
+        err := CleanOrphanedIcons(discoveredApps)
+        if err != nil {
+            log.Printf("Error during icon cleanup process: %v", err)
+        }
+    } else {
+        log.Println("Skipping icon cleanup as the application map is empty.")
+    }
+}
+
 // --- Helper Function to Get Icon Path (Unchanged) ---
 func GetIconPathForExe(exePath string) (string, error) {
 	storageDir, err := getIconStorageDir()
@@ -464,4 +558,6 @@ func ProcessIcons() {
 			log.Println("Background icon extraction goroutine finished.")
 		}
 	}()
+
+	RunOrphanedIconsCleanup()
 }
