@@ -26,11 +26,11 @@ type shortcutPressed_Message struct {
 
 // WindowInfo stores information about a window
 type WindowInfo struct {
-	Title    string
-	ExeName  string
-	ExePath  string
-	AppName  string
-	Instance int
+    Title    string
+    ExeName  string
+    ExePath  string
+    AppName  string
+    Instance int   
 }
 
 // WindowMapping maps window handles to window information

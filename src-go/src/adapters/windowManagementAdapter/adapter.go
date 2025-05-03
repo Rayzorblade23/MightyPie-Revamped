@@ -191,16 +191,26 @@ func (a *WindowManagementAdapter) monitorWindows() {
 			previousWindows = currentWindows
 			lastUpdateTime = time.Now()
 			PrintWindowList(currentWindows)
+			a.publishWindowListUpdate(currentWindows)
 		} else {
 			lastUpdateTime = time.Now()
 		}
 	}
 }
 
+// publishWindowListUpdate sends the updated window list to the NATS subject
+func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping) {
+	convertedMap := make(map[int]WindowInfo)
+	for hwnd, info := range windows {
+		convertedMap[int(hwnd)] = info
+	}
 
-// RunApp launches an application from discoveredApps using its path.
+	a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
+}
+
+// LaunchApp launches an application from discoveredApps using its path.
 // Returns error if the app cannot be launched.
-func RunApp(exePath string) error {
+func LaunchApp(exePath string) error {
     app, exists := discoveredApps[exePath]
     if !exists {
         return fmt.Errorf("application not found: %s", exePath)
