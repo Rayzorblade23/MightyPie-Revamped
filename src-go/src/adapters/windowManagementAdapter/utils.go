@@ -63,21 +63,23 @@ func shouldIncludeWindow(hwnd win.HWND, windowTitle, className string, isCloaked
 
 // cleanWindowTitles updates window titles in the mapping
 func cleanWindowTitles(mapping WindowMapping, entry WindowMapping, appName string) {
-	for hwnd, info := range entry {
-		cleanTitle := info.Title
+    for hwnd, info := range entry {
+        cleanTitle := info.Title
 
-		if info.ExeName == "explorer.exe" && strings.Contains(info.Title, " - File Explorer") {
-			cleanTitle = strings.Replace(info.Title, " - File Explorer", "", -1)
-		} else if strings.Contains(info.Title, " - "+appName) {
-			cleanTitle = strings.Replace(info.Title, " - "+appName, "", -1)
-		}
+        if info.ExeName == "explorer.exe" && strings.Contains(info.Title, " - File Explorer") {
+            cleanTitle = strings.Replace(info.Title, " - File Explorer", "", -1)
+        } else if strings.Contains(info.Title, " - "+appName) {
+            cleanTitle = strings.Replace(info.Title, " - "+appName, "", -1)
+        }
 
-		mapping[hwnd] = WindowInfo{
-			Title:    cleanTitle,
-			ExeName:  info.ExeName,
-			Instance: 0,
-		}
-	}
+        mapping[hwnd] = WindowInfo{
+            Title:    cleanTitle,
+            ExeName:  info.ExeName,
+            ExePath:  info.ExePath,
+            AppName:  info.AppName,
+            Instance: 0,
+        }
+    }
 }
 
 // assignInstanceNumbers assigns instance numbers to windows with the same title and exe
@@ -132,29 +134,47 @@ func assignInstanceNumbers(tempMapping WindowMapping, existingMapping WindowMapp
 
 // getWindowInfo gets information about a window
 func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
-	result := make(WindowMapping)
-	windowTitle := GetWindowText(hwnd)
+    result := make(WindowMapping)
+    windowTitle := GetWindowText(hwnd)
 
-	if hwnd != 0 {
-		var pid uint32
-		procGetWindowThreadProcessId.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&pid)))
+    if hwnd != 0 {
+        var pid uint32
+        procGetWindowThreadProcessId.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&pid)))
 
-		if pid != 0 {
-			exePath, err := getProcessExePath(pid)
-			if err != nil {
-				result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", Instance: 0}
-				return result, "Unknown App"
-			}
-			if fileExists(exePath) {
-				exeName := strings.ToLower(filepath.Base(exePath))
-				appName := getFriendlyAppName(exePath, exeName)
-				result[hwnd] = WindowInfo{Title: windowTitle, ExeName: exeName, Instance: 0}
-				return result, appName
-			}
-		}
-		result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", Instance: 0}
-	}
-	return result, "Unknown App"
+        if pid != 0 {
+            exePath, err := getProcessExePath(pid)
+            if err != nil {
+                result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", ExePath: "", AppName: "Unknown App", Instance: 0}
+                return result, "Unknown App"
+            }
+            if fileExists(exePath) {
+                exeName := strings.ToLower(filepath.Base(exePath))
+                // Try to find app name by checking both exact path and executable name
+                appName := "Unknown App"
+                if app, exists := discoveredApps[exePath]; exists {
+                    appName = app.Name
+                } else {
+                    // Try to find by executable name
+                    for path, app := range discoveredApps {
+                        if strings.EqualFold(filepath.Base(path), exeName) {
+                            appName = app.Name
+                            break
+                        }
+                    }
+                }
+                result[hwnd] = WindowInfo{
+                    Title:    windowTitle,
+                    ExeName:  exeName,
+                    ExePath:  exePath,
+                    AppName:  appName,
+                    Instance: 0,
+                }
+                return result, appName
+            }
+        }
+        result[hwnd] = WindowInfo{Title: windowTitle, ExeName: "Unknown App", ExePath: "", AppName: "Unknown App", Instance: 0}
+    }
+    return result, "Unknown App"
 }
 
 // getProcessExePath gets the executable path for a process
@@ -181,13 +201,6 @@ func getProcessExePath(pid uint32) (string, error) {
 	}
 
 	return syscall.UTF16ToString(buf[:size]), nil
-}
-
-// getFriendlyAppName gets a friendly name from file version info
-func getFriendlyAppName(exePath, exeName string) string {
-	// Simplified version - just return capitalized exe name without extension
-	baseName := strings.TrimSuffix(exeName, filepath.Ext(exeName))
-	return strings.Title(baseName)
 }
 
 // fileExists checks if a file exists

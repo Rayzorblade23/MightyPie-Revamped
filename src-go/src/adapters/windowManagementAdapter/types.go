@@ -28,6 +28,8 @@ type shortcutPressed_Message struct {
 type WindowInfo struct {
 	Title    string
 	ExeName  string
+	ExePath  string
+	AppName  string
 	Instance int
 }
 

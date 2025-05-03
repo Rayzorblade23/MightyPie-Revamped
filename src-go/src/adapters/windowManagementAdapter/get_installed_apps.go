@@ -40,6 +40,12 @@ var (
 		".mov", ".inf", ".sys", ".dll", ".md",
 	}
 	whitelistKeywords = []string{"sleepington"} // Example: Keep "Sleepington Updater"
+
+	systemApps = map[string]string{
+		"explorer.exe": "Windows Explorer",
+		"taskmgr.exe":  "Task Manager",
+		"cmd.exe":      "Command Prompt",
+	}
 )
 
 // --- Structs ---
@@ -51,7 +57,7 @@ type AppEntry struct {
 
 // FinalAppOutput defines the structure of the VALUE in the final JSON map sent to stdout.
 type FinalAppOutput struct {
-	Name             string `json:"name"`                     // The original display name
+	Name             string `json:"name"`                       // The original display name
 	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
 	Args             string `json:"args,omitempty"`             // Command line args from LNK
 }
@@ -82,7 +88,9 @@ func resolveLnkTarget(lnkPath string) (string, error) {
 		targetPath = linkFile.StringData.RelativePath
 	}
 
-	if targetPath == "" { return "", nil } // No path found
+	if targetPath == "" {
+		return "", nil
+	} // No path found
 
 	// Expand environment variables first
 	expandedPath := os.ExpandEnv(targetPath)
@@ -110,6 +118,25 @@ func getStartMenuDirs() []string {
 		`C:\ProgramData\Microsoft\Windows\Start Menu\Programs`,
 		filepath.Join(os.Getenv("APPDATA"), `Microsoft\Windows\Start Menu\Programs`),
 	}
+}
+
+// Add system executables as hardcoded entries
+func addSystemApps(apps []AppEntry) []AppEntry {
+	systemPaths := map[string]string{
+		"explorer.exe": `C:\Windows\explorer.exe`,
+		"taskmgr.exe":  `C:\Windows\System32\taskmgr.exe`,
+		"cmd.exe":      `C:\Windows\System32\cmd.exe`,
+	}
+
+	for exeName, path := range systemPaths {
+		if _, err := os.Stat(path); err == nil {
+			apps = append(apps, AppEntry{
+				Name: systemApps[exeName],
+				Path: path,
+			})
+		}
+	}
+	return apps
 }
 
 // --- Filtering Logic ---
@@ -154,6 +181,10 @@ func hasUnwantedExtensionOrPattern(filename string) bool {
 
 // isUnwantedEntry orchestrates filtering checks.
 func isUnwantedEntry(name, path string) bool {
+	if filename := filepath.Base(strings.ToLower(path)); systemApps[filename] != "" {
+		return false
+	}
+
 	lowerName := strings.ToLower(name)
 	lowerPath := strings.ToLower(path)
 
@@ -211,7 +242,9 @@ func normalizeAppName(name string) string {
 // --- Executable Selection Heuristic ---
 
 func selectPrimaryExecutable(appName string, exePaths []string) string {
-	if len(exePaths) == 0 { return "" }
+	if len(exePaths) == 0 {
+		return ""
+	}
 
 	// Filter out unwanted candidates first
 	candidates := make([]string, 0, len(exePaths))
@@ -220,8 +253,12 @@ func selectPrimaryExecutable(appName string, exePaths []string) string {
 			candidates = append(candidates, p)
 		}
 	}
-	if len(candidates) == 0 { return "" }
-	if len(candidates) == 1 { return candidates[0] }
+	if len(candidates) == 0 {
+		return ""
+	}
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
 
 	normalizedAppNameBase := normalizeAppName(appName)
 	bestCandidate := ""
@@ -279,21 +316,28 @@ func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]b
 	// Use the final absolute path for all subsequent checks and storage
 	lowerAbsPath := strings.ToLower(absPath)
 
-	if seenTargets[lowerAbsPath] { return nil } // Duplicate target path check
-	if isUnwantedEntry(linkName, absPath) { return nil } // Filtering check
+	if seenTargets[lowerAbsPath] {
+		return nil
+	} // Duplicate target path check
+	if isUnwantedEntry(linkName, absPath) {
+		return nil
+	} // Filtering check
 
 	targetExt := strings.ToLower(filepath.Ext(absPath)) // Extension check
-	if targetExt != ".exe" && targetExt != ".bat" && targetExt != ".com" { return nil }
+	if targetExt != ".exe" && targetExt != ".bat" && targetExt != ".com" {
+		return nil
+	}
 
 	// Final check for existence and type using the absolute path
 	statInfo, err := os.Stat(absPath)
-	if err != nil || statInfo.IsDir() { return nil }
+	if err != nil || statInfo.IsDir() {
+		return nil
+	}
 
 	// Mark seen and return valid entry using the final absolute path
 	seenTargets[lowerAbsPath] = true
 	return &AppEntry{Name: linkName, Path: absPath} // Store the absolute path
 }
-
 
 // getExeApps finds applications by scanning .lnk files in standard Start Menu directories.
 // It resolves LNK targets, filters unwanted entries, verifies target existence, and deduplicates.
@@ -312,7 +356,9 @@ func getExeApps() ([]AppEntry, map[string]bool, map[string]string) {
 		_ = filepath.Walk(dir, func(linkPath string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				// Handle walk errors silently in production unless specific logging is needed
-				if info != nil && info.IsDir() { return filepath.SkipDir }
+				if info != nil && info.IsDir() {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 			if info.IsDir() || !strings.EqualFold(filepath.Ext(linkPath), ".lnk") {
@@ -350,7 +396,9 @@ func getUwpPackageLocations() (map[string]string, error) {
 	}
 
 	output := out.Bytes()
-	if len(output) == 0 { return make(map[string]string), nil } // No packages found is ok
+	if len(output) == 0 {
+		return make(map[string]string), nil
+	} // No packages found is ok
 
 	var packages []UwpPackageInfo
 	if err := json.Unmarshal(output, &packages); err != nil {
@@ -396,14 +444,20 @@ func processUwpEntry(name, appid string, packageLocations map[string]string) *Ap
 		primaryExePath = selectPrimaryExecutable(name, packageExes)
 	}
 
-	if primaryExePath == "" { return nil } // No suitable executable found
+	if primaryExePath == "" {
+		return nil
+	} // No suitable executable found
 
 	cleanedExePath := filepath.Clean(primaryExePath)
-	if isUnwantedEntry(name, cleanedExePath) { return nil } // Unwanted
+	if isUnwantedEntry(name, cleanedExePath) {
+		return nil
+	} // Unwanted
 
 	// Final check for existence/type
 	statInfo, err := os.Stat(cleanedExePath)
-	if err != nil || statInfo.IsDir() { return nil }
+	if err != nil || statInfo.IsDir() {
+		return nil
+	}
 
 	return &AppEntry{Name: name, Path: cleanedExePath}
 }
@@ -432,14 +486,20 @@ func getUWPApps() []AppEntry {
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.SplitN(line, "\t", 2)
-		if len(parts) != 2 { continue } // Skip malformed
+		if len(parts) != 2 {
+			continue
+		} // Skip malformed
 
 		name := strings.TrimSpace(parts[0])
 		appid := strings.TrimSpace(parts[1])
-		if name == "" || appid == "" { continue } // Skip empty
+		if name == "" || appid == "" {
+			continue
+		} // Skip empty
 
 		lowerAppID := strings.ToLower(appid)
-		if processedAppIDs[lowerAppID] { continue } // Skip duplicate AppID
+		if processedAppIDs[lowerAppID] {
+			continue
+		} // Skip duplicate AppID
 		processedAppIDs[lowerAppID] = true
 
 		// Process the UWP entry using the helper
@@ -472,6 +532,8 @@ func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 	// Keep your existing combination logic.
 	combinedAppEntries := make([]AppEntry, 0, len(exeApps)+len(uwpAppsResolved))
 	combinedAppEntries = append(combinedAppEntries, exeApps...)
+	combinedAppEntries = addSystemApps(combinedAppEntries)
+
 	for _, uwpApp := range uwpAppsResolved {
 		// Assuming uwpApp is of type AppEntry now
 		lowerUwpPath := strings.ToLower(uwpApp.Path)
@@ -500,7 +562,7 @@ func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 	processedPathsForOutput := make(map[string]bool, len(combinedAppEntries))
 
 	for _, appEntry := range combinedAppEntries {
-		pathKey := appEntry.Path // The absolute path is the key
+		pathKey := appEntry.Path
 		lowerPathKey := strings.ToLower(pathKey)
 
 		// Deduplicate based on final path key during map creation.
@@ -508,8 +570,17 @@ func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 			continue
 		}
 
-		// Create the FinalAppOutput value
+		// Create the FinalAppOutput value with proper name handling
 		outputValue := FinalAppOutput{Name: appEntry.Name}
+
+		// Check if it's a system app and use the system name
+		if sysName, isSys := systemApps[strings.ToLower(filepath.Base(pathKey))]; isSys {
+			outputValue.Name = sysName
+			// For system apps, don't include any LNK data
+			finalMap[pathKey] = outputValue
+			processedPathsForOutput[lowerPathKey] = true
+			continue // Skip LNK processing for system apps
+		}
 
 		// Check if this app originated from an LNK file to get extra data
 		if originalLnkPath, found := exeLnkPaths[lowerPathKey]; found {

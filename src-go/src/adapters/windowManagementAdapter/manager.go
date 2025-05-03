@@ -88,6 +88,8 @@ func PrintWindowList(mapping WindowMapping) {
 		fmt.Printf("Window Handle: %v\n", hwnd)
 		fmt.Printf("  Title: %s\n", info.Title)
 		fmt.Printf("  ExeName: %s\n", info.ExeName)
+		fmt.Printf("  ExePath: %s\n", info.ExePath)
+		fmt.Printf("  AppName: %s\n", info.AppName)
 		fmt.Printf("  Instance: %d\n", info.Instance)
 		fmt.Println()
 	}
