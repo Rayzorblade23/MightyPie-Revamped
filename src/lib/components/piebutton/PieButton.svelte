@@ -94,16 +94,25 @@
 </script>
 
 <div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
-    <button class="bg-amber-400 flex flex-col items-center justify-center p-0.5"
+    <button class="bg-amber-400 flex items-center p-0.5 min-w-0"
             style="width: {width}rem; height: {height}rem;"
             class:bg-blue-700={mouseState.hovered}
             class:bg-blue-900={mouseState.leftDown}
             class:bg-green-900={mouseState.middleDown}
             class:bg-red-900={mouseState.rightDown}
     >
-        <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
-        {#if buttonTextLower}
-            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-xs leading-tight">{buttonTextLower}</span>
+        {#if properties?.icon_path}
+            <img
+                    src={properties.icon_path}
+                    alt="button icon"
+                    class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1"
+            />
         {/if}
+        <div class="flex flex-col flex-1 min-w-0">
+            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
+            {#if buttonTextLower}
+                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-xs leading-tight">{buttonTextLower}</span>
+            {/if}
+        </div>
     </button>
 </div>

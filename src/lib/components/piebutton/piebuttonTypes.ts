@@ -42,7 +42,7 @@ export interface LaunchProgramProperties {
 export interface CallFunctionProperties {
     button_text_upper: string; // function name
     button_text_lower: string; // "" Empty string
-
+    icon_path?: string;
 }
 
 export type Task =

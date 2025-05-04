@@ -21,8 +21,8 @@
 
     const numButtons = 8;
     const radius = 150;
-    const buttonWidth = 8.75;
-    const buttonHeight = 2.125;
+    const buttonWidth = 9.3
+    const buttonHeight = 2.3
     const width = 600;
     const height = 500;
     const deadzoneRadius = 18;
