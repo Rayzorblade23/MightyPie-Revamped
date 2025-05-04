@@ -22,8 +22,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	discoveredApps = FetchExecutableApplicationMap()
 	ProcessIcons()
 
-	b, _ := json.MarshalIndent(discoveredApps, "", "  ")
-	fmt.Println(string(b))
+	// b, _ := json.MarshalIndent(discoveredApps, "", "  ")
+	// fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()

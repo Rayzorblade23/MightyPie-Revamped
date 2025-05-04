@@ -59,5 +59,6 @@ var (
 	// Mutex for thread safety when accessing activeWindowWatcher
 	activeWatcherMutex sync.RWMutex
 
-	discoveredApps map[string]FinalAppOutput
+	// maps ExePaths to AppNames, WorkingDirectories, and Args
+	discoveredApps map[string]AppLaunchInfo
 )

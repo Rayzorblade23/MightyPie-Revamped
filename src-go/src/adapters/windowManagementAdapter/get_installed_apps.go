@@ -55,8 +55,8 @@ type AppEntry struct {
 	Path string // Resolved executable path
 }
 
-// FinalAppOutput defines the structure of the VALUE in the final JSON map sent to stdout.
-type FinalAppOutput struct {
+// AppLaunchInfo defines the structure of the VALUE in the final JSON map sent to stdout.
+type AppLaunchInfo struct {
 	Name             string `json:"name"`                       // The original display name
 	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
 	Args             string `json:"args,omitempty"`             // Command line args from LNK
@@ -516,7 +516,7 @@ func getUWPApps() []AppEntry {
 
 // --- Main Execution ---
 
-func FetchExecutableApplicationMap() map[string]FinalAppOutput {
+func FetchExecutableApplicationMap() map[string]AppLaunchInfo {
 	// Step 1: Discover EXE apps from LNK files.
 	// Keep using your existing getExeApps function.
 	exeApps, seenExeTargets, exeLnkPaths := getExeApps()
@@ -558,7 +558,7 @@ func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 
 	// Step 5: Build final output map (Path -> FinalAppOutput).
 	// Keep your existing logic for building the map and extracting LNK details.
-	finalMap := make(map[string]FinalAppOutput, len(combinedAppEntries))
+	finalMap := make(map[string]AppLaunchInfo, len(combinedAppEntries))
 	processedPathsForOutput := make(map[string]bool, len(combinedAppEntries))
 
 	for _, appEntry := range combinedAppEntries {
@@ -571,7 +571,7 @@ func FetchExecutableApplicationMap() map[string]FinalAppOutput {
 		}
 
 		// Create the FinalAppOutput value with proper name handling
-		outputValue := FinalAppOutput{Name: appEntry.Name}
+		outputValue := AppLaunchInfo{Name: appEntry.Name}
 
 		// Check if it's a system app and use the system name
 		if sysName, isSys := systemApps[strings.ToLower(filepath.Base(pathKey))]; isSys {

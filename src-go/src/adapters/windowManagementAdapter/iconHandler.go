@@ -107,7 +107,7 @@ func extractIconHandles(exePath string) (hIconLarge, hIconSmall w32.HICON, err e
 	// Check if any icon handle was actually returned.
 	if hIconLarge == 0 && hIconSmall == 0 {
 		// No handles returned. Check if it was due to an OS error or just no icon found.
-		errno := syscall.Errno(0) // Assume success but no icon by default
+		errno := syscall.Errno(0)                                    // Assume success but no icon by default
 		if lastErr != nil && !errors.Is(lastErr, syscall.Errno(0)) { // Ignore ERROR_SUCCESS
 			if osErr, ok := lastErr.(syscall.Errno); ok {
 				errno = osErr // It was a specific OS error
@@ -198,7 +198,7 @@ func renderIconToBGRA(hIcon w32.HICON, size int) ([]byte, error) {
 func bgraToGoImage(bgraData []byte, width, height int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	pixels := img.Pix
-	j := 0 // Index for RGBA buffer
+	j := 0                                  // Index for RGBA buffer
 	for i := 0; i < len(bgraData); i += 4 { // Index for BGRA buffer
 		pixels[j+0] = bgraData[i+2] // R <- B
 		pixels[j+1] = bgraData[i+1] // G <- G
@@ -255,7 +255,6 @@ func extractIconFromExe(exePath string, size int) (image.Image, error) {
 	return img, nil
 }
 
-
 // --- Icon Extraction and Saving Logic (Minor Refinements) ---
 
 // extractAndSaveIcon checks existence, extracts, and saves a single icon.
@@ -287,9 +286,8 @@ func extractAndSaveIcon(exePath string, storageDir string) error {
 	}
 	// Defensive check - should not happen if platformExtractIcon works correctly
 	if extractedIcon == nil {
-	    return fmt.Errorf("internal error: platformExtractIcon returned nil image and nil error for %q", exePath)
+		return fmt.Errorf("internal error: platformExtractIcon returned nil image and nil error for %q", exePath)
 	}
-
 
 	// 3. Save the extracted icon as PNG
 	outFile, err := os.Create(targetPngPath)
@@ -302,14 +300,13 @@ func extractAndSaveIcon(exePath string, storageDir string) error {
 	err = png.Encode(outFile, extractedIcon)
 	if err != nil {
 		// Best effort to clean up potentially partial/corrupt file on encode error
-		outFile.Close()        // Close handle before removing
+		outFile.Close()              // Close handle before removing
 		_ = os.Remove(targetPngPath) // Ignore error during cleanup attempt
 		return fmt.Errorf("failed to encode icon to PNG %q: %w", targetPngPath, err)
 	}
 
 	return nil // Success!
 }
-
 
 // --- Main Orchestration Function (Refactored for Clarity) ---
 
@@ -350,7 +347,7 @@ func generateSummaryReport(total, skipped, failures uint64, skippedNames, failed
 }
 
 // ExtractAndSaveIcons concurrently processes a map of applications to extract and save icons.
-func ExtractAndSaveIcons(appMap map[string]FinalAppOutput) error {
+func ExtractAndSaveIcons(appMap map[string]AppLaunchInfo) error {
 	if len(appMap) == 0 {
 		log.Println("App map is empty, skipping icon extraction.")
 		return nil
@@ -405,8 +402,8 @@ func ExtractAndSaveIcons(appMap map[string]FinalAppOutput) error {
 					// Conditionally log individual errors - avoid flooding with common OS errors
 					// from extraction if they were already wrapped (e.g., access denied),
 					// but log other errors (file create, encode).
-                    // We check if the error *is* a syscall.Errno OR if it *wraps* one
-                    // originating from platformExtractIcon/renderIconToBGRA/extractIconHandles.
+					// We check if the error *is* a syscall.Errno OR if it *wraps* one
+					// originating from platformExtractIcon/renderIconToBGRA/extractIconHandles.
 					var osErr syscall.Errno
 					isOsExtractionError := errors.As(err, &osErr)
 
@@ -436,7 +433,6 @@ func ExtractAndSaveIcons(appMap map[string]FinalAppOutput) error {
 	return nil // Only setup errors are returned from this function
 }
 
-
 // CleanOrphanedIcons scans the icon storage directory and removes any icon files
 // that do not correspond to an executable path currently listed in the provided appMap.
 // It logs the number of icons checked and deleted.
@@ -450,7 +446,7 @@ func ExtractAndSaveIcons(appMap map[string]FinalAppOutput) error {
 //
 //	error: An error if the icon storage directory cannot be accessed or read,
 //	       otherwise nil (even if individual file deletions fail, which are logged).
-func CleanOrphanedIcons(appMap map[string]FinalAppOutput) error {
+func CleanOrphanedIcons(appMap map[string]AppLaunchInfo) error {
 	log.Println("Starting cleanup of orphaned icons...")
 
 	// 1. Get the icon storage directory path.
@@ -471,7 +467,6 @@ func CleanOrphanedIcons(appMap map[string]FinalAppOutput) error {
 		}
 	}
 	log.Printf("Expecting icons for %d known executables.", len(expectedIconFiles))
-
 
 	// 3. Read the contents of the actual icon storage directory.
 	dirEntries, err := os.ReadDir(iconStorageDir)
@@ -497,7 +492,6 @@ func CleanOrphanedIcons(appMap map[string]FinalAppOutput) error {
 		// }
 		foundCount++
 
-
 		// Check if this filename exists in our set of expected icons.
 		if _, expected := expectedIconFiles[filename]; !expected {
 			// This icon file is not associated with any current app in the map. It's an orphan.
@@ -520,14 +514,14 @@ func CleanOrphanedIcons(appMap map[string]FinalAppOutput) error {
 
 // Example of how you might call it (e.g., during startup or periodically):
 func RunOrphanedIconsCleanup() {
-    if len(discoveredApps) > 0 { // Or some other condition to trigger cleanup
-        err := CleanOrphanedIcons(discoveredApps)
-        if err != nil {
-            log.Printf("Error during icon cleanup process: %v", err)
-        }
-    } else {
-        log.Println("Skipping icon cleanup as the application map is empty.")
-    }
+	if len(discoveredApps) > 0 { // Or some other condition to trigger cleanup
+		err := CleanOrphanedIcons(discoveredApps)
+		if err != nil {
+			log.Printf("Error during icon cleanup process: %v", err)
+		}
+	} else {
+		log.Println("Skipping icon cleanup as the application map is empty.")
+	}
 }
 
 // --- Helper Function to Get Icon Path (Unchanged) ---
@@ -540,7 +534,6 @@ func GetIconPathForExe(exePath string) (string, error) {
 	fullIconPath := filepath.Join(storageDir, iconFilename)
 	return fullIconPath, nil
 }
-
 
 func ProcessIcons() {
 
