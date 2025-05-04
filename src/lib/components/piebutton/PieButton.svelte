@@ -1,10 +1,5 @@
 ﻿<script lang="ts">
-    import {
-        getMenuConfiguration,
-        getTaskProperties,
-        getTaskType,
-
-    } from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+    import {getTaskProperties, getTaskType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.ts";
     import {getEnvVar} from "$lib/envHandler.ts";
@@ -19,11 +14,13 @@
         middleUp: boolean;
     }
 
-    let {menu_index, button_index, x, y, mouseState}: {
+    let {menu_index, button_index, x, y, width, height, mouseState}: {
         menu_index: number,
         button_index: number,
         x: number,
         y: number,
+        width: number,
+        height: number,
         mouseState: MouseState
     } = $props();
 
@@ -80,21 +77,6 @@
         prevRightUp = mouseState.rightUp;
     });
 
-    const menuButtons = $derived(getMenuConfiguration().get(menu_index));
-    const buttonConfig = $derived(menuButtons?.get(button_index));
-
-    $effect(() => {
-        console.log('PieButton Debug:', {
-            menuIndex: menu_index,
-            buttonIndex: button_index,
-            menuButtons,
-            buttonConfig,
-            rawConfig: Object.fromEntries([...getMenuConfiguration()].map(
-                ([k, v]) => [k, Object.fromEntries(v)]
-            ))
-        });
-    });
-
     function publishButtonClick(clickType: string) {
         if (!properties || !taskType) return;
 
@@ -102,7 +84,7 @@
             menu_index,
             button_index,
             task_type: taskType,
-            properties,
+            properties: properties,
             click_type: clickType
         };
 
@@ -112,15 +94,16 @@
 </script>
 
 <div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
-    <button class="bg-amber-400 w-[8.75rem] h-[2.125rem] flex flex-col items-center justify-center"
+    <button class="bg-amber-400 flex flex-col items-center justify-center p-0.5"
+            style="width: {width}rem; height: {height}rem;"
             class:bg-blue-700={mouseState.hovered}
             class:bg-blue-900={mouseState.leftDown}
             class:bg-green-900={mouseState.middleDown}
             class:bg-red-900={mouseState.rightDown}
     >
-        <span>{buttonTextUpper}</span>
+        <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
         {#if buttonTextLower}
-            <span class="text-sm">{buttonTextLower}</span>
+            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-xs leading-tight">{buttonTextLower}</span>
         {/if}
     </button>
 </div>

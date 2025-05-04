@@ -5,7 +5,7 @@
  */
 export async function loadAndProcessIndicatorSVG() {
     try {
-        const response = await fetch("/indicator.svg");
+        const response = await fetch("/indicator_arrow_1.svg");
         let svg = await response.text();
 
         const colors = {

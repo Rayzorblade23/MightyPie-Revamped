@@ -117,6 +117,8 @@
                     button_index={i}
                     x={0}
                     y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
                     mouseState={{
                         hovered: activeSlice === i,
                         leftDown: activeSlice === i && currentMouseEvent === mouseEvents.left_down,
