@@ -53,10 +53,10 @@ export type Task =
     | { task_type: TaskType.Disabled };
 
 
-// Represents the structure like: { "0": { "0": RawTaskData, "1": RawTaskData }, "1": { ... } }
-export type RawNestedConfigData = Record<string, Record<string, RawTaskData>>;
+// Represents the structure like: { "0": { "0": TaskData, "1": TaskData }, "1": { ... } }
+export type ConfigData = Record<number, Record<number, TaskData>>;
 
-export type RawTaskData = {
+export type TaskData = {
     task_type: string;
     properties?: Record<string, any>; // Properties are optional only for 'disabled' type technically
 };

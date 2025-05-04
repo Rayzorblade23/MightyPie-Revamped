@@ -34,7 +34,6 @@
     let indicator = $state("");
     let indicatorRotation = $state(0);
 
-    // TODO: Send the clicked slice info to a Trigger Adapter
     subscribeToTopic(getEnvVar("NATSSUBJECT_PIEMENU_CLICK"), message => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);

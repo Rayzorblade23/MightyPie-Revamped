@@ -1,5 +1,10 @@
 ﻿<script lang="ts">
-    import {getTaskProperties, getTaskType} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+    import {
+        getMenuConfiguration,
+        getTaskProperties,
+        getTaskType,
+
+    } from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.ts";
     import {getEnvVar} from "$lib/envHandler.ts";
@@ -22,12 +27,11 @@
         mouseState: MouseState
     } = $props();
 
-    let taskType = $derived(getTaskType(menu_index, button_index));
+    const taskType = $derived(getTaskType(menu_index, button_index));
+    const properties = $derived(getTaskProperties(menu_index, button_index));
 
-    const taskProperties = $derived(getTaskProperties(menu_index, button_index));
-
-    const buttonTextUpper = $derived(taskProperties?.button_text_upper ?? `Button ${button_index + 1}`);
-    const buttonTextLower = $derived(taskProperties?.button_text_lower ?? "");
+    const buttonTextUpper = $derived(properties?.button_text_upper ?? `Button ${button_index + 1}`);
+    const buttonTextLower = $derived(properties?.button_text_lower ?? "");
 
     let prevLeftUp = false;
     let prevMiddleUp = false;
@@ -76,14 +80,29 @@
         prevRightUp = mouseState.rightUp;
     });
 
+    const menuButtons = $derived(getMenuConfiguration().get(menu_index));
+    const buttonConfig = $derived(menuButtons?.get(button_index));
+
+    $effect(() => {
+        console.log('PieButton Debug:', {
+            menuIndex: menu_index,
+            buttonIndex: button_index,
+            menuButtons,
+            buttonConfig,
+            rawConfig: Object.fromEntries([...getMenuConfiguration()].map(
+                ([k, v]) => [k, Object.fromEntries(v)]
+            ))
+        });
+    });
+
     function publishButtonClick(clickType: string) {
-        if (!taskProperties || !taskType) return;
+        if (!properties || !taskType) return;
 
         const message: IPieButtonExecuteMessage = {
             menu_index,
             button_index,
             task_type: taskType,
-            properties: taskProperties,
+            properties,
             click_type: clickType
         };
 

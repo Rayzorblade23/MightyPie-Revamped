@@ -1,161 +1,119 @@
 ﻿import {
-    type ButtonMap,
+    type ConfigData,
     type MenuConfiguration,
-    type RawNestedConfigData,
     type Task,
     TaskType
 } from "$lib/components/piebutton/piebuttonTypes.ts";
 
-// TODO: Replace with read-in config json
-const rawNestedMenuConfigData: RawNestedConfigData = {
-    "0": { // Menu Index 0
-        "0": {
-            "task_type": "show_program_window",
-            "properties": {
-                "button_text_upper": "Youtube",
-                "button_text_lower": "Vivaldi",
-                "app_icon_path": "",
-                "window_handle": 0,
-                "exe_path": "",
-            }
-        },
-        "1": {
-            "task_type": "show_program_window",
-            "properties": {
-                "button_text_upper": "Something else",
-                "button_text_lower": "YO",
-                "app_icon_path": "",
-                "window_handle": 0,
-                "exe_path": "",
-            }
-        },
-        "2": {
-            "task_type": "show_any_window",
-            "properties": {
-                "button_text_upper": "Another",
-                "button_text_lower": "One",
-                "app_icon_path": "",
-                "window_handle": 0,
-                "exe_path": "",
-            }
-        },
-        "3": {
-            "task_type": "call_function",
-            "properties": {
-                "button_text_upper": "Maximize Window",
-                "button_text_lower": "",
-            }
-        },
-        "4": {
-            "task_type": "call_function",
-            "properties": {
-                "button_text_upper": "Minimize Window",
-                "button_text_lower": "",
-            }
-        },
+import {subscribeToTopic} from "$lib/natsAdapter.ts";
+import {getEnvVar} from "$lib/envHandler.ts";
+
+
+// Internal state
+let menuConfiguration = $state<MenuConfiguration>(new Map());
+
+// Getter for external access
+export function getMenuConfiguration(): MenuConfiguration {
+    return menuConfiguration;
+}
+
+// Setter for updating the configuration
+export function updateMenuConfiguration(newConfig: Map<number, Map<number, Task>>) {
+    menuConfiguration = newConfig;
+}
+
+
+// Update the subscriber
+subscribeToTopic(getEnvVar("NATSSUBJECT_BUTTONMANAGER_UPDATE"), message => {
+    try {
+        const configData: ConfigData = JSON.parse(message);
+        const newConfig = parseNestedRawConfig(configData);
+        updateMenuConfiguration(newConfig);
+    } catch (e) {
+        console.error('Failed to parse button manager update:', e);
     }
-};
+}).catch(error => {
+    console.error('Failed to subscribe to NATS topic:', error);
+});
 
 
 // --- 3. Parsing Function (Handles Nested Input) ---
 
-function parseNestedRawConfig(nestedRawData: RawNestedConfigData): MenuConfiguration {
-    const menuConfig: MenuConfiguration = new Map();
 
-    // Iterate through Menu Indices (string keys "0", "1", ...)
-    for (const menuIndexStr in nestedRawData) {
-        if (!Object.prototype.hasOwnProperty.call(nestedRawData, menuIndexStr)) {
-            continue;
-        }
+export function parseNestedRawConfig(data: ConfigData) {
+    const newConfig = new Map<number, Map<number, Task>>();
 
-        const menuIndex = parseInt(menuIndexStr, 10);
-        if (isNaN(menuIndex)) {
-            console.warn(`Skipping invalid menu index: ${menuIndexStr}`);
-            continue;
-        }
+    Object.entries(data).forEach(([menuKey, menuData]) => {
+        const buttonMap = new Map<number, Task>();
+        const menuIndex = parseInt(menuKey);
 
-        const rawButtonMap = nestedRawData[menuIndexStr];
-        const buttonMap: ButtonMap = new Map(); // Create the inner Map for this menu
+        Object.entries(menuData).forEach(([buttonKey, taskData]) => {
+            const buttonIndex = parseInt(buttonKey);
 
-        // Iterate through Button Indices (string keys "0", "1", ..., "8", ...)
-        for (const buttonIndexStr in rawButtonMap) {
-            if (!Object.prototype.hasOwnProperty.call(rawButtonMap, buttonIndexStr)) {
-                continue;
+            switch (taskData.task_type) {
+                case TaskType.LaunchProgram:
+                    if (taskData.properties) {
+                        buttonMap.set(buttonIndex, {
+                            task_type: TaskType.LaunchProgram,
+                            properties: {
+                                button_text_upper: taskData.properties.button_text_upper ?? '',
+                                button_text_lower: taskData.properties.button_text_lower ?? '',
+                                icon_path: taskData.properties.icon_path ?? '',
+                                exe_path: taskData.properties.exe_path ?? ''
+                            }
+                        });
+                    }
+                    break;
+
+                case TaskType.ShowProgramWindow:
+                case TaskType.ShowAnyWindow:
+                    if (taskData.properties) {
+                        buttonMap.set(buttonIndex, {
+                            task_type: taskData.task_type as TaskType.ShowProgramWindow | TaskType.ShowAnyWindow,
+                            properties: {
+                                button_text_upper: taskData.properties.button_text_upper ?? '',
+                                button_text_lower: taskData.properties.button_text_lower ?? '',
+                                icon_path: taskData.properties.icon_path ?? '',
+                                window_handle: taskData.properties.window_handle ?? 0,
+                                exe_path: taskData.properties.exe_path ?? ''
+                            }
+                        });
+                    }
+                    break;
+
+                case TaskType.CallFunction:
+                    if (taskData.properties) {
+                        buttonMap.set(buttonIndex, {
+                            task_type: TaskType.CallFunction,
+                            properties: {
+                                button_text_upper: taskData.properties.button_text_upper ?? '',
+                                button_text_lower: taskData.properties.button_text_lower ?? ''
+                            }
+                        });
+                    }
+                    break;
+
+                default:
+                    buttonMap.set(buttonIndex, {
+                        task_type: TaskType.Disabled
+                    });
             }
+        });
 
-            const buttonIndex = parseInt(buttonIndexStr, 10);
-            if (isNaN(buttonIndex)) {
-                console.warn(`Skipping invalid button index: ${buttonIndexStr} in menu ${menuIndex}`);
-                continue;
-            }
+        newConfig.set(menuIndex, buttonMap);
+    });
 
-            const rawTaskData = rawButtonMap[buttonIndexStr];
-            const taskType = rawTaskData.task_type as TaskType; // Cast
-            const properties = rawTaskData.properties; // Might be undefined
-
-            // Validate task_type
-            if (!Object.values(TaskType).includes(taskType)) {
-                console.warn(`Skipping button index ${buttonIndex} in menu ${menuIndex}: Unknown task_type "${taskType}"`);
-                continue;
-            }
-
-            // Create the typed Task object
-            let task: Task;
-            if (taskType === TaskType.Disabled) {
-                task = {task_type: TaskType.Disabled};
-            } else if (properties) {
-                // Add more robust validation/casting here if needed (Zod recommended)
-                task = {
-                    task_type: taskType, // TS knows this isn't Disabled here
-                    properties: properties as any // Cast needed without validation lib
-                };
-            } else {
-                console.warn(`Skipping button index ${buttonIndex} in menu ${menuIndex}: Task type "${taskType}" requires properties, but none found.`);
-                continue; // Skip if properties are missing for types that need them
-            }
-
-            // Add the typed Task to the inner ButtonMap
-            buttonMap.set(buttonIndex, task);
-        }
-
-        // Add the populated ButtonMap to the main MenuConfiguration Map
-        if (buttonMap.size > 0) { // Only add menus that actually have buttons
-            menuConfig.set(menuIndex, buttonMap);
-        }
-    }
-
-    return menuConfig;
+    return newConfig;
 }
 
-
-const initialConfig = parseNestedRawConfig(rawNestedMenuConfigData);
-
-export const menuConfiguration = $state<MenuConfiguration>(initialConfig);
-
-/**
- * Gets the task type for a specific button in a menu
- * @returns TaskType or undefined if the task doesn't exist
- */
-export function getTaskType(menuIndex: number, buttonIndex: number): TaskType | undefined {
-    const menu = menuConfiguration.get(menuIndex);
-    const task = menu?.get(buttonIndex);
-    return task?.task_type;
+// In piebuttonConfig.svelte.ts
+export function getTaskProperties(menuIndex: number, buttonIndex: number) {
+    const buttonMap = menuConfiguration.get(menuIndex);
+    const task = buttonMap?.get(buttonIndex);
+    return task && 'properties' in task ? task.properties : undefined;
 }
 
-/**
- * Gets the properties for a specific button in a menu
- * @returns Task properties or undefined if the task doesn't exist or is disabled
- */
-export function getTaskProperties<T extends Exclude<Task, { task_type: TaskType.Disabled }>>(
-    menuIndex: number,
-    buttonIndex: number
-): T["properties"] | undefined {
-    const menu = menuConfiguration.get(menuIndex);
-    const task = menu?.get(buttonIndex);
-
-    if (!task || task.task_type === TaskType.Disabled) {
-        return undefined;
-    }
-
-    return (task as T).properties;
+export function getTaskType(menuIndex: number, buttonIndex: number) {
+    const buttonMap = menuConfiguration.get(menuIndex);
+    return buttonMap?.get(buttonIndex)?.task_type;
 }

@@ -71,13 +71,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 		// --- Publish the updated configuration ---
 		if updatedConfig != nil { // Only publish if changes were made (processWindowUpdate can return nil)
-			updatedConfigJSON, err := json.Marshal(updatedConfig)
-			if err != nil {
-				log.Printf("ERROR: Failed to marshal updated button config: %v", err)
-				return
-			}
 
-			a.natsAdapter.PublishMessage(buttonUpdateSubject, updatedConfigJSON)
+			a.natsAdapter.PublishMessage(buttonUpdateSubject, updatedConfig)
 
 		}
 	})
