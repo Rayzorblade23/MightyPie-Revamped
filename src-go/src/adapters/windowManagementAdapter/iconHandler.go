@@ -22,7 +22,7 @@ import (
 
 // --- Constants ---
 const (
-	AppDataIconSubdir     = "MightyPieRevamped/AppIcons"
+	AppDataIconSubdir     = "static/appIcons"
 	defaultIconSize       = 32
 	iconHashLength        = 8
 	maxIconBaseNameLength = 50
@@ -44,21 +44,53 @@ var (
 
 // getIconStorageDir finds or creates the directory for storing icons.
 func getIconStorageDir() (string, error) {
-	iconDirOnce.Do(func() {
-		localAppData := os.Getenv("LOCALAPPDATA")
-		if localAppData == "" {
-			iconDirErr = errors.New("LOCALAPPDATA environment variable not set")
-			return
-		}
-		dir := filepath.Join(localAppData, AppDataIconSubdir)
-		err := os.MkdirAll(dir, 0755) // Use standard permission mode
-		if err != nil {
-			iconDirErr = fmt.Errorf("failed to create icon directory '%s': %w", dir, err)
-			return
-		}
-		iconDirPath = dir
-	})
-	return iconDirPath, iconDirErr
+    iconDirOnce.Do(func() {
+        rootDir, err := getRootDir()
+        if err != nil {
+            iconDirErr = fmt.Errorf("failed to determine project root: %w", err)
+            return
+        }
+        
+        dir := filepath.Join(rootDir, AppDataIconSubdir)
+        err = os.MkdirAll(dir, 0755)
+        if err != nil {
+            iconDirErr = fmt.Errorf("failed to create icon directory '%s': %w", dir, err)
+            return
+        }
+        iconDirPath = dir
+    })
+    return iconDirPath, iconDirErr
+}
+
+// getRootDir returns the project root directory by going up from the current working directory
+func getRootDir() (string, error) {
+    // First try working directory
+    wd, err := os.Getwd()
+    if err != nil {
+        return "", fmt.Errorf("failed to get working directory: %w", err)
+    }
+    
+    // Walk up from working directory
+    dir := wd
+    for {
+        // Check for markers of project root (like go.mod or the src-go directory)
+        if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+            // Found go.mod, go up one more level
+            return filepath.Dir(dir), nil
+        }
+        if filepath.Base(dir) == "src-go" {
+            // Found src-go directory, go up two levels
+            return filepath.Dir(filepath.Dir(dir)), nil
+        }
+        
+        // Go up one directory
+        parent := filepath.Dir(dir)
+        if parent == dir {
+            // Reached root without finding project
+            return "", fmt.Errorf("could not find project root directory from %s", wd)
+        }
+        dir = parent
+    }
 }
 
 // --- Icon Filename Generation ---
