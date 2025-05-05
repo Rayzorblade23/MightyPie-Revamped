@@ -55,6 +55,7 @@ type LaunchProgramProperties struct {
 type CallFunctionProperties struct {
 	ButtonTextUpper string `json:"button_text_upper"` // Static function name
 	ButtonTextLower string `json:"button_text_lower"` // Empty string
+	IconPath        string `json:"icon_path"`         // Path to function icon
 }
 
 // Task represents a single task configuration

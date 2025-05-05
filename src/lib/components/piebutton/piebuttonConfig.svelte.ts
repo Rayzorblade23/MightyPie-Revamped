@@ -87,7 +87,8 @@ export function parseNestedRawConfig(data: ConfigData) {
                             task_type: TaskType.CallFunction,
                             properties: {
                                 button_text_upper: taskData.properties.button_text_upper ?? '',
-                                button_text_lower: taskData.properties.button_text_lower ?? ''
+                                button_text_lower: taskData.properties.button_text_lower ?? '',
+                                icon_path: taskData.properties.icon_path ?? ''
                             }
                         });
                     }

@@ -87,10 +87,18 @@
             properties: properties,
             click_type: clickType
         };
-
         publishMessage<IPieButtonExecuteMessage>(getEnvVar("NATSSUBJECT_PIEBUTTON_EXECUTE"), message);
     }
 
+    let svgPromise = $state();
+
+    $effect(() => {
+        if (properties?.icon_path?.endsWith('.svg')) {
+            svgPromise = fetch(properties.icon_path)
+                .then(r => r.text())
+                .then(text => text.replace(/<svg /, '<svg class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1" '));
+        }
+    });
 </script>
 
 <div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
@@ -102,12 +110,17 @@
             class:bg-red-900={mouseState.rightDown}
     >
         {#if properties?.icon_path}
-            <img
-                    src={properties.icon_path}
-                    alt="button icon"
-                    class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1"
-            />
+            {#if properties.icon_path.endsWith('.svg')}
+                {#await svgPromise}
+                    <div class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1">⌛</div>
+                {:then svgContent}
+                    {@html svgContent}
+                {/await}
+            {:else}
+                <img src={properties.icon_path} alt="button icon" class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1" />
+            {/if}
         {/if}
+
         <div class="flex flex-col flex-1 min-w-0">
             <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
             {#if buttonTextLower}

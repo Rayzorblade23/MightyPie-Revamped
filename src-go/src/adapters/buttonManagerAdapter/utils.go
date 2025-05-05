@@ -191,6 +191,7 @@ func PrintConfig(config ConfigData) {
 				fmt.Println("Properties:")
 				fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
 				fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
+				fmt.Printf("  Icon Path: %s\n", props.IconPath)
 
 			// --- ADDED CASE for LaunchProgram ---
 			case TaskTypeLaunchProgram:
