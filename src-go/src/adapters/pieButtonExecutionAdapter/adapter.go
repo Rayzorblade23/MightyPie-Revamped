@@ -1,175 +1,361 @@
+// Package pieButtonExecutionAdapter handles the logic triggered by pie menu button actions.
+// It listens to NATS messages for button executions, shortcut presses (to get context like mouse position),
+// and window updates, dispatching actions accordingly.
 package pieButtonExecutionAdapter
 
 import (
 	"encoding/json"
 	"fmt"
+	"log" // Use the standard log package
+	"maps"
+	"sync"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd" // Assuming this provides environment variables
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/nats-io/nats.go"
 )
 
+// NATS Subjects - fetched from environment, consider constants if these are static.
+var (
+	natsSubjectPieButtonExecute   = env.Get("NATSSUBJECT_PIEBUTTON_EXECUTE")
+	natsSubjectShortcutPressed    = env.Get("NATSSUBJECT_SHORTCUT_PRESSED")
+	natsSubjectWindowManagerUpdate = env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE")
+)
+
+// Function names - fetched from environment, consider constants if static.
+var (
+	fnMaximize = env.Get("FN_TEXT_MAXIMIZE")
+	fnMinimize = env.Get("FN_TEXT_MINIMIZE")
+	fnClose    = env.Get("FN_TEXT_CLOSE")
+	fnTopmost  = env.Get("FN_TEXT_TOPMOST")
+)
+
+// PieButtonExecutionAdapter listens to NATS events and executes actions.
 type PieButtonExecutionAdapter struct {
-    natsAdapter *natsAdapter.NatsAdapter
+	natsAdapter      *natsAdapter.NatsAdapter
+	lastMouseX       int
+	lastMouseY       int
+	mu               sync.RWMutex // Protects access to windowsList
+	windowsList      WindowsUpdate
+	functionHandlers map[string]HandlerWrapper
 }
 
+// WindowsUpdate stores information about currently open windows, keyed by HWND or other ID.
+type WindowsUpdate map[int]WindowInfo // Assuming int is the window handle/ID type
+
+// WindowInfo holds details about a specific window.
+type WindowInfo struct {
+	Title    string
+	ExeName  string
+	ExePath  string
+	AppName  string
+	Instance int
+	IconPath string
+}
+
+// --- Adapter Implementation ---
+
+// New creates and initializes a new PieButtonExecutionAdapter.
 func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
-    a := &PieButtonExecutionAdapter{
-        natsAdapter: natsAdapter,
-    }
+	a := &PieButtonExecutionAdapter{
+		natsAdapter: natsAdapter,
+		windowsList: make(WindowsUpdate), // Initialize map
+	}
 
-    // Subscribe to pie button execution events
-    natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_PIEBUTTON_EXECUTE"), func(msg *nats.Msg) {
-        var message pieButtonExecute_Message
-        if err := json.Unmarshal(msg.Data, &message); err != nil {
-            fmt.Printf("Failed to decode command: %v\n", err)
-            return
-        }
+	a.functionHandlers = a.initFunctionHandlers() // Initialize handlers
+	a.subscribeToEvents()                     // Setup NATS subscriptions
 
-        if err := a.executeCommand(&message); err != nil {
-            fmt.Printf("Failed to execute command: %v\n", err)
-        }
-    })
-
-    natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), func(msg *nats.Msg) {
-        var message shortcutPressed_Message
-        if err := json.Unmarshal(msg.Data, &message); err != nil {
-            fmt.Printf("Failed to decode command: %v\n", err)
-            return
-        }
-
-		fmt.Printf("PieButtonExecutionAdapter knows a Shortcut is pressed: %d\n", message.ShortcutPressed)
-		fmt.Printf("PieButtonExecutionAdapter also knows where: X: %d, Y: %d\n", message.MouseX, message.MouseY)
-
-    })
-
-    return a
+	return a
 }
 
+// subscribeToEvents sets up all necessary NATS subscriptions.
+func (a *PieButtonExecutionAdapter) subscribeToEvents() {
+	a.subscribe(natsSubjectPieButtonExecute, a.handlePieButtonExecuteMessage)
+	a.subscribe(natsSubjectShortcutPressed, a.handleShortcutPressedMessage)
+	a.subscribe(natsSubjectWindowManagerUpdate, a.handleWindowUpdateMessage)
+}
+
+// subscribe is a helper to subscribe to a NATS subject with unified error logging.
+func (a *PieButtonExecutionAdapter) subscribe(subject string, handler nats.MsgHandler) {
+	a.natsAdapter.SubscribeToSubject(subject, handler)
+
+	log.Printf("Successfully subscribed to NATS subject: %s", subject)
+}
+
+// --- NATS Message Handlers ---
+
+// handlePieButtonExecuteMessage processes incoming pie button execution commands.
+func (a *PieButtonExecutionAdapter) handlePieButtonExecuteMessage(msg *nats.Msg) {
+	var message pieButtonExecute_Message
+	if err := json.Unmarshal(msg.Data, &message); err != nil {
+		log.Printf("Failed to decode pieButtonExecute message: %v. Data: %s", err, string(msg.Data))
+		return
+	}
+
+	if err := a.executeCommand(&message); err != nil {
+		log.Printf("Failed to execute command for button %d (Type: %s): %v", message.ButtonIndex, message.TaskType, err)
+		// Optionally, publish an error response back via NATS
+	}
+}
+
+// handleShortcutPressedMessage stores the mouse coordinates when a shortcut is detected.
+func (a *PieButtonExecutionAdapter) handleShortcutPressedMessage(msg *nats.Msg) {
+	var message shortcutPressed_Message
+	if err := json.Unmarshal(msg.Data, &message); err != nil {
+		log.Printf("Failed to decode shortcutPressed message: %v. Data: %s", err, string(msg.Data))
+		return
+	}
+
+	// Acquire Lock for writing
+	a.mu.Lock()
+	a.lastMouseX = message.MouseX
+	a.lastMouseY = message.MouseY
+	a.mu.Unlock() // Release Lock
+
+	// log.Printf("Shortcut %d pressed at X: %d, Y: %d", message.ShortcutPressed, message.MouseX, message.MouseY) // Debug logging if needed
+}
+
+// handleWindowUpdateMessage updates the internal list of active windows.
+func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
+	var currentWindows WindowsUpdate
+	if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
+		log.Printf("Failed to decode window update message: %v. Data: %s", err, string(msg.Data))
+		return
+	}
+
+	a.mu.Lock()
+	// Efficiently replace the map content. Avoids re-allocating if capacity allows.
+	clear(a.windowsList) // Clear existing entries (Go 1.21+)
+	maps.Copy(a.windowsList, currentWindows)
+	// For older Go versions:
+	// a.windowsList = make(WindowsUpdate, len(currentWindows))
+	// maps.Copy(a.windowsList, currentWindows)
+	a.mu.Unlock()
+
+	// log.Printf("Updated windows list, %d windows tracked", len(currentWindows)) // Debug logging if needed
+}
+
+// --- Command Execution Logic ---
+
+// executeCommand dispatches the command based on the TaskType.
 func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecute_Message) error {
-    switch executionInfo.TaskType {
-    case TaskTypeShowProgramWindow:
-        return a.handleShowProgramWindow(executionInfo)
-    case TaskTypeShowAnyWindow:
-        return a.handleShowAnyWindow(executionInfo)
-    case TaskTypeCallFunction:
-        return a.handleCallFunction(executionInfo)
-    case TaskTypeLaunchProgram:
-        return a.handleLaunchProgram(executionInfo)
-    case TaskTypeDisabled:
-        return nil // Nothing to do for disabled buttons
-    default:
-        return fmt.Errorf("unknown task type: %s", executionInfo.TaskType)
-    }
+	log.Printf("Executing command for button %d: TaskType=%s", executionInfo.ButtonIndex, executionInfo.TaskType)
+
+	switch executionInfo.TaskType {
+	case TaskTypeShowProgramWindow:
+		return a.handleShowProgramWindow(executionInfo)
+	case TaskTypeShowAnyWindow:
+		return a.handleShowAnyWindow(executionInfo)
+	case TaskTypeCallFunction:
+		return a.handleCallFunction(executionInfo)
+	case TaskTypeLaunchProgram:
+		return a.handleLaunchProgram(executionInfo)
+	case TaskTypeDisabled:
+		log.Printf("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
+		return nil // Nothing to do for disabled buttons
+	default:
+		return fmt.Errorf("unknown task type: %s", executionInfo.TaskType)
+	}
+}
+
+// unmarshalProperties safely converts the generic properties map into a specific struct.
+func unmarshalProperties(props interface{}, target interface{}) error {
+	// 1. Type assert to the expected map type
+	propsMap, ok := props.(map[string]interface{})
+	if !ok {
+		// If it's already the target type due to direct unmarshalling, skip remarshal
+		// This requires careful message structure design on the publisher side.
+		// For robustness with interface{}, remarshalling is safer.
+		// return fmt.Errorf("invalid properties format: expected map[string]interface{}, got %T", props)
+
+		// Alternative: Attempt direct type assertion if the JSON unmarshaller might have already produced the correct type.
+		// if target != nil {
+		//    v := reflect.ValueOf(target)
+		//    if v.Kind() == reflect.Ptr {
+		// 		if reflect.TypeOf(props) == v.Elem().Type() {
+		// 			v.Elem().Set(reflect.ValueOf(props))
+		// 			return nil // Already correct type
+		//		}
+		//    }
+		// }
+		// Falling back to remarshalling for broad compatibility.
+	}
+
+	// 2. Marshal the map back to JSON bytes
+	propsBytes, err := json.Marshal(propsMap)
+	if err != nil {
+		return fmt.Errorf("failed to marshal intermediate properties map: %v", err)
+	}
+
+	// 3. Unmarshal the JSON bytes into the target struct
+	if err := json.Unmarshal(propsBytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal properties into target type %T: %v", target, err)
+	}
+
+	return nil
 }
 
 func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieButtonExecute_Message) error {
-    props, ok := executionInfo.Properties.(map[string]interface{})
-    if !ok {
-        return fmt.Errorf("invalid properties type for show_program_window")
-    }
+	var windowProps ShowWindowProperties
+	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
+		return fmt.Errorf("failed to process properties for show_program_window: %w", err)
+	}
 
-    // Convert the generic properties to ShowWindowProperties
-    propsBytes, err := json.Marshal(props)
-    if err != nil {
-        return fmt.Errorf("failed to marshal properties: %v", err)
-    }
-
-    var windowProps ShowWindowProperties
-    if err := json.Unmarshal(propsBytes, &windowProps); err != nil {
-        return fmt.Errorf("failed to unmarshal ShowWindowProperties: %v", err)
-    }
-
-    fmt.Printf("Button %+v - Showing program window: %+v\n", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
-    return nil
+	log.Printf("Button %d - Showing program window: %s", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
+	// TODO: Implement actual window showing logic using windowProps and potentially a.windowsList
+	return nil // Placeholder
 }
 
 func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
-    // Similar to handleShowProgramWindow
-    props, ok := executionInfo.Properties.(map[string]interface{})
-    if !ok {
-        return fmt.Errorf("invalid properties type for show_any_window")
-    }
+	var windowProps ShowWindowProperties
+	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
+		return fmt.Errorf("failed to process properties for show_any_window: %w", err)
+	}
 
-    var windowProps ShowWindowProperties
-    propsBytes, _ := json.Marshal(props)
-    if err := json.Unmarshal(propsBytes, &windowProps); err != nil {
-        return fmt.Errorf("failed to unmarshal ShowWindowProperties: %v", err)
-    }
-
-    fmt.Printf("Button %+v - Showing any window: %+v\n", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
-    return nil
+	log.Printf("Button %d - Showing any window: %s", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
+	// TODO: Implement actual window showing logic
+	return nil // Placeholder
 }
 
 func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButtonExecute_Message) error {
-    props, ok := executionInfo.Properties.(map[string]interface{})
-    if !ok {
-        return fmt.Errorf("invalid properties type for launch_program")
-    }
+	var launchProps LaunchProgramProperties
+	if err := unmarshalProperties(executionInfo.Properties, &launchProps); err != nil {
+		return fmt.Errorf("failed to process properties for launch_program: %w", err)
+	}
 
-    var launchProps LaunchProgramProperties
-    propsBytes, _ := json.Marshal(props)
-    if err := json.Unmarshal(propsBytes, &launchProps); err != nil {
-        return fmt.Errorf("failed to unmarshal LaunchProgramProperties: %v", err)
-    }
-
-    fmt.Printf("Button %+v - Launching program: %+v\n", executionInfo.ButtonIndex, launchProps.ButtonTextUpper)
-    return nil
+	log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, launchProps.ButtonTextUpper)
+	// TODO: Implement actual program launching logic using launchProps.ExecutablePath, etc.
+	// Example:
+	// cmd := exec.Command(launchProps.ExecutablePath, launchProps.Args) // Handle args splitting if needed
+	// if err := cmd.Start(); err != nil {
+	//     return fmt.Errorf("failed to launch program %s: %w", launchProps.ExecutablePath, err)
+	// }
+	return nil // Placeholder
 }
 
 func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
-    props, ok := executionInfo.Properties.(map[string]interface{})
-    if !ok {
-        return fmt.Errorf("invalid properties type for call_function")
-    }
+	var functionProps CallFunctionProperties
+	if err := unmarshalProperties(executionInfo.Properties, &functionProps); err != nil {
+		return fmt.Errorf("failed to process properties for call_function: %w", err)
+	}
 
-    var functionProps CallFunctionProperties
-    propsBytes, _ := json.Marshal(props)
-    if err := json.Unmarshal(propsBytes, &functionProps); err != nil {
-        return fmt.Errorf("failed to unmarshal CallFunctionProperties: %v", err)
-    }
+	functionName := functionProps.ButtonTextUpper // Assuming this holds the function name
+	handler, exists := a.functionHandlers[functionName]
+	if !exists {
+		return fmt.Errorf("unknown function requested: %s", functionName)
+	}
 
-    // Look up the function handler
-    handler, exists := functionHandlers[functionProps.ButtonTextUpper]
-    if !exists {
-        return fmt.Errorf("unknown function: %s", functionProps.ButtonTextUpper)
-    }
+	log.Printf("Button %d - Calling function: %s", executionInfo.ButtonIndex, functionName)
 
-    // Execute the function
-    return handler()
+	// Acquire Read Lock before accessing coordinates
+	a.mu.RLock()
+	mouseX := a.lastMouseX
+	mouseY := a.lastMouseY
+	a.mu.RUnlock() // Release Read Lock
+
+	return handler.Execute(mouseX, mouseY)
 }
 
+// Run starts the adapter's main loop (currently just blocks).
 func (a *PieButtonExecutionAdapter) Run() error {
-    fmt.Println("PieButtonExecutor started")
-    select {} 
+	log.Println("PieButtonExecutionAdapter started and listening for events.")
+	// Blocks indefinitely, keeping the adapter alive to process NATS messages.
+	select {}
 }
 
-// Add these types near the top of the file
+// --- Function Handlers & Wrappers ---
+
+// FunctionHandler defines the signature for basic functions without coordinates.
 type FunctionHandler func() error
 
-var functionHandlers = map[string]FunctionHandler{
-    "Maximize Window": MaximizeWindow,
-    "Minimize Window": MinimizeWindow,
-    // Add more handlers as needed
+// FunctionHandlerWithCoords defines the signature for functions needing coordinates.
+type FunctionHandlerWithCoords func(x, y int) error
+
+// HandlerWrapper provides a common interface for executing different function types.
+type HandlerWrapper interface {
+	Execute(x, y int) error
 }
 
-// Add these functions after the existing code
-func MaximizeWindow() error {
-    fmt.Println("Maximizing window")
-    return nil
+// BasicHandler wraps a FunctionHandler to satisfy the HandlerWrapper interface.
+type BasicHandler struct {
+	fn FunctionHandler
 }
 
-func MinimizeWindow() error {
-    fmt.Println("Minimizing window")
-    return nil
+// Execute calls the wrapped basic function, ignoring coordinates.
+func (h BasicHandler) Execute(x, y int) error {
+	return h.fn()
 }
 
+// CoordHandler wraps a FunctionHandlerWithCoords to satisfy the HandlerWrapper interface.
+type CoordHandler struct {
+	fn FunctionHandlerWithCoords
+}
+
+// Execute calls the wrapped function, passing coordinates.
+func (h CoordHandler) Execute(x, y int) error {
+	return h.fn(x, y)
+}
+
+// initFunctionHandlers registers known functions that can be called.
+func (a *PieButtonExecutionAdapter) initFunctionHandlers() map[string]HandlerWrapper {
+	handlers := make(map[string]HandlerWrapper)
+
+	// Register handlers that need coordinates
+	handlers[fnMaximize] = CoordHandler{fn: a.MaximizeWindow} // Use method value
+	handlers[fnMinimize] = CoordHandler{fn: a.MinimizeWindow} // Use method value
+
+	// Register basic handlers
+	handlers[fnClose] = BasicHandler{fn: CloseWindow} // Use method value (or static func if no 'a' needed)
+	handlers[fnTopmost] = BasicHandler{fn: ToggleTopmost}
+
+	log.Printf("Initialized %d function handlers", len(handlers))
+	return handlers
+}
+
+// --- Concrete Function Implementations ---
+
+// MaximizeWindow - Original method implementation
+func (a *PieButtonExecutionAdapter) MaximizeWindow(x, y int) error {
+	// NOTE: Relies on a.GetWindowAtPoint and an assumed Maximize method
+	hwnd, err := a.GetWindowAtPoint(x, y)
+	if err != nil {
+		return err // Original direct error return
+	}
+	// This line assumes 'hwnd' has a Maximize() error method.
+	// The actual type and method depend on your OS library.
+	// It will fail at runtime if GetWindowAtPoint returns something
+	// without that method.
+	return hwnd.Maximize() // Original direct call
+}
+
+// MinimizeWindow - Original method implementation
+func (a *PieButtonExecutionAdapter) MinimizeWindow(x, y int) error {
+	// NOTE: Relies on a.GetWindowAtPoint and an assumed Minimize method
+	hwnd, err := a.GetWindowAtPoint(x, y)
+	if err != nil {
+		return err // Original direct error return
+	}
+	// This line assumes 'hwnd' has a Minimize() error method.
+	// The actual type and method depend on your OS library.
+	// It will fail at runtime if GetWindowAtPoint returns something
+	// without that method.
+	return hwnd.Minimize() // Original direct call
+}
+
+// CloseWindow - Original standalone function implementation
 func CloseWindow() error {
-    fmt.Println("Closing window")
-    return nil
+	fmt.Println("Closing window") // Original Println
+	return nil                   // Original return nil
 }
 
+// ToggleTopmost - Original standalone function implementation
 func ToggleTopmost() error {
-    fmt.Println("Toggling window topmost state")
-    return nil
+	fmt.Println("Toggling window topmost state") // Original Println
+	return nil                                 // Original return nil
+}
+
+func (a *PieButtonExecutionAdapter) ToggleTopmost() error {
+	log.Println("Attempting to toggle topmost state for the foreground window")
+	// TODO: Replace with actual implementation
+	return fmt.Errorf("ToggleTopmost not implemented")
 }

@@ -47,4 +47,5 @@ type LaunchProgramProperties struct {
 type CallFunctionProperties struct {
 	ButtonTextUpper string `json:"button_text_upper"` // function name
 	ButtonTextLower string `json:"button_text_lower"` // empty string
+	IconPath        string `json:"icon_path"`
 }
