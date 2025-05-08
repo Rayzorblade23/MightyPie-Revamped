@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log" // Use the standard log package
 	"maps"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd" // Assuming this provides environment variables
@@ -17,9 +20,10 @@ import (
 
 // NATS Subjects - fetched from environment, consider constants if these are static.
 var (
-	natsSubjectPieButtonExecute   = env.Get("NATSSUBJECT_PIEBUTTON_EXECUTE")
-	natsSubjectShortcutPressed    = env.Get("NATSSUBJECT_SHORTCUT_PRESSED")
+	natsSubjectPieButtonExecute    = env.Get("NATSSUBJECT_PIEBUTTON_EXECUTE")
+	natsSubjectShortcutPressed     = env.Get("NATSSUBJECT_SHORTCUT_PRESSED")
 	natsSubjectWindowManagerUpdate = env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE")
+	natsSubjectDiscoveredApps      = env.Get("NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED")
 )
 
 // Function names - fetched from environment, consider constants if static.
@@ -37,6 +41,7 @@ type PieButtonExecutionAdapter struct {
 	lastMouseY       int
 	mu               sync.RWMutex // Protects access to windowsList
 	windowsList      WindowsUpdate
+	discoveredApps   map[string]AppLaunchInfo
 	functionHandlers map[string]HandlerWrapper
 }
 
@@ -53,17 +58,26 @@ type WindowInfo struct {
 	IconPath string
 }
 
+// AppLaunchInfo defines the structure of the VALUE in discoveredApps.
+type AppLaunchInfo struct {
+	Name             string `json:"name"`                       // The original display name
+	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
+	Args             string `json:"args,omitempty"`             // Command line args from LNK
+	URI              string `json:"uri,omitempty"`              // Add this field for store apps
+}
+
 // --- Adapter Implementation ---
 
 // New creates and initializes a new PieButtonExecutionAdapter.
 func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 	a := &PieButtonExecutionAdapter{
-		natsAdapter: natsAdapter,
-		windowsList: make(WindowsUpdate), // Initialize map
+		natsAdapter:    natsAdapter,
+		windowsList:    make(WindowsUpdate),
+		discoveredApps: make(map[string]AppLaunchInfo),
 	}
 
 	a.functionHandlers = a.initFunctionHandlers() // Initialize handlers
-	a.subscribeToEvents()                     // Setup NATS subscriptions
+	a.subscribeToEvents()                         // Setup NATS subscriptions
 
 	return a
 }
@@ -73,6 +87,7 @@ func (a *PieButtonExecutionAdapter) subscribeToEvents() {
 	a.subscribe(natsSubjectPieButtonExecute, a.handlePieButtonExecuteMessage)
 	a.subscribe(natsSubjectShortcutPressed, a.handleShortcutPressedMessage)
 	a.subscribe(natsSubjectWindowManagerUpdate, a.handleWindowUpdateMessage)
+	a.subscribe(natsSubjectDiscoveredApps, a.handleDiscoveredAppsMessage)
 }
 
 // subscribe is a helper to subscribe to a NATS subject with unified error logging.
@@ -115,6 +130,21 @@ func (a *PieButtonExecutionAdapter) handleShortcutPressedMessage(msg *nats.Msg) 
 	// log.Printf("Shortcut %d pressed at X: %d, Y: %d", message.ShortcutPressed, message.MouseX, message.MouseY) // Debug logging if needed
 }
 
+// handleDiscoveredAppsMessage updates the internal list of discovered applications
+func (a *PieButtonExecutionAdapter) handleDiscoveredAppsMessage(msg *nats.Msg) {
+	var apps map[string]AppLaunchInfo
+	if err := json.Unmarshal(msg.Data, &apps); err != nil {
+		log.Printf("Failed to decode discovered apps message: %v. Data: %s", err, string(msg.Data))
+		return
+	}
+
+	a.mu.Lock()
+	a.discoveredApps = apps
+	a.mu.Unlock()
+
+	log.Printf("Updated discovered apps list, %d apps tracked", len(apps))
+}
+
 // handleWindowUpdateMessage updates the internal list of active windows.
 func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
 	var currentWindows WindowsUpdate
@@ -149,6 +179,7 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 	case TaskTypeCallFunction:
 		return a.handleCallFunction(executionInfo)
 	case TaskTypeLaunchProgram:
+		log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.TaskType)
 		return a.handleLaunchProgram(executionInfo)
 	case TaskTypeDisabled:
 		log.Printf("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
@@ -224,13 +255,12 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 	}
 
 	log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, launchProps.ButtonTextUpper)
-	// TODO: Implement actual program launching logic using launchProps.ExecutablePath, etc.
-	// Example:
-	// cmd := exec.Command(launchProps.ExecutablePath, launchProps.Args) // Handle args splitting if needed
-	// if err := cmd.Start(); err != nil {
-	//     return fmt.Errorf("failed to launch program %s: %w", launchProps.ExecutablePath, err)
-	// }
-	return nil // Placeholder
+
+	a.mu.RLock()
+	err := LaunchApp(launchProps.ExePath, a.discoveredApps)
+	a.mu.RUnlock()
+
+	return err
 }
 
 func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
@@ -314,6 +344,56 @@ func (a *PieButtonExecutionAdapter) initFunctionHandlers() map[string]HandlerWra
 
 // --- Concrete Function Implementations ---
 
+// LaunchApp launches an application using its path.
+// Returns error if the app cannot be launched.
+func LaunchApp(exePath string, apps map[string]AppLaunchInfo) error {
+	app, exists := apps[exePath]
+	if !exists {
+		return fmt.Errorf("application not found: %s", exePath)
+	}
+
+    // If URI is specified, use it instead of exe path
+    if app.URI != "" {
+        cmd := exec.Command("cmd", "/C", "start", app.URI)
+        if err := cmd.Run(); err != nil {
+            return fmt.Errorf("failed to start %s via URI: %w", app.Name, err)
+        }
+        log.Printf("Started %s via URI handler", app.Name)
+        return nil
+    }
+
+	// Prepare command
+	cmd := exec.Command(exePath)
+
+	// Set working directory if specified
+	if app.WorkingDirectory != "" {
+		// If working directory is relative, make it relative to exe path
+		if !filepath.IsAbs(app.WorkingDirectory) {
+			cmd.Dir = filepath.Join(filepath.Dir(exePath), app.WorkingDirectory)
+		} else {
+			cmd.Dir = app.WorkingDirectory
+		}
+	} else {
+		// Default to exe's directory
+		cmd.Dir = filepath.Dir(exePath)
+	}
+
+	// Add arguments if specified
+	if app.Args != "" {
+		// Split args respecting quoted strings
+		args := strings.Fields(app.Args)
+		cmd.Args = append([]string{exePath}, args...)
+	}
+
+	// Start the application
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start %s: %w", app.Name, err)
+	}
+
+	fmt.Printf("Started application: %s (Path: %s)", app.Name, exePath)
+	return nil
+}
+
 // MaximizeWindow - Original method implementation
 func (a *PieButtonExecutionAdapter) MaximizeWindow(x, y int) error {
 	// NOTE: Relies on a.GetWindowAtPoint and an assumed Maximize method
@@ -345,13 +425,13 @@ func (a *PieButtonExecutionAdapter) MinimizeWindow(x, y int) error {
 // CloseWindow - Original standalone function implementation
 func CloseWindow() error {
 	fmt.Println("Closing window") // Original Println
-	return nil                   // Original return nil
+	return nil                    // Original return nil
 }
 
 // ToggleTopmost - Original standalone function implementation
 func ToggleTopmost() error {
 	fmt.Println("Toggling window topmost state") // Original Println
-	return nil                                 // Original return nil
+	return nil                                   // Original return nil
 }
 
 func (a *PieButtonExecutionAdapter) ToggleTopmost() error {

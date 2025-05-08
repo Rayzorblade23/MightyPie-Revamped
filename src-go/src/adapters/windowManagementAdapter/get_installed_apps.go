@@ -18,8 +18,8 @@ import (
 // --- Constants ---
 
 const (
-	getUwpLocationsPsCommand = `Get-AppxPackage | Where-Object {$_.InstallLocation} | Select-Object -Property PackageFamilyName, InstallLocation | ConvertTo-Json -Depth 2 -Compress`
-	getStartAppsPsCommand    = `Get-StartApps | Select-Object Name, AppID | Where-Object { $_.AppID -ne $null -and $_.AppID -ne '' -and $_.AppID -notlike '*SystemSettings*' -and $_.AppID -notlike '*Search*' } | ForEach-Object { ($_.Name -replace '\t',' ') + "` + "\t" + `" + $_.AppID }`
+	getPackageLocationsPsCommand = `Get-AppxPackage | Where-Object {$_.InstallLocation} | Select-Object -Property PackageFamilyName, InstallLocation | ConvertTo-Json -Depth 2 -Compress`
+	getStartAppsPsCommand        = `Get-StartApps | Select-Object Name, AppID | Where-Object { $_.AppID -ne $null -and $_.AppID -ne '' -and $_.AppID -notlike '*SystemSettings*' -and $_.AppID -notlike '*Search*' } | ForEach-Object { ($_.Name -replace '\t',' ') + "` + "\t" + `" + $_.AppID }`
 )
 
 // Filtering lists
@@ -53,6 +53,7 @@ var (
 type AppEntry struct {
 	Name string
 	Path string // Resolved executable path
+	URI  string // Optional URI for store apps
 }
 
 // AppLaunchInfo defines the structure of the VALUE in the final JSON map sent to stdout.
@@ -60,9 +61,10 @@ type AppLaunchInfo struct {
 	Name             string `json:"name"`                       // The original display name
 	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
 	Args             string `json:"args,omitempty"`             // Command line args from LNK
+	URI              string `json:"uri,omitempty"`              // Add this field for store apps
 }
 
-type UwpPackageInfo struct {
+type PackageInfo struct {
 	PackageFamilyName string `json:"PackageFamilyName"`
 	InstallLocation   string `json:"InstallLocation"`
 }
@@ -382,16 +384,16 @@ func getExeApps() ([]AppEntry, map[string]bool, map[string]string) {
 // It still returns *AppEntry containing the ABSOLUTE path if successful.
 // resolveLnkTarget also remains unchanged.
 
-// --- Application Discovery (UWP) ---
+// --- Application Discovery (Start Menu) ---
 
-func getUwpPackageLocations() (map[string]string, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", getUwpLocationsPsCommand)
+func getPackageLocations() (map[string]string, error) {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", getPackageLocationsPsCommand)
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR (getUwpPackageLocations): PowerShell command failed. Error: %v\nStderr:\n%s\n", err, stderr.String())
+		fmt.Fprintf(os.Stderr, "ERROR (getPackageLocations): PowerShell command failed. Error: %v\nStderr:\n%s\n", err, stderr.String())
 		return nil, fmt.Errorf("failed to get UWP package locations: %w", err)
 	}
 
@@ -400,9 +402,9 @@ func getUwpPackageLocations() (map[string]string, error) {
 		return make(map[string]string), nil
 	} // No packages found is ok
 
-	var packages []UwpPackageInfo
+	var packages []PackageInfo
 	if err := json.Unmarshal(output, &packages); err != nil {
-		var singlePackage UwpPackageInfo
+		var singlePackage PackageInfo
 		if errSingle := json.Unmarshal(output, &singlePackage); errSingle != nil {
 			fmt.Fprintf(os.Stderr, "ERROR (getUwpPackageLocations): Failed to parse PowerShell JSON output.\nOutput:\n%s\nError: %v\n", string(output), err)
 			return nil, fmt.Errorf("failed to parse UWP package location JSON: %w", err)
@@ -419,13 +421,13 @@ func getUwpPackageLocations() (map[string]string, error) {
 	return locationsMap, nil
 }
 
-// processUwpEntry resolves, validates, and filters a single UWP entry from Get-StartApps.
+// processStartMenuEntry resolves, validates, and filters a single entry from Get-StartApps.
 // Returns an AppEntry pointer if valid, nil otherwise.
-func processUwpEntry(name, appid string, packageLocations map[string]string) *AppEntry {
+func processStartMenuEntry(name, appid string, packageLocations map[string]string) *AppEntry {
 	primaryExePath := ""
 	var packageExes []string
 
-	// Attempt to find executables if AppID suggests a packaged app
+	// Check if this is a UWP app
 	if strings.Contains(appid, "!") {
 		familyName := strings.ToLower(strings.SplitN(appid, "!", 2)[0])
 		installLocation, found := packageLocations[familyName]
@@ -433,20 +435,22 @@ func processUwpEntry(name, appid string, packageLocations map[string]string) *Ap
 		if found && installLocation != "" {
 			globPattern := filepath.Join(installLocation, "*.exe")
 			foundExes, err := filepath.Glob(globPattern)
-			if err == nil && len(foundExes) > 0 { // Ignore glob errors, proceed if exes found
+			if err == nil && len(foundExes) > 0 {
 				packageExes = foundExes
 			}
 		}
 	}
 
-	// Select primary executable if candidates exist
 	if len(packageExes) > 0 {
 		primaryExePath = selectPrimaryExecutable(name, packageExes)
 	}
 
 	if primaryExePath == "" {
+		if strings.Contains(appid, "!") {
+			fmt.Printf("Rejected UWP app - No exe path found: %s (AppID: %s)\n", name, appid)
+		}
 		return nil
-	} // No suitable executable found
+	}
 
 	cleanedExePath := filepath.Clean(primaryExePath)
 	if isUnwantedEntry(name, cleanedExePath) {
@@ -459,15 +463,20 @@ func processUwpEntry(name, appid string, packageLocations map[string]string) *Ap
 		return nil
 	}
 
-	return &AppEntry{Name: name, Path: cleanedExePath}
+	// Create AppEntry with additional URI field
+	return &AppEntry{
+		Name: name,
+		Path: cleanedExePath,
+		URI:  fmt.Sprintf("shell:AppsFolder\\%s", appid), // Store the URI
+	}
 }
 
-func getUWPApps() []AppEntry {
+func getStartMenuApps() []AppEntry {
 	var apps []AppEntry
 
-	packageLocations, err := getUwpPackageLocations()
+	packageLocations, err := getPackageLocations()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR (getUWPApps): Failed to get package locations map, proceeding without it: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ERROR (getStartMenuApps): Failed to get package locations map, proceeding without it: %v\n", err)
 		packageLocations = make(map[string]string) // Ensure non-nil map
 	}
 
@@ -476,7 +485,7 @@ func getUWPApps() []AppEntry {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR (getUWPApps): Get-StartApps command failed. Error: %v\nStderr:\n%s\n", err, stderr.String())
+		fmt.Fprintf(os.Stderr, "ERROR (getStartMenuApps): Get-StartApps command failed. Error: %v\nStderr:\n%s\n", err, stderr.String())
 		return apps // Cannot proceed without app list
 	}
 
@@ -503,13 +512,13 @@ func getUWPApps() []AppEntry {
 		processedAppIDs[lowerAppID] = true
 
 		// Process the UWP entry using the helper
-		if appEntry := processUwpEntry(name, appid, packageLocations); appEntry != nil {
+		if appEntry := processStartMenuEntry(name, appid, packageLocations); appEntry != nil {
 			apps = append(apps, *appEntry)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR (getUWPApps): Scanner error reading PowerShell output: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ERROR (getStartMenuApps): Scanner error reading PowerShell output: %v\n", err)
 	}
 	return apps
 }
@@ -523,24 +532,23 @@ func FetchExecutableApplicationMap() map[string]AppLaunchInfo {
 	// Log errors from getExeApps if it were modified to return them, otherwise
 	// assume it logs internally or they are handled in processLnkEntry.
 
-	// Step 2: Discover UWP apps and resolve executables.
+	// Step 2: Discover StartMenu apps and resolve executables.
 	// Keep using your existing getUWPApps function.
-	uwpAppsResolved := getUWPApps()
+	startMenuAppsResolved := getStartMenuApps()
 	// Log errors from getUWPApps if it returned them.
 
 	// Step 3: Combine lists, ensuring UWP entries don't duplicate already found EXEs.
 	// Keep your existing combination logic.
-	combinedAppEntries := make([]AppEntry, 0, len(exeApps)+len(uwpAppsResolved))
+	combinedAppEntries := make([]AppEntry, 0, len(exeApps)+len(startMenuAppsResolved))
 	combinedAppEntries = append(combinedAppEntries, exeApps...)
 	combinedAppEntries = addSystemApps(combinedAppEntries)
 
-	for _, uwpApp := range uwpAppsResolved {
-		// Assuming uwpApp is of type AppEntry now
-		lowerUwpPath := strings.ToLower(uwpApp.Path)
-		if !seenExeTargets[lowerUwpPath] {
-			combinedAppEntries = append(combinedAppEntries, uwpApp)
-			// Add to seen targets to prevent duplicates if UWP list has them
-			seenExeTargets[lowerUwpPath] = true
+	for _, startMenuApp := range startMenuAppsResolved {
+		lowerStartMenuPath := strings.ToLower(startMenuApp.Path)
+		if !seenExeTargets[lowerStartMenuPath] {
+			combinedAppEntries = append(combinedAppEntries, startMenuApp)
+			// Add to seen targets to prevent duplicates if Start Menu list has them
+			seenExeTargets[lowerStartMenuPath] = true
 		}
 	}
 
@@ -573,6 +581,10 @@ func FetchExecutableApplicationMap() map[string]AppLaunchInfo {
 		// Create the FinalAppOutput value with proper name handling
 		outputValue := AppLaunchInfo{Name: appEntry.Name}
 
+		if appEntry.URI != "" {
+			outputValue.URI = appEntry.URI
+		}
+
 		// Check if it's a system app and use the system name
 		if sysName, isSys := systemApps[strings.ToLower(filepath.Base(pathKey))]; isSys {
 			outputValue.Name = sysName
@@ -599,7 +611,7 @@ func FetchExecutableApplicationMap() map[string]AppLaunchInfo {
 				log.Printf("Warning: Failed to re-parse LNK '%s' for extra data: %v\n", originalLnkPath, err)
 			}
 		}
-		// UWP apps will naturally have empty extra fields.
+		// Store apps will naturally have empty extra fields.
 
 		finalMap[pathKey] = outputValue
 		processedPathsForOutput[lowerPathKey] = true // Mark path as added.
