@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
@@ -47,6 +48,8 @@ var (
 	procGetClassNameW            = user32.NewProc("GetClassNameW")
 	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
 	procDwmGetWindowAttribute    = dwmapi.NewProc("DwmGetWindowAttribute")
+	user32DLL                    = syscall.MustLoadDLL("user32.dll")
+	procGetIconInfoExW           = user32DLL.MustFindProc("GetIconInfoExW")
 
 	// Global variables
 	hwndToExclude      []win.HWND

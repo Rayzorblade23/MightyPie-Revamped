@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"golang.org/x/image/draw" // For resizing
 	"image"
 	"image/png"
 	"log"
@@ -29,7 +30,29 @@ const (
 	iconHashLength        = 8
 	maxIconBaseNameLength = 50
 	diNormal              = 0x0003 // Flag for DrawIconEx: standard drawing
+
+	iconInfoExSize = uint32(unsafe.Sizeof(ICONINFOEXW{})) // Placeholder if struct defined below
+
 )
+
+// ICONINFOEXW structure, as per Windows API.
+// Ensure this matches the expected layout for GetIconInfoExW.
+// Check if gonutz/w32 already provides this or a similar structure.
+// If it does, use the library's version.
+type ICONINFOEXW struct {
+	CbSize          uint32
+	FIcon           bool
+	XHotspot        uint32
+	YHotspot        uint32
+	HbmMask         w32.HBITMAP
+	HbmColor        w32.HBITMAP
+	WResID          uint16
+	SzModName       [w32.MAX_PATH]uint16
+	SzResName       [w32.MAX_PATH]uint16
+	// Note: The actual C struct might have different packing or alignment.
+	// This is a common Go representation. If issues persist, meticulous
+	// checking against the C struct definition and gonutz/w32 is needed.
+}
 
 // --- Custom Errors ---
 var (
@@ -165,64 +188,67 @@ func extractIconHandles(exePath string) (hIconLarge, hIconSmall w32.HICON, err e
 	return hIconLarge, hIconSmall, nil
 }
 
-// renderIconToBGRA draws the icon onto a compatible bitmap and returns its raw BGRA pixel data.
-// It handles GDI resource creation and cleanup internally.
+// renderIconToBGRA draws the icon onto a 32-bit DIBSection and returns its raw BGRA pixel data.
+// This method provides better and more explicit alpha channel handling.
 func renderIconToBGRA(hIcon w32.HICON, size int) ([]byte, error) {
-	// 1. Get Screen DC (needed for compatibility)
 	screenDC := w32.GetDC(0)
 	if screenDC == 0 {
 		return nil, fmt.Errorf("GetDC(0) failed: %v", syscall.GetLastError())
 	}
 	defer w32.ReleaseDC(0, screenDC)
 
-	// 2. Create Compatible DC
 	memDC := w32.CreateCompatibleDC(screenDC)
 	if memDC == 0 {
 		return nil, fmt.Errorf("CreateCompatibleDC failed: %v", syscall.GetLastError())
 	}
 	defer w32.DeleteDC(memDC)
 
-	// 3. Create Compatible Bitmap
-	bitmap := w32.CreateCompatibleBitmap(screenDC, size, size)
-	if bitmap == 0 {
-		return nil, fmt.Errorf("CreateCompatibleBitmap failed: %v", syscall.GetLastError())
-	}
-	defer w32.DeleteObject(w32.HGDIOBJ(bitmap))
+	// Prepare BITMAPINFO for a 32-bit top-down DIB (BGRA)
+	var bi w32.BITMAPINFO
+	// Correctly access the BmiHeader field of w32.BITMAPINFO
+	hdr := &bi.BmiHeader
 
-	// 4. Select Bitmap into DC
-	oldBitmap := w32.SelectObject(memDC, w32.HGDIOBJ(bitmap))
-	if oldBitmap == 0 {
-		return nil, errors.New("SelectObject failed") // GetLastError often not set here
-	}
-	defer w32.SelectObject(memDC, oldBitmap) // Select back before deleting DC
-
-	// 5. Draw the Icon
-	success := w32.DrawIconEx(memDC, 0, 0, hIcon, size, size, 0, 0, diNormal)
-	if !success {
-		return nil, fmt.Errorf("DrawIconEx failed: %w", syscall.GetLastError())
-	}
-
-	// 6. Prepare to get pixel data (BITMAPINFO)
-	var bmi w32.BITMAPINFO
-	hdr := &bmi.BmiHeader
-	hdr.BiSize = uint32(unsafe.Sizeof(*hdr))
+	hdr.BiSize = uint32(unsafe.Sizeof(*hdr)) // Size of the BITMAPINFOHEADER
 	hdr.BiWidth = int32(size)
 	hdr.BiHeight = int32(-size) // Negative height for top-down DIB
 	hdr.BiPlanes = 1
-	hdr.BiBitCount = 32 // 32 bits per pixel (BGRA)
-	hdr.BiCompression = w32.BI_RGB
+	hdr.BiBitCount = 32            // 32 bits per pixel (BGRA)
+	hdr.BiCompression = w32.BI_RGB // Uncompressed
 
-	// 7. Allocate buffer for pixel data
-	pixelDataSize := size * size * 4 // BGRA format
+	// Create the DIB Section. ppvBits can be nil if we use GetDIBits later.
+	var ppvBits unsafe.Pointer
+	// Pass the address of the BITMAPINFO struct (bi)
+	bitmap := w32.CreateDIBSection(memDC, &bi, w32.DIB_RGB_COLORS, &ppvBits, 0, 0)
+	if bitmap == 0 {
+		err := syscall.GetLastError()
+		return nil, fmt.Errorf("CreateDIBSection failed (size: %dx%d, bitCount: %d): %v", size, size, hdr.BiBitCount, err)
+	}
+	defer w32.DeleteObject(w32.HGDIOBJ(bitmap))
+
+	oldBitmap := w32.SelectObject(memDC, w32.HGDIOBJ(bitmap))
+	if oldBitmap == 0 {
+		return nil, errors.New("SelectObject failed selecting DIBSection")
+	}
+	defer w32.SelectObject(memDC, oldBitmap)
+
+	success := w32.DrawIconEx(memDC, 0, 0, hIcon, size, size, 0, 0, diNormal)
+	if !success {
+		err := syscall.GetLastError()
+		return nil, fmt.Errorf("DrawIconEx failed for HICON %p (size: %dx%d): %w", hIcon, size, size, err)
+	}
+
+	pixelDataSize := size * size * 4
 	pixelData := make([]byte, pixelDataSize)
 
-	// 8. Get Pixel Data using GetDIBits
-	scanLinesCopied := w32.GetDIBits(memDC, bitmap, 0, uint(size), unsafe.Pointer(&pixelData[0]), &bmi, w32.DIB_RGB_COLORS)
+	// Get Pixel Data using GetDIBits. Use the same BITMAPINFO (bi) as for creation.
+	scanLinesCopied := w32.GetDIBits(memDC, bitmap, 0, uint(size), unsafe.Pointer(&pixelData[0]), &bi, w32.DIB_RGB_COLORS)
 	if scanLinesCopied == 0 {
-		return nil, fmt.Errorf("GetDIBits failed: %w", syscall.GetLastError())
+		err := syscall.GetLastError()
+		return nil, fmt.Errorf("GetDIBits failed for HICON %p (size: %dx%d, expected scanlines: %d): %w", hIcon, size, size, size, err)
 	}
 	if int(scanLinesCopied) != size {
-		log.Printf("Warning: GetDIBits copied %d scanlines, expected %d", scanLinesCopied, size)
+		// This is not necessarily a fatal error if some lines were copied, but it's a warning.
+		log.Printf("Warning: GetDIBits copied %d scanlines, expected %d for HICON %p (size: %dx%d)", scanLinesCopied, size, hIcon, size, size)
 	}
 
 	return pixelData, nil
@@ -243,50 +269,387 @@ func bgraToGoImage(bgraData []byte, width, height int) *image.RGBA {
 	return img
 }
 
-// extractIconFromExe orchestrates the icon extraction using helper functions.
-func extractIconFromExe(exePath string, size int) (image.Image, error) {
-	if size <= 0 {
-		size = defaultIconSize
+// getIconInfoEx wraps the GetIconInfoExW syscall.
+// Call this instead of w32.GetIconInfoEx if w32.GetIconInfoEx is not available or not working.
+func getIconInfoEx(hIcon w32.HICON, piconinfo *ICONINFOEXW) bool {
+	ret, _, _ := procGetIconInfoExW.Call(
+		uintptr(hIcon),
+		uintptr(unsafe.Pointer(piconinfo)),
+	)
+	return ret != 0
+}
+
+
+// localGetIconInfoEx wraps the GetIconInfoExW syscall using our local ICONINFOEXW struct.
+func localGetIconInfoEx(hIcon w32.HICON, piconinfo *ICONINFOEXW) bool {
+	// Set CbSize before calling
+	piconinfo.CbSize = uint32(unsafe.Sizeof(*piconinfo))
+	ret, _, _ := procGetIconInfoExW.Call(
+		uintptr(hIcon),
+		uintptr(unsafe.Pointer(piconinfo)),
+	)
+	return ret != 0
+}
+
+
+func (lbd *LoggedBitmapDetails) Populate(exeName, bitmapName string, bmp *w32.BITMAP) {
+	lbd.ExeName = exeName
+	lbd.BitmapName = bitmapName
+	lbd.Width = bmp.BmWidth
+	lbd.Height = bmp.BmHeight
+	lbd.Planes = bmp.BmPlanes
+	lbd.BitsPixel = bmp.BmBitsPixel
+	lbd.Valid = true
+}
+
+func (lbd *LoggedBitmapDetails) Log() {
+	if !lbd.Valid {
+		log.Printf("Debug GIIEX for %s: %s details not populated.", lbd.ExeName, lbd.BitmapName)
+		return
 	}
+	log.Printf("Debug GIIEX for %s: %s Details - Width:%d, Height:%d, Planes:%d, BitsPixel:%d",
+		lbd.ExeName, lbd.BitmapName, lbd.Width, lbd.Height, lbd.Planes, lbd.BitsPixel)
+}
+func (lbd *LoggedBitmapDetails) Summary() string {
+	if !lbd.Valid { return "N/A" }
+	return fmt.Sprintf("W:%d, H:%d, P:%d, BPP:%d", lbd.Width, lbd.Height, lbd.Planes, lbd.BitsPixel)
+}
+
+// getIconImageViaGetIconInfoEx attempts to get icon image data using our local GetIconInfoExW call.
+func getIconImageViaGetIconInfoEx(exePathForDebug string, hIcon w32.HICON) (img *image.RGBA, nativeWidth, nativeHeight int, err error) {
+	var ii ICONINFOEXW
+	if !localGetIconInfoEx(hIcon, &ii) {
+		return nil, 0, 0, fmt.Errorf("localGetIconInfoEx (GetIconInfoExW) failed for %s: %w", exePathForDebug, syscall.GetLastError())
+	}
+	if ii.HbmColor != 0 { defer w32.DeleteObject(w32.HGDIOBJ(ii.HbmColor)) }
+	if ii.HbmMask != 0 { defer w32.DeleteObject(w32.HGDIOBJ(ii.HbmMask)) }
+
+	// ... (logging of ICONINFOEXW details as before) ...
+	modNameEnd := 0; for modNameEnd < len(ii.SzModName) && ii.SzModName[modNameEnd] != 0 { modNameEnd++ }
+	modNameStr := syscall.UTF16ToString(ii.SzModName[:modNameEnd])
+	resNameEnd := 0; for resNameEnd < len(ii.SzResName) && ii.SzResName[resNameEnd] != 0 { resNameEnd++ }
+	resNameStr := syscall.UTF16ToString(ii.SzResName[:resNameEnd])
+	log.Printf("Debug GIIEX for %s: CbSize:%d, IsIcon:%v, Hotspot:(%d,%d), HbmColor:%p, HbmMask:%p, ResID:%d, ModName:'%s', ResName:'%s'",
+		exePathForDebug, ii.CbSize, ii.FIcon, ii.XHotspot, ii.YHotspot, ii.HbmColor, ii.HbmMask, ii.WResID, modNameStr, resNameStr)
+
+
+	if ii.HbmColor == 0 && ii.HbmMask == 0 {
+		return nil, 0, 0, fmt.Errorf("GetIconInfoEx for %s: both HbmColor and HbmMask are nil", exePathForDebug)
+	}
+
+	var colorBitmapDetails LoggedBitmapDetails
+	var hbmColorData []byte // BGRA
+	var colorWidth, colorHeight int
+	isHbmColor32bpp := false
+	isHbmColorDataInitiallyTransparent := true // Assume transparent until proven otherwise
+
+	// --- Process HbmColor ---
+	if ii.HbmColor != 0 {
+		var bmpColor w32.BITMAP
+		if w32.GetObject(w32.HGDIOBJ(ii.HbmColor), unsafe.Sizeof(bmpColor), unsafe.Pointer(&bmpColor)) == 0 {
+			log.Printf("Warning GIIEX for %s: GetObject for HbmColor failed: %v.", exePathForDebug, syscall.GetLastError())
+		} else {
+			colorBitmapDetails.Populate(exePathForDebug, "HbmColor", &bmpColor)
+			colorBitmapDetails.Log()
+			colorWidth = int(bmpColor.BmWidth)
+			colorHeight = int(bmpColor.BmHeight)
+			nativeWidth, nativeHeight = colorWidth, colorHeight
+
+			if bmpColor.BmBitsPixel == 32 && colorWidth > 0 && colorHeight > 0 {
+				isHbmColor32bpp = true
+				var biColor w32.BITMAPINFO
+				hdrColor := &biColor.BmiHeader
+				hdrColor.BiSize = uint32(unsafe.Sizeof(*hdrColor)); hdrColor.BiWidth = bmpColor.BmWidth
+				hdrColor.BiHeight = -bmpColor.BmHeight; hdrColor.BiPlanes = 1
+				hdrColor.BiBitCount = 32; hdrColor.BiCompression = w32.BI_RGB
+				
+				memDC := w32.CreateCompatibleDC(0)
+				if memDC == 0 {
+					log.Printf("Error GIIEX for %s: CreateCompatibleDC for HbmColor GetDIBits failed: %v", exePathForDebug, syscall.GetLastError())
+				} else {
+					defer w32.DeleteDC(memDC)
+					hbmColorData = make([]byte, colorWidth*colorHeight*4)
+					scanLinesCopied := w32.GetDIBits(memDC, ii.HbmColor, 0, uint(colorHeight), unsafe.Pointer(&hbmColorData[0]), &biColor, w32.DIB_RGB_COLORS)
+					if scanLinesCopied == 0 {
+						log.Printf("Error GIIEX for %s: GetDIBits on 32bpp HbmColor FAILED: %v.", exePathForDebug, syscall.GetLastError())
+						hbmColorData = nil
+					} else {
+						if int(scanLinesCopied) != colorHeight {
+							log.Printf("Warning GIIEX for %s: GetDIBits (HbmColor) copied %d, expected %d", exePathForDebug, scanLinesCopied, colorHeight)
+						}
+						// Check if this 32bpp HbmColor data has any non-zero alpha
+						for i := 3; i < len(hbmColorData); i += 4 {
+							if hbmColorData[i] != 0 {
+								isHbmColorDataInitiallyTransparent = false
+								break
+							}
+						}
+						if isHbmColorDataInitiallyTransparent {
+							log.Printf("Debug GIIEX for %s: HbmColor is 32bpp but its original alpha channel is fully transparent.", exePathForDebug)
+						} else {
+							log.Printf("Debug GIIEX for %s: HbmColor is 32bpp and has existing non-zero alpha values. Will prioritize this.", exePathForDebug)
+						}
+					}
+				}
+			} else {
+				log.Printf("Debug GIIEX for %s: HbmColor is not 32bpp (is %d bpp). Mask will be required for transparency.", exePathForDebug, bmpColor.BmBitsPixel)
+				// If HbmColorData isn't 32bpp, we'd need to convert it to 32bpp BGRA before applying a mask.
+				// This is more complex. For now, if it's not 32bpp, we might need to fall back or implement BitBlt-based drawing.
+				// For simplicity in this step, we'll assume if it's not 32bpp, DrawIconEx is a better bet,
+				// unless we explicitly handle drawing it to a 32bpp surface and then applying the mask.
+				// Let's set hbmColorData to nil to force reliance on mask or fallback.
+				hbmColorData = nil 
+			}
+		}
+	} else { log.Printf("Debug GIIEX for %s: HbmColor is nil. Mask is essential.", exePathForDebug) }
+
+
+	// Decision point: Do we use HbmColor data directly (if it's 32bpp with good alpha) OR blend with mask?
+	if isHbmColor32bpp && !isHbmColorDataInitiallyTransparent && hbmColorData != nil {
+		// Case 1: HbmColor is 32bpp and ALREADY has good alpha. Use it directly.
+		log.Printf("Debug GIIEX for %s: Using HbmColor (32bpp with existing alpha) directly.", exePathForDebug)
+		rgbaOutputImg := image.NewRGBA(image.Rect(0, 0, colorWidth, colorHeight))
+		idx := 0
+		for y := 0; y < colorHeight; y++ {
+			for x := 0; x < colorWidth; x++ {
+				rgbaOutputImg.Pix[idx+0] = hbmColorData[idx+2] // R
+				rgbaOutputImg.Pix[idx+1] = hbmColorData[idx+1] // G
+				rgbaOutputImg.Pix[idx+2] = hbmColorData[idx+0] // B
+				rgbaOutputImg.Pix[idx+3] = hbmColorData[idx+3] // A
+				idx += 4
+			}
+		}
+		return rgbaOutputImg, colorWidth, colorHeight, nil
+	}
+
+	// Case 2: HbmColor was nil, not 32bpp, or 32bpp but fully transparent.
+	// We need to try blending with HbmMask if available and HbmColor data exists (even if its alpha was 0).
+	// If HbmColor was nil or not 32bpp, we'd need a more complex path to even get color data
+	// to blend with the mask. For this iteration, we focus on the case where HbmColor IS 32bpp
+	// (so hbmColorData is populated) but was initially transparent, requiring the mask.
+
+	var hbmMaskData []byte
+	var maskBitmapDetails LoggedBitmapDetails // Declare here for scope
+	// ... (Process HbmMask as in your previous working version to populate hbmMaskData and maskBitmapDetails)
+	if ii.HbmMask != 0 {
+		var bmpMask w32.BITMAP
+		if w32.GetObject(w32.HGDIOBJ(ii.HbmMask), unsafe.Sizeof(bmpMask), unsafe.Pointer(&bmpMask)) == 0 {
+			log.Printf("Error GIIEX for %s: GetObject for HbmMask failed: %v.", exePathForDebug, syscall.GetLastError())
+		} else {
+			maskBitmapDetails.Populate(exePathForDebug, "HbmMask", &bmpMask)
+			maskBitmapDetails.Log()
+			maskWidth := int(bmpMask.BmWidth)
+			maskHeight := int(bmpMask.BmHeight)
+
+			if bmpMask.BmBitsPixel == 1 && maskWidth > 0 && maskHeight > 0 {
+				if maskHeight == colorHeight*2 && colorHeight > 0 {
+					log.Printf("Debug GIIEX for %s: HbmMask height (%d) is 2x HbmColor height (%d). Assuming AND/XOR type mask.", exePathForDebug, maskHeight, colorHeight)
+				} else if maskHeight != colorHeight && colorHeight > 0 {
+					log.Printf("Warning GIIEX for %s: HbmMask height (%d) inconsistent with HbmColor height (%d).", exePathForDebug, maskHeight, colorHeight)
+				}
+
+				var biMask w32.BITMAPINFO
+				hdrMask := &biMask.BmiHeader
+				hdrMask.BiSize = uint32(unsafe.Sizeof(*hdrMask)); hdrMask.BiWidth = bmpMask.BmWidth
+				hdrMask.BiHeight = -bmpMask.BmHeight; hdrMask.BiPlanes = 1; hdrMask.BiBitCount = 1; hdrMask.BiCompression = w32.BI_RGB
+				
+				memDC := w32.CreateCompatibleDC(0)
+				if memDC == 0 {
+					log.Printf("Error GIIEX for %s: CreateCompatibleDC for HbmMask GetDIBits failed: %v", exePathForDebug, syscall.GetLastError())
+				} else {
+					defer w32.DeleteDC(memDC)
+					stride := ( (maskWidth + 31) &^ 31 ) / 8
+					hbmMaskData = make([]byte, stride*maskHeight)
+					
+					scanLinesCopied := w32.GetDIBits(memDC, ii.HbmMask, 0, uint(maskHeight), unsafe.Pointer(&hbmMaskData[0]), &biMask, w32.DIB_RGB_COLORS)
+					if scanLinesCopied == 0 {
+						log.Printf("Error GIIEX for %s: GetDIBits on 1bpp HbmMask FAILED: %v.", exePathForDebug, syscall.GetLastError())
+						hbmMaskData = nil
+					} else if int(scanLinesCopied) != maskHeight {
+						log.Printf("Warning GIIEX for %s: GetDIBits (HbmMask) copied %d, expected %d", exePathForDebug, scanLinesCopied, maskHeight)
+					}
+				}
+			} else {
+				log.Printf("Debug GIIEX for %s: HbmMask is not 1bpp (is %d bpp). Cannot use for alpha blending.", exePathForDebug, bmpMask.BmBitsPixel)
+			}
+		}
+	} else { log.Printf("Debug GIIEX for %s: HbmMask is nil.", exePathForDebug) }
+
+
+	// Attempt to construct final image with manual mask blending
+	// This path is now taken if HbmColor was not 32bpp with good alpha, OR if it was 32bpp but fully transparent
+	if hbmColorData != nil && colorWidth > 0 && colorHeight > 0 && hbmMaskData != nil && maskBitmapDetails.Width == int32(colorWidth) && (maskBitmapDetails.Height == int32(colorHeight) || maskBitmapDetails.Height == int32(colorHeight*2)) {
+		// We have 32bpp color data (whose original alpha might have been all zero) and a matching mask
+		log.Printf("Debug GIIEX for %s: Applying HbmMask data to HbmColor data for alpha.", exePathForDebug)
+		
+		rgbaOutputImg := image.NewRGBA(image.Rect(0, 0, colorWidth, colorHeight))
+		maskStride := ( (colorWidth + 31) &^ 31 ) / 8 // Mask stride based on colorWidth
+
+		idx := 0
+		for y := 0; y < colorHeight; y++ {
+			for x := 0; x < colorWidth; x++ {
+				// Color from hbmColorData (BGRA)
+				rgbaOutputImg.Pix[idx+0] = hbmColorData[idx+2] // R
+				rgbaOutputImg.Pix[idx+1] = hbmColorData[idx+1] // G
+				rgbaOutputImg.Pix[idx+2] = hbmColorData[idx+0] // B
+
+				// Alpha from hbmMaskData
+				maskByteIndex := y*maskStride + x/8
+				if maskByteIndex < len(hbmMaskData) { // Boundary check for safety
+					maskByte := hbmMaskData[maskByteIndex]
+					maskBit := (maskByte >> (7 - (x % 8))) & 1
+					if maskBit == 0 { // Opaque in mask
+						rgbaOutputImg.Pix[idx+3] = 255
+					} else { // Transparent in mask
+						rgbaOutputImg.Pix[idx+3] = 0
+					}
+				} else { // Should not happen if dimensions match
+					rgbaOutputImg.Pix[idx+3] = 0 // Default to transparent if out of bounds
+				}
+				idx += 4
+			}
+		}
+		
+		isFullyTransparentAfterBlend := true
+		for i := 3; i < len(rgbaOutputImg.Pix); i += 4 { if rgbaOutputImg.Pix[i] != 0 { isFullyTransparentAfterBlend = false; break } }
+		if isFullyTransparentAfterBlend {
+			log.Printf("Warning GIIEX for %s: Image is STILL FULLY TRANSPARENT after applying HbmMask.", exePathForDebug)
+		} else {
+			log.Printf("Debug GIIEX for %s: Image has OPAQUE pixels after applying HbmMask.", exePathForDebug)
+		}
+		return rgbaOutputImg, colorWidth, colorHeight, nil
+	}
+
+	// If HbmColor was not 32bpp or its data was nil, and we couldn't blend with mask...
+	// Or if HbmColor was 32bpp with good alpha but something went wrong before returning.
+	// Or if blending failed due to missing data or dimension mismatch.
+	log.Printf("Debug GIIEX for %s: Conditions for using HbmColor directly or blending with mask not met. Color data nil: %v. Mask data nil: %v. Color 32bpp: %v. Color initially transparent: %v",
+		exePathForDebug, hbmColorData == nil, hbmMaskData == nil, isHbmColor32bpp, isHbmColorDataInitiallyTransparent)
+
+	return nil, int(nativeWidth), int(nativeHeight), fmt.Errorf("GetIconInfoEx for %s: Unable to produce valid image from HbmColor/HbmMask. Color: %s. Mask: %s. Falling back.",
+		exePathForDebug, colorBitmapDetails.Summary(), maskBitmapDetails.Summary())
+}
+
+// Helper struct and methods for logging bitmap details
+type LoggedBitmapDetails struct {
+	ExeName   string
+	BitmapName string
+	Width     int32
+	Height    int32
+	Planes    uint16
+	BitsPixel uint16
+	Valid     bool
+}
+
+
+// extractIconFromExe orchestrates the icon extraction.
+// NEW STRATEGY:
+// 1. Try DrawIconEx first (via renderIconToBGRA). This often handles complex icons well.
+// 2. If DrawIconEx results in a fully transparent image, then try GetIconInfoEx + manual blending.
+func extractIconFromExe(exePath string, targetSize int) (image.Image, error) {
+	if targetSize <= 0 {
+		targetSize = defaultIconSize
+	}
+	baseName := filepath.Base(exePath)
 
 	// 1. Extract Icon Handles
 	hIconLarge, hIconSmall, err := extractIconHandles(exePath)
 	if err != nil {
-		// Handle ErrIconNotFound specifically, wrap other errors
-		if errors.Is(err, ErrIconNotFound) {
-			return nil, ErrIconNotFound
-		}
-		return nil, fmt.Errorf("failed to extract icon handles for %q: %w", exePath, err)
+		return nil, fmt.Errorf("failed to extract icon handles for %q: %w", baseName, err)
 	}
 
-	// 2. Select Best Handle and Manage Cleanup
 	selectedIcon := hIconLarge
+	if selectedIcon == 0 { selectedIcon = hIconSmall }
 	if selectedIcon == 0 {
-		selectedIcon = hIconSmall
+		if hIconLarge != 0 { w32.DestroyIcon(hIconLarge) }
+		if hIconSmall != 0 { w32.DestroyIcon(hIconSmall) }
+		return nil, ErrIconNotFound
 	}
-
-	// Clean up the *unused* handle immediately if both were valid.
-	// The selected handle cleanup is deferred.
+	// Cleanup unused handle
 	if hIconLarge != 0 && hIconSmall != 0 {
-		if selectedIcon == hIconLarge {
-			w32.DestroyIcon(hIconSmall)
-		} else { // selectedIcon == hIconSmall
-			w32.DestroyIcon(hIconLarge)
-		}
-	}
-	// Ensure the selected icon handle is eventually destroyed.
+		if selectedIcon == hIconLarge { w32.DestroyIcon(hIconSmall)
+		} else { w32.DestroyIcon(hIconLarge) }
+	} else if hIconLarge != 0 && selectedIcon != hIconLarge { w32.DestroyIcon(hIconLarge)
+	} else if hIconSmall != 0 && selectedIcon != hIconSmall { w32.DestroyIcon(hIconSmall) }
 	defer w32.DestroyIcon(selectedIcon)
 
-	// 3. Render Icon to BGRA Pixel Buffer
-	bgraData, err := renderIconToBGRA(selectedIcon, size)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render icon to bitmap for %q: %w", exePath, err)
+	var finalImage image.Image
+
+	// --- Attempt 1: DrawIconEx (via renderIconToBGRA) ---
+	log.Printf("Debug Extractor for %s: Attempting DrawIconEx path (renderIconToBGRA).", baseName)
+	bgraData, errRender := renderIconToBGRA(selectedIcon, targetSize) // Ensure this uses CreateDIBSection
+	if errRender != nil {
+		log.Printf("Warning Extractor for %s: renderIconToBGRA (DrawIconEx) failed: %v. Will attempt GetIconInfoEx path.", baseName, errRender)
+		// Proceed to Attempt 2
+	} else if bgraData == nil {
+		log.Printf("Warning Extractor for %s: renderIconToBGRA (DrawIconEx) returned nil data without error. Will attempt GetIconInfoEx path.", baseName)
+		// Proceed to Attempt 2
+	} else {
+		imgFromDrawIconEx := bgraToGoImage(bgraData, targetSize, targetSize)
+		isTransparentDrawIconEx := true
+		for i := 3; i < len(imgFromDrawIconEx.Pix); i += 4 {
+			if imgFromDrawIconEx.Pix[i] != 0 {
+				isTransparentDrawIconEx = false
+				break
+			}
+		}
+
+		if !isTransparentDrawIconEx {
+			log.Printf("Debug Extractor for %s: DrawIconEx path successful and produced a non-transparent image.", baseName)
+			finalImage = imgFromDrawIconEx
+		} else {
+			log.Printf("Debug Extractor for %s: DrawIconEx path produced a transparent image. Attempting GetIconInfoEx path.", baseName)
+			// Proceed to Attempt 2
+		}
 	}
 
-	// 4. Convert BGRA data to Go image.Image (RGBA)
-	img := bgraToGoImage(bgraData, size, size)
+	// --- Attempt 2: GetIconInfoEx + Manual Blending (if DrawIconEx failed or produced transparent) ---
+	if finalImage == nil {
+		log.Printf("Debug Extractor for %s: Attempting GetIconInfoEx path.", baseName)
+		// getIconImageViaGetIconInfoEx should be your version that does conditional blending (prioritizing 32bpp HbmColor if its alpha is good, else mask blend)
+		imgFromGetIconInfo, nativeW, nativeH, errGetIconInfo := getIconImageViaGetIconInfoEx(baseName, selectedIcon)
 
-	return img, nil
+		if errGetIconInfo != nil {
+			log.Printf("Error Extractor for %s: GetIconInfoEx path also failed: %v. No usable icon.", baseName, errGetIconInfo)
+			return nil, fmt.Errorf("both DrawIconEx and GetIconInfoEx paths failed for %q (GetIconInfoEx error: %w)", baseName, errGetIconInfo)
+		} else if imgFromGetIconInfo == nil {
+            log.Printf("Error Extractor for %s: GetIconInfoEx path returned nil image without error. No usable icon.", baseName)
+			return nil, fmt.Errorf("GetIconInfoEx path returned nil image without error for %q", baseName)
+        } else {
+			// Check transparency of image from GetIconInfoEx path
+			isTransparentGetIconInfoEx := true
+			for i := 3; i < len(imgFromGetIconInfo.Pix); i += 4 {
+				if imgFromGetIconInfo.Pix[i] != 0 {
+					isTransparentGetIconInfoEx = false
+					break
+				}
+			}
+			if isTransparentGetIconInfoEx {
+				log.Printf("Error Extractor for %s: GetIconInfoEx path also produced a transparent image. No usable icon.", baseName)
+				return nil, fmt.Errorf("both DrawIconEx and GetIconInfoEx paths produced transparent images for %q", baseName)
+			}
+
+			// Image from GetIconInfoEx is good (non-transparent)
+			log.Printf("Debug Extractor for %s: GetIconInfoEx path successful (Native: %dx%d).", baseName, nativeW, nativeH)
+			if nativeW == targetSize && nativeH == targetSize {
+				finalImage = imgFromGetIconInfo
+			} else if nativeW > 0 && nativeH > 0 {
+				resizedImg := image.NewRGBA(image.Rect(0, 0, targetSize, targetSize))
+				draw.BiLinear.Scale(resizedImg, resizedImg.Bounds(), imgFromGetIconInfo, imgFromGetIconInfo.Bounds(), draw.Over, nil)
+				finalImage = resizedImg
+			} else {
+				log.Printf("Error Extractor for %s: GetIconInfoEx path returned 0 dimensions (%dx%d). No usable icon.", baseName, nativeW, nativeH)
+				return nil, fmt.Errorf("GetIconInfoEx path returned 0 dimensions for %q", baseName)
+			}
+		}
+	}
+
+	if finalImage == nil {
+		// This means DrawIconEx path failed/transparent AND GetIconInfoEx path failed/transparent
+		return nil, fmt.Errorf("failed to extract a non-transparent icon for %q after all attempts", baseName)
+	}
+
+	return finalImage, nil
 }
 
 // --- Icon Extraction and Saving Logic (Minor Refinements) ---
@@ -438,12 +801,15 @@ func ExtractAndSaveIcons(appMap map[string]AppLaunchInfo) error {
 					// but log other errors (file create, encode).
 					// We check if the error *is* a syscall.Errno OR if it *wraps* one
 					// originating from platformExtractIcon/renderIconToBGRA/extractIconHandles.
-					var osErr syscall.Errno
-					isOsExtractionError := errors.As(err, &osErr)
 
-					if !isOsExtractionError {
-						log.Printf("Error processing icon for %s: %v", baseName, err)
-					}
+					log.Printf("ERROR_DETAILS: Failed to process icon for %s (Path: %s): %v", baseName, p, err)
+
+					// var osErr syscall.Errno
+					// isOsExtractionError := errors.As(err, &osErr)
+
+					// if !isOsExtractionError {
+					// 	log.Printf("Error processing icon for %s: %v", baseName, err)
+					// }
 					// Note: Even if not logged individually here, OS errors are counted
 					// and listed in the final summary report.
 				}
@@ -455,14 +821,14 @@ func ExtractAndSaveIcons(appMap map[string]AppLaunchInfo) error {
 	wg.Wait() // Wait for all goroutines to finish
 
 	// Generate and log the summary report
-	// finalReport := generateSummaryReport(
-	// 	totalAttempted.Load(),
-	// 	skippedCount.Load(),
-	// 	failureCount.Load(),
-	// 	skippedExeNames, // Pass slice copies implicitly
-	// 	failedExeNames,
-	// )
-	// log.Println(finalReport)
+	finalReport := generateSummaryReport(
+		totalAttempted.Load(),
+		skippedCount.Load(),
+		failureCount.Load(),
+		skippedExeNames, // Pass slice copies implicitly
+		failedExeNames,
+	)
+	log.Println(finalReport)
 
 	return nil // Only setup errors are returned from this function
 }
@@ -560,27 +926,27 @@ func RunOrphanedIconsCleanup() {
 
 // --- Helper Function to Get Icon Path (Unchanged) ---
 func GetIconPathForExe(exePath string) (string, error) {
-    if exePath == "" {
-        return "", nil
-    }
+	if exePath == "" {
+		return "", nil
+	}
 
-    // Generate the expected icon filename
-    iconFilename := generateIconFilename(exePath)
-    
-    // Check if the icon file actually exists
-    iconDir, err := getIconStorageDir()
-    if err != nil {
-        return "", err
-    }
+	// Generate the expected icon filename
+	iconFilename := generateIconFilename(exePath)
 
-    // Check if the icon file exists
-    fullPath := filepath.Join(iconDir, iconFilename)
-    if _, err := os.Stat(fullPath); err != nil {
-        return "", nil  // Icon doesn't exist, return empty string
-    }
+	// Check if the icon file actually exists
+	iconDir, err := getIconStorageDir()
+	if err != nil {
+		return "", err
+	}
 
-    // Icon exists, return the web path
-    return path.Join(WebIconPath, iconFilename), nil
+	// Check if the icon file exists
+	fullPath := filepath.Join(iconDir, iconFilename)
+	if _, err := os.Stat(fullPath); err != nil {
+		return "", nil // Icon doesn't exist, return empty string
+	}
+
+	// Icon exists, return the web path
+	return path.Join(WebIconPath, iconFilename), nil
 }
 
 func ProcessIcons() {

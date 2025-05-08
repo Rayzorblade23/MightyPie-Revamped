@@ -21,4 +21,5 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/parsiya/golnk v0.0.0-20221103095132-740a4c27c4ff
 	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/image v0.27.0
 )

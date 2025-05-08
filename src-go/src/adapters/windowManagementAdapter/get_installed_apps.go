@@ -22,6 +22,13 @@ const (
 	getStartAppsPsCommand        = `Get-StartApps | Select-Object Name, AppID | Where-Object { $_.AppID -ne $null -and $_.AppID -ne '' -and $_.AppID -notlike '*SystemSettings*' -and $_.AppID -notlike '*Search*' } | ForEach-Object { ($_.Name -replace '\t',' ') + "` + "\t" + `" + $_.AppID }`
 )
 
+// Web app package identifiers
+const (
+	DisneyPlusPattern = "Disney."
+	NetflixPattern    = ".Netflix"
+	YTMusicPattern    = "music.youtube"
+)
+
 // Filtering lists
 var (
 	unwantedKeywords = []string{
@@ -421,9 +428,46 @@ func getPackageLocations() (map[string]string, error) {
 	return locationsMap, nil
 }
 
+func findUWPExecutables(installLocation string) []string {
+	var exes []string
+
+	// Walk through all subdirectories
+	filepath.Walk(installLocation, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip on errors
+		}
+
+		// Check if it's a file and has .exe extension
+		if !info.IsDir() && strings.EqualFold(filepath.Ext(path), ".exe") {
+			// Skip some known system/helper executables
+			filename := strings.ToLower(info.Name())
+			if !strings.HasPrefix(filename, "runtime") &&
+				!strings.HasPrefix(filename, "vcruntime") &&
+				!strings.HasPrefix(filename, "msvcp") &&
+				!strings.HasPrefix(filename, "api-ms-") {
+				exes = append(exes, path)
+			}
+		}
+		return nil
+	})
+
+	return exes
+}
+
 // processStartMenuEntry resolves, validates, and filters a single entry from Get-StartApps.
 // Returns an AppEntry pointer if valid, nil otherwise.
 func processStartMenuEntry(name, appid string, packageLocations map[string]string) *AppEntry {
+	// Check for web apps first by their package patterns
+	if strings.Contains(appid, DisneyPlusPattern) ||
+		strings.Contains(appid, NetflixPattern) ||
+		strings.Contains(appid, YTMusicPattern) {
+		return &AppEntry{
+			Name: name,
+			Path: fmt.Sprintf("shell:AppsFolder\\%s", appid), // Store the URI as path
+			URI:  fmt.Sprintf("shell:AppsFolder\\%s", appid),
+		}
+	}
+
 	primaryExePath := ""
 	var packageExes []string
 
@@ -433,11 +477,8 @@ func processStartMenuEntry(name, appid string, packageLocations map[string]strin
 		installLocation, found := packageLocations[familyName]
 
 		if found && installLocation != "" {
-			globPattern := filepath.Join(installLocation, "*.exe")
-			foundExes, err := filepath.Glob(globPattern)
-			if err == nil && len(foundExes) > 0 {
-				packageExes = foundExes
-			}
+			// Use the new function to find executables recursively
+			packageExes = findUWPExecutables(installLocation)
 		}
 	}
 
