@@ -2,14 +2,14 @@
     import '../../app.css';
     import {onMount} from "svelte";
     import {subscribeToTopic} from "$lib/natsAdapter.ts";
-    import {getEnvVar} from "$lib/envHandler.ts";
     import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
     import type {IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
     import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
+    import {PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
 
     let monitorScaleFactor: number = 1;
 
-    subscribeToTopic(getEnvVar("NATSSUBJECT_SHORTCUT_PRESSED"), message => {
+    subscribeToTopic(PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED, message => {
         try {
             const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 

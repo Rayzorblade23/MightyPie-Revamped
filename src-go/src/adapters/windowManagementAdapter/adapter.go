@@ -36,7 +36,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	a.publishDiscoveredApps(discoveredApps)
 
 	// NATS Subscription for shortcut pressed events
-	subject := env.Get("NATSSUBJECT_SHORTCUT_PRESSED")
+	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
 		var message shortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -62,7 +62,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 // publishDiscoveredApps sends the current discovered apps list to the NATS subject
 func (a *WindowManagementAdapter) publishDiscoveredApps(apps map[string]AppLaunchInfo) {
-    a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED"), apps)
+	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED"), apps)
 }
 
 // Run starts the adapter, including the initial window scan and monitoring loop
@@ -209,5 +209,5 @@ func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping)
 		convertedMap[int(hwnd)] = info
 	}
 
-	a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
+	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
 }

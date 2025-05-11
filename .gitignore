@@ -3,7 +3,6 @@ node_modules
 /build
 /.svelte-kit
 /package
-.env
 .env.local
 !.env.example
 vite.config.js.timestamp-*
@@ -12,3 +11,4 @@ vite.config.ts.timestamp-*
 .idea/
 .vscode/
 /static/appIcons/
+/env.local

@@ -4,7 +4,7 @@
     import {onMount} from "svelte";
     import {getCurrentWindow, LogicalPosition} from "@tauri-apps/api/window";
     import {goto} from "$app/navigation";
-    import {getEnvVar, initializeEnvVars} from "$lib/envHandler.ts";
+    import {PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
 
 
     interface IShortcutPressedMessage {
@@ -13,8 +13,7 @@
 
 
     onMount(async () => {
-        await initializeEnvVars()
-        await subscribeToTopic(getEnvVar("NATSSUBJECT_SHORTCUT_PRESSED"), message => {
+        await subscribeToTopic(PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED, message => {
             try {
                 const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
@@ -33,11 +32,10 @@
 
 
 <main>
-
     <div class="bg-amber-950 w-screen h-screen flex items-center justify-center">
-        <button class="absolute top-4 right-4 bg-amber-200" onclick={
-        () => publishMessage<IShortcutPressedMessage>(getEnvVar("NATSSUBJECT_SHORTCUT_PRESSED"), {shortcutPressed: 1})
-            }>
+        <button class="absolute top-4 right-4 bg-amber-200"
+                on:click={() => publishMessage<IShortcutPressedMessage>(PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED, {shortcutPressed: 1})}
+        >
             Publish some message, I guess.
         </button>
 

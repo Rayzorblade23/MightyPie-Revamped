@@ -6,7 +6,7 @@
 } from "$lib/components/piebutton/piebuttonTypes.ts";
 
 import {subscribeToTopic} from "$lib/natsAdapter.ts";
-import {getEnvVar} from "$lib/envHandler.ts";
+import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE} from "$env/static/public";
 
 
 // Internal state
@@ -24,7 +24,7 @@ export function updateMenuConfiguration(newConfig: Map<number, Map<number, Task>
 
 
 // Update the subscriber
-subscribeToTopic(getEnvVar("NATSSUBJECT_BUTTONMANAGER_UPDATE"), message => {
+subscribeToTopic(PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE, message => {
     try {
         const configData: ConfigData = JSON.parse(message);
         const newConfig = parseNestedRawConfig(configData);

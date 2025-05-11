@@ -20,18 +20,18 @@ import (
 
 // NATS Subjects - fetched from environment, consider constants if these are static.
 var (
-	natsSubjectPieButtonExecute    = env.Get("NATSSUBJECT_PIEBUTTON_EXECUTE")
-	natsSubjectShortcutPressed     = env.Get("NATSSUBJECT_SHORTCUT_PRESSED")
-	natsSubjectWindowManagerUpdate = env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	natsSubjectDiscoveredApps      = env.Get("NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED")
+	natsSubjectPieButtonExecute    = env.Get("PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE")
+	natsSubjectShortcutPressed     = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	natsSubjectWindowManagerUpdate = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
+	natsSubjectDiscoveredApps      = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED")
 )
 
 // Function names - fetched from environment, consider constants if static.
 var (
-	fnMaximize = env.Get("FN_TEXT_MAXIMIZE")
-	fnMinimize = env.Get("FN_TEXT_MINIMIZE")
-	fnClose    = env.Get("FN_TEXT_CLOSE")
-	fnTopmost  = env.Get("FN_TEXT_TOPMOST")
+	fnMaximize = env.Get("PUBLIC_FN_TEXT_MAXIMIZE")
+	fnMinimize = env.Get("PUBLIC_FN_TEXT_MINIMIZE")
+	fnClose    = env.Get("PUBLIC_FN_TEXT_CLOSE")
+	fnTopmost  = env.Get("PUBLIC_FN_TEXT_TOPMOST")
 )
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.

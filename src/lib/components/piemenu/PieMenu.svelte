@@ -3,7 +3,6 @@
     import {fly} from 'svelte/transition';
     import {publishMessage, subscribeToTopic} from "$lib/natsAdapter.ts";
     import {goto} from "$app/navigation";
-    import {getEnvVar} from "$lib/envHandler.ts";
     import PieButton from "$lib/components/piebutton/PieButton.svelte";
     import {
         calculatePieButtonPosition,
@@ -16,6 +15,7 @@
         mouseEvents
     } from "$lib/components/piemenu/piemenuTypes.ts";
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
+    import {PUBLIC_NATSSUBJECT_PIEMENU_CLICK, PUBLIC_NATSSUBJECT_PIEMENU_OPENED} from "$env/static/public";
 
     export const menu_index = 0;
 
@@ -34,7 +34,7 @@
     let indicator = $state("");
     let indicatorRotation = $state(0);
 
-    subscribeToTopic(getEnvVar("NATSSUBJECT_PIEMENU_CLICK"), message => {
+    subscribeToTopic(PUBLIC_NATSSUBJECT_PIEMENU_CLICK, message => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
             currentMouseEvent = clickMsg.click;
@@ -43,7 +43,7 @@
                 console.log(`Left click in Slice: ${activeSlice}!`);
             } else if (clickMsg.click == mouseEvents.right_up) {
                 console.log(`Right click in Slice: ${activeSlice}!`);
-                publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: false})
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
                 goto('/');
             } else if (clickMsg.click == mouseEvents.middle_up) {
                 console.log(`Middle click in Slice: ${activeSlice}!`);
@@ -74,7 +74,7 @@
 
     onMount(async () => {
         console.log("PieMenu.svelte: onMount hook running");
-        publishMessage<IPiemenuOpenedMessage>(getEnvVar("NATSSUBJECT_PIEMENU_OPENED"), {piemenuOpened: true})
+        publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true})
 
         indicator = await loadAndProcessIndicatorSVG();
 

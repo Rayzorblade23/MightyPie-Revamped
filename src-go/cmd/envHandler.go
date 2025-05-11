@@ -22,7 +22,7 @@ func init() {
     }
     
     // Construct absolute path to .env file
-    envPath := filepath.Join(filepath.Dir(filename), "..","..", ".env.public")
+    envPath := filepath.Join(filepath.Dir(filename), "..","..", ".env")
     
     envVars, err = godotenv.Read(envPath)
     if err != nil {

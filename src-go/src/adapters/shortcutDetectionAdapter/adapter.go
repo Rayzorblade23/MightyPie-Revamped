@@ -19,7 +19,7 @@ type ShortcutDetectionAdapter struct {
 }
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
-	natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED"), func(msg *nats.Msg) {
 
 		var message shortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -248,9 +248,9 @@ func (a *ShortcutDetectionAdapter) publishMessage(shortcutPressed int) {
 	}
 
 	if shortcutPressed == 1 {
-		a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_SHORTCUT_PRESSED"), msg)
+		a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED"), msg)
 	} else {
-		a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_SHORTCUT_RELEASED"), msg)
+		a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED"), msg)
 	}
 }
 

@@ -23,21 +23,21 @@ type MouseInputAdapter struct {
 	natsAdapter *natsAdapter.NatsAdapter
 }
 
-func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
-	natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_PIEMENU_OPENED"), func(msg *nats.Msg) {
-		
+func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
+	natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), func(msg *nats.Msg) {
+
 		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			println("Failed to decode message: %v", err)
 			return
 		}
-		
+
 		fmt.Printf("Pie Menu opened: %+v\n", message)
-		
+
 		if message.PiemenuOpened {
-			SetMouseHookState(true)	
+			SetMouseHookState(true)
 		} else if !message.PiemenuOpened {
-			SetMouseHookState(false)	
+			SetMouseHookState(false)
 		}
 	})
 	return &MouseInputAdapter{
@@ -46,20 +46,20 @@ func New (natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 }
 
 type MouseEvent struct {
-    Button string // "left", "right", "middle"
-    State  string // "down", "up"
+	Button string // "left", "right", "middle"
+	State  string // "down", "up"
 }
 
 var (
-	user32               = syscall.NewLazyDLL("user32.dll")
-	setWindowsHookEx     = user32.NewProc("SetWindowsHookExW")
-	callNextHookEx       = user32.NewProc("CallNextHookEx")
-	unhookWindowsHookEx  = user32.NewProc("UnhookWindowsHookEx")
-	getMessage           = user32.NewProc("GetMessageW")
+	user32              = syscall.NewLazyDLL("user32.dll")
+	setWindowsHookEx    = user32.NewProc("SetWindowsHookExW")
+	callNextHookEx      = user32.NewProc("CallNextHookEx")
+	unhookWindowsHookEx = user32.NewProc("UnhookWindowsHookEx")
+	getMessage          = user32.NewProc("GetMessageW")
 
-	mouseHook syscall.Handle
+	mouseHook   syscall.Handle
 	hookEnabled bool
-	adapter *MouseInputAdapter
+	adapter     *MouseInputAdapter
 )
 
 const (
@@ -72,7 +72,6 @@ const (
 	WM_MBUTTONDOWN = 0x0207
 	WM_MBUTTONUP   = 0x0208
 )
-
 
 func (a *MouseInputAdapter) Run() {
 	adapter = a
@@ -102,45 +101,45 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 		ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 		return ret
 	}
-	
-    if nCode == 0 {
-        switch wParam {
-        case WM_LBUTTONDOWN:
-            adapter.handleClick("left", "down")
-            return 1 // block
-        case WM_LBUTTONUP:
-            adapter.handleClick("left", "up")
-            return 1 // block
-        case WM_RBUTTONDOWN:
-            adapter.handleClick("right", "down")
-            return 1 // block
-        case WM_RBUTTONUP:
-            adapter.handleClick("right", "up")
-            return 1 // block
-        case WM_MBUTTONDOWN:
-            adapter.handleClick("middle", "down")
-            return 1 // block
-        case WM_MBUTTONUP:
-            adapter.handleClick("middle", "up")
-            return 1 // block
-        }
+
+	if nCode == 0 {
+		switch wParam {
+		case WM_LBUTTONDOWN:
+			adapter.handleClick("left", "down")
+			return 1 // block
+		case WM_LBUTTONUP:
+			adapter.handleClick("left", "up")
+			return 1 // block
+		case WM_RBUTTONDOWN:
+			adapter.handleClick("right", "down")
+			return 1 // block
+		case WM_RBUTTONUP:
+			adapter.handleClick("right", "up")
+			return 1 // block
+		case WM_MBUTTONDOWN:
+			adapter.handleClick("middle", "down")
+			return 1 // block
+		case WM_MBUTTONUP:
+			adapter.handleClick("middle", "up")
+			return 1 // block
+		}
 	}
 	ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 	return ret
 }
 
 func (a *MouseInputAdapter) handleClick(button string, state string) {
-    fmt.Printf("%s button %s detected and blocked!\n", button, state)
-    a.publishMessage(MouseEvent{Button: button, State: state})
+	fmt.Printf("%s button %s detected and blocked!\n", button, state)
+	a.publishMessage(MouseEvent{Button: button, State: state})
 }
 
 // Update publishMessage to handle the new MouseEvent type
 func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
-    msg := piemenuClick_Message{
-        Click: fmt.Sprintf("%s_%s", event.Button, event.State),
-    }
-    a.natsAdapter.PublishMessage(env.Get("NATSSUBJECT_PIEMENU_CLICK"), msg)
-    fmt.Printf("Mouse %s\n", msg.Click)
+	msg := piemenuClick_Message{
+		Click: fmt.Sprintf("%s_%s", event.Button, event.State),
+	}
+	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), msg)
+	fmt.Printf("Mouse %s\n", msg.Click)
 }
 
 // setMouseHookState enables or disables the mouse hook

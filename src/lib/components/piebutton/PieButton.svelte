@@ -2,7 +2,7 @@
     import {getTaskProperties, getTaskType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.ts";
-    import {getEnvVar} from "$lib/envHandler.ts";
+    import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
 
     interface MouseState {
         hovered: boolean;
@@ -87,7 +87,7 @@
             properties: properties,
             click_type: clickType
         };
-        publishMessage<IPieButtonExecuteMessage>(getEnvVar("NATSSUBJECT_PIEBUTTON_EXECUTE"), message);
+        publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
     }
 
     let svgPromise = $state();

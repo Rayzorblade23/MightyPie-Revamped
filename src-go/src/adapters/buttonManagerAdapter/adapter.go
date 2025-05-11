@@ -41,9 +41,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	buttonConfig = config
 	PrintConfig(config)
 
-	buttonUpdateSubject := env.Get("NATSSUBJECT_BUTTONMANAGER_UPDATE") // Assuming this env var exists
+	buttonUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE") // Assuming this env var exists
 
-	a.natsAdapter.SubscribeToSubject(env.Get("NATSSUBJECT_WINDOWMANAGER_UPDATE"), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), func(msg *nats.Msg) {
 		var currentWindows WindowsUpdate // Use new type name
 
 		if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
@@ -80,52 +80,51 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	return a
 }
 
-
 // processWindowUpdate takes the current config and window list, returning an updated config.
 // Returns nil, nil if no effective changes were made to the configuration.
 func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows WindowsUpdate) (ConfigData, error) {
-    if len(currentConfig) == 0 {
-        log.Println("DEBUG: Skipping button processing - no config loaded.")
-        return nil, nil // No config, no changes possible
-    }
+	if len(currentConfig) == 0 {
+		log.Println("DEBUG: Skipping button processing - no config loaded.")
+		return nil, nil // No config, no changes possible
+	}
 
-    // 1. Deep Copy Config
-    updatedConfig, err := deepCopyConfig(currentConfig)
-    if err != nil {
-        return nil, fmt.Errorf("failed to deep copy config: %w", err)
-    }
+	// 1. Deep Copy Config
+	updatedConfig, err := deepCopyConfig(currentConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deep copy config: %w", err)
+	}
 
-    // 2. Handle Empty Window List Case
-    if len(windows) == 0 {
-        return a.handleEmptyWindowList(updatedConfig)
-    }
+	// 2. Handle Empty Window List Case
+	if len(windows) == 0 {
+		return a.handleEmptyWindowList(updatedConfig)
+	}
 
-    // 3. Setup for Processing
-    availableWindows := make(WindowsUpdate, len(windows))
-    maps.Copy(availableWindows, windows)
-    processedButtons := make(map[string]bool) // Key: "menuID:buttonID"
+	// 3. Setup for Processing
+	availableWindows := make(WindowsUpdate, len(windows))
+	maps.Copy(availableWindows, windows)
+	processedButtons := make(map[string]bool) // Key: "menuID:buttonID"
 
-    // 4. Process Each Profile
-    for menuID, buttonMap := range updatedConfig {
-        // Separate tasks by type for focused processing
-        showProgramButtons, showAnyButtons, launchProgramButtons, functionCallButtons := 
-            a.separateTasksByType(buttonMap)
+	// 4. Process Each Profile
+	for menuID, buttonMap := range updatedConfig {
+		// Separate tasks by type for focused processing
+		showProgramButtons, showAnyButtons, launchProgramButtons, functionCallButtons :=
+			a.separateTasksByType(buttonMap)
 
-        // Process each type
-        a.processLaunchProgramTasks(menuID, launchProgramButtons, buttonMap)
-        a.processFunctionCallTasks(menuID, functionCallButtons, buttonMap)
-        a.processShowProgramTasks(menuID, showProgramButtons, availableWindows, processedButtons, buttonMap)
-        a.processShowAnyTasks(menuID, showAnyButtons, availableWindows, processedButtons, buttonMap)
-    }  // Added missing closing brace for the for loop
+		// Process each type
+		a.processLaunchProgramTasks(menuID, launchProgramButtons, buttonMap)
+		a.processFunctionCallTasks(menuID, functionCallButtons, buttonMap)
+		a.processShowProgramTasks(menuID, showProgramButtons, availableWindows, processedButtons, buttonMap)
+		a.processShowAnyTasks(menuID, showAnyButtons, availableWindows, processedButtons, buttonMap)
+	} // Added missing closing brace for the for loop
 
-    // 5. Final Comparison
-    if reflect.DeepEqual(currentConfig, updatedConfig) {
-        log.Println("DEBUG: Button configuration unchanged after processing window update.")
-        return nil, nil // No effective change, return nil
-    }
+	// 5. Final Comparison
+	if reflect.DeepEqual(currentConfig, updatedConfig) {
+		log.Println("DEBUG: Button configuration unchanged after processing window update.")
+		return nil, nil // No effective change, return nil
+	}
 
-    log.Println("DEBUG: Button configuration updated based on window changes.")
-    return updatedConfig, nil
+	log.Println("DEBUG: Button configuration updated based on window changes.")
+	return updatedConfig, nil
 }
 
 // handleEmptyWindowList clears window-related properties from tasks when the window list is empty.
@@ -160,32 +159,32 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(config ConfigData) (ConfigD
 
 // separateTasksByType classifies tasks in a button map by their type.
 func (a *ButtonManagerAdapter) separateTasksByType(buttonMap ButtonMap) (
-    showProgram map[string]*Task, 
-    showAny map[string]*Task, 
-    launchProgram map[string]*Task,
-    functionCall map[string]*Task) {
+	showProgram map[string]*Task,
+	showAny map[string]*Task,
+	launchProgram map[string]*Task,
+	functionCall map[string]*Task) {
 
-    showProgram = make(map[string]*Task)
-    showAny = make(map[string]*Task)
-    launchProgram = make(map[string]*Task)
-    functionCall = make(map[string]*Task)
+	showProgram = make(map[string]*Task)
+	showAny = make(map[string]*Task)
+	launchProgram = make(map[string]*Task)
+	functionCall = make(map[string]*Task)
 
-    for btnID, task := range buttonMap {
-        taskPtr := new(Task)
-        *taskPtr = task
+	for btnID, task := range buttonMap {
+		taskPtr := new(Task)
+		*taskPtr = task
 
-        switch TaskType(taskPtr.TaskType) {
-        case TaskTypeShowProgramWindow:
-            showProgram[btnID] = taskPtr
-        case TaskTypeShowAnyWindow:
-            showAny[btnID] = taskPtr
-        case TaskTypeLaunchProgram:
-            launchProgram[btnID] = taskPtr
-        case TaskTypeCallFunction:
-            functionCall[btnID] = taskPtr
-        }
-    }
-    return
+		switch TaskType(taskPtr.TaskType) {
+		case TaskTypeShowProgramWindow:
+			showProgram[btnID] = taskPtr
+		case TaskTypeShowAnyWindow:
+			showAny[btnID] = taskPtr
+		case TaskTypeLaunchProgram:
+			launchProgram[btnID] = taskPtr
+		case TaskTypeCallFunction:
+			functionCall[btnID] = taskPtr
+		}
+	}
+	return
 }
 
 // processLaunchProgramTasks handles updates for LaunchProgram tasks (e.g., fetching icons).
@@ -276,8 +275,8 @@ func (a *ButtonManagerAdapter) processShowProgramTasks(
 		if taskModified {
 			buttonMap[btnID] = *taskPtr
 		} else if _, ok := buttonMap[btnID]; !ok { // Ensure task exists if unmodified
-            buttonMap[btnID] = *taskPtr
-        }
+			buttonMap[btnID] = *taskPtr
+		}
 	}
 
 	// C. Update Show Program Window - Step 2: Assign free windows matching ExePath
@@ -324,24 +323,24 @@ func (a *ButtonManagerAdapter) processShowProgramTasks(
 
 // processFunctionCallTasks handles updates for CallFunction tasks.
 func (a *ButtonManagerAdapter) processFunctionCallTasks(
-    menuID string,
-    functionCallButtons map[string]*Task,
-    buttonMap ButtonMap,
+	menuID string,
+	functionCallButtons map[string]*Task,
+	buttonMap ButtonMap,
 ) {
-    // Get the original configuration for reference
-    originalConfig := GetButtonConfig()
-    
-    // Copy function call buttons from original config to preserve all properties
-    for btnID, taskPtr := range functionCallButtons {
-        if originalMenu, exists := originalConfig[menuID]; exists {
-            if originalTask, exists := originalMenu[btnID]; exists {
-                buttonMap[btnID] = originalTask
-                continue
-            }
-        }
-        // Fallback to current task if not found in original config
-        buttonMap[btnID] = *taskPtr
-    }
+	// Get the original configuration for reference
+	originalConfig := GetButtonConfig()
+
+	// Copy function call buttons from original config to preserve all properties
+	for btnID, taskPtr := range functionCallButtons {
+		if originalMenu, exists := originalConfig[menuID]; exists {
+			if originalTask, exists := originalMenu[btnID]; exists {
+				buttonMap[btnID] = originalTask
+				continue
+			}
+		}
+		// Fallback to current task if not found in original config
+		buttonMap[btnID] = *taskPtr
+	}
 }
 
 // findMatchingWindow searches availableWindows for a window with the specified exePath.
@@ -402,8 +401,8 @@ func (a *ButtonManagerAdapter) processShowAnyTasks(
 		if taskModified {
 			buttonMap[btnID] = *taskPtr
 		} else if _, ok := buttonMap[btnID]; !ok { // Ensure task exists if unmodified
-            buttonMap[btnID] = *taskPtr
-        }
+			buttonMap[btnID] = *taskPtr
+		}
 	}
 
 	// E. Update Show Any Window - Step 2: Assign remaining free windows
