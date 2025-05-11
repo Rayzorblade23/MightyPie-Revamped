@@ -1,9 +1,7 @@
 use enigo::{Enigo, Mouse, Settings};
-use tauri::Manager;
+use std::env;
 use tauri::command;
-use std::path::PathBuf;
-use dotenvy::from_path_iter;
-use std::collections::HashMap;
+use tauri::Manager;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[command]
@@ -22,37 +20,18 @@ fn get_mouse_pos() -> (i32, i32) {
     enigo.unwrap().location().unwrap()
 }
 
+use dotenvy::from_filename;
 
 #[command]
-fn get_all_public_env_vars() -> Result<HashMap<String, String>, String> {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.pop(); // Go to project root
-    path.push(".env.public");
+fn get_private_env_var(key: String) -> Result<String, String> {
+    // Load from .env.local if not already loaded
+    let _ = from_filename(".env.local");
 
-    // Use from_path_iter to parse the .env file
-    let iter = from_path_iter(path).map_err(|e| e.to_string())?;
-
-    let mut env_vars = HashMap::new();
-
-    // Iterate through the parsed items
-    for item in iter {
-        match item {
-            Ok((key, value)) => {
-                // If parsing was successful for the line, insert into map
-                env_vars.insert(key, value);
-            }
-            Err(e) => {
-                // Log errors for individual lines but continue parsing
-                eprintln!("Error parsing .env.public line: {}", e);
-                // You might choose to return an error here if *any* line fails,
-                // but logging and skipping is often acceptable for env files.
-            }
-        }
+    match env::var(&key) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(format!("Environment variable '{}' not found", key)),
     }
-
-    Ok(env_vars)
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -62,25 +41,29 @@ pub fn run() {
             window.set_always_on_top(true)?;
             Ok(())
         })
-//         .plugin(tauri_plugin_log::Builder::new()
-// //           .level(log::LevelFilter::Trace)
-//             .format(|out, message, record| {
-//                     if record.level() == log::Level::Debug {
-//                       return; // Skip DEBUG logs entirely (they won't appear)
-//                     }
-//             out.finish(format_args!(
-//               "[{}] {}",
-//               record.level(),
-// //               record.target(),
-//               message
-//             ))
-//           })
-//           .build())
+        //         .plugin(tauri_plugin_log::Builder::new()
+        // //           .level(log::LevelFilter::Trace)
+        //             .format(|out, message, record| {
+        //                     if record.level() == log::Level::Debug {
+        //                       return; // Skip DEBUG logs entirely (they won't appear)
+        //                     }
+        //             out.finish(format_args!(
+        //               "[{}] {}",
+        //               record.level(),
+        // //               record.target(),
+        //               message
+        //             ))
+        //           })
+        //           .build())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_mouse_pos,get_all_public_env_vars])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            get_mouse_pos,
+            get_private_env_var
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

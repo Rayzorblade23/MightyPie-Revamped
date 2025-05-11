@@ -1,13 +1,14 @@
 ﻿import type {NatsConnection} from 'nats.ws';
 import {connect, Events, JSONCodec, StringCodec} from 'nats.ws';
+import {getPrivateEnvVar} from "$lib/env.ts";
 
 const sc = StringCodec();
 const jc = JSONCodec(); // Example if using JSON
 
 
 // NATS Server WebSocket URL (replace with your actual URL)
-const natsServerUrl = 'ws://localhost:9090'; // Use wss:// for secure
-const authToken = '5LQ5V4KWPKGRC2LJ8JQGS';
+const natsServerUrl = await getPrivateEnvVar('NATS_SERVER_URL');
+const natsAuthToken = await getPrivateEnvVar('NATS_AUTH_TOKEN');
 
 let natsConnection: NatsConnection | null = null;
 let errorMessage: string = '';
@@ -18,7 +19,7 @@ async function connectToNats() {
             servers: [natsServerUrl],
             reconnectTimeWait: 5000,
             maxReconnectAttempts: 5,
-            token: authToken,
+            token: natsAuthToken,
         });
 
         natsConnection = nc;

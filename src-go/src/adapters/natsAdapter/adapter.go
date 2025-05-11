@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/nats-io/nats.go"
 )
 
@@ -15,9 +16,10 @@ type NatsAdapter struct {
 
 func New() (*NatsAdapter, error) {
     // Connect to NATS server with token authentication
-    token := "5LQ5V4KWPKGRC2LJ8JQGS"
+    token := env.Get("NATS_AUTH_TOKEN")
+    urlStr := env.Get("NATS_SERVER_URL")
 
-    connection, err := nats.Connect(nats.DefaultURL, nats.Token(token))
+    connection, err := nats.Connect(urlStr, nats.Token(token))
     if err != nil {
         log.Fatalf("Error connecting to NATS: %v", err)
         return nil, err

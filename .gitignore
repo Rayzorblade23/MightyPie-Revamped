@@ -11,4 +11,4 @@ vite.config.ts.timestamp-*
 .idea/
 .vscode/
 /static/appIcons/
-/env.local
+/.env.local
