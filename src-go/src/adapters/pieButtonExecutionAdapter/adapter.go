@@ -237,15 +237,25 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 	return nil // Placeholder
 }
 
-func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
-	var windowProps ShowWindowProperties
-	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
-		return fmt.Errorf("failed to process properties for show_any_window: %w", err)
+func (a *PieButtonExecutionAdapter) handleShowAnyWindow(msg *pieButtonExecute_Message) error {
+	var props ShowWindowProperties
+	if err := unmarshalProperties(msg.Properties, &props); err != nil {
+		return fmt.Errorf("show_any_window: unmarshal failed: %w", err)
 	}
 
-	log.Printf("Button %d - Showing any window: %s", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
-	// TODO: Implement actual window showing logic
-	return nil // Placeholder
+	hwnd := uintptr(props.WindowHandle)
+	if hwnd == 0 {
+		return fmt.Errorf("show_any_window: HWND is zero (Button %d, Text: %s)", msg.ButtonIndex, props.ButtonTextUpper)
+	}
+
+	logWindowContext(msg.ButtonIndex, props.ButtonTextUpper, hwnd)
+
+	if err := setForegroundOrMinimize(hwnd); err != nil {
+		log.Printf("show_any_window: Failed to foreground HWND %X: %v", hwnd, err)
+		return fmt.Errorf("show_any_window: %w", err)
+	}
+	log.Printf("show_any_window: HWND %X requested to foreground (Button %d)", hwnd, msg.ButtonIndex)
+	return nil
 }
 
 func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButtonExecute_Message) error {
@@ -352,15 +362,15 @@ func LaunchApp(exePath string, apps map[string]AppLaunchInfo) error {
 		return fmt.Errorf("application not found: %s", exePath)
 	}
 
-    // If URI is specified, use it instead of exe path
-    if app.URI != "" {
-        cmd := exec.Command("cmd", "/C", "start", app.URI)
-        if err := cmd.Run(); err != nil {
-            return fmt.Errorf("failed to start %s via URI: %w", app.Name, err)
-        }
-        log.Printf("Started %s via URI handler", app.Name)
-        return nil
-    }
+	// If URI is specified, use it instead of exe path
+	if app.URI != "" {
+		cmd := exec.Command("cmd", "/C", "start", app.URI)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to start %s via URI: %w", app.Name, err)
+		}
+		log.Printf("Started %s via URI handler", app.Name)
+		return nil
+	}
 
 	// Prepare command
 	cmd := exec.Command(exePath)
