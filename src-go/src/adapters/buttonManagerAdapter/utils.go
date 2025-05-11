@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // GetButtonConfig returns the current button configuration
@@ -114,23 +115,39 @@ func PrintTask(task Task) {
 	}
 }
 
-// PrintConfig displays the current button configuration in a readable format.
-// This function NOW includes cases for all relevant task types.
-func PrintConfig(config ConfigData) {
-	fmt.Println("\n================== Configuration ==================")
+// Helper to format properties concisely
+func formatProperties(parts ...string) string {
+	var nonEmptyParts []string
+	for _, part := range parts {
+		if part != "" {
+			nonEmptyParts = append(nonEmptyParts, part)
+		}
+	}
+	if len(nonEmptyParts) == 0 {
+		return ""
+	}
+	return strings.Join(nonEmptyParts, ", ")
+}
 
-	// Sort profile IDs if necessary (maps don't guarantee order)
+// PrintConfig displays the current button configuration in a readable format.
+func PrintConfig(config ConfigData) {
+	var sb strings.Builder
+
+	sb.WriteString("\n======================= Configuration =======================\n")
+
 	profileIDs := make([]string, 0, len(config))
 	for id := range config {
 		profileIDs = append(profileIDs, id)
 	}
 	sort.Strings(profileIDs)
 
-	for _, profileID := range profileIDs {
+	for i, profileID := range profileIDs {
+		if i > 0 {
+			sb.WriteString("-----------------------------------------------------------\n") // Separator between profiles
+		}
 		buttonMap := config[profileID]
-		fmt.Printf("\nMenu %s:\n", profileID)
+		fmt.Fprintf(&sb, "Profile: %s\n", profileID)
 
-		// Sort button IDs for consistent printing order
 		buttonIDs := make([]int, 0, len(buttonMap))
 		for idStr := range buttonMap {
 			id, err := strconv.Atoi(idStr)
@@ -145,75 +162,87 @@ func PrintConfig(config ConfigData) {
 		for _, buttonID := range buttonIDs {
 			buttonIDStr := strconv.Itoa(buttonID)
 			task := buttonMap[buttonIDStr]
+			
+			fmt.Fprintf(&sb, "  Btn %2d: [%-20s] ", buttonID, task.TaskType) // Left-align TaskType
 
-			fmt.Printf("\n  Button %d:\n", buttonID)
-			fmt.Println("  -------------------")
-			fmt.Printf("Task Type: %s\n", task.TaskType)
+			taskSpecificDetails := ""
 
-			// --- SWITCH TO HANDLE PRINTING FOR DIFFERENT TYPES ---
 			switch TaskType(task.TaskType) {
 			case TaskTypeShowAnyWindow:
 				props, err := GetTaskProperties[ShowAnyWindowProperties](task)
 				if err != nil {
-					log.Printf("ERROR: Failed to get/print ShowAnyWindowProperties for %s:%s - %v", profileID, buttonIDStr, err)
-					fmt.Println("Properties: <Error reading>")
-					continue
+					log.Printf("ERROR: Failed to get props for ShowAnyWindow %s:%s - %v", profileID, buttonIDStr, err)
+					taskSpecificDetails = "<Error reading props>"
+				} else {
+					taskSpecificDetails = formatProperties(
+						fmt.Sprintf("Upper: '%s'", props.ButtonTextUpper),
+						fmt.Sprintf("Lower: '%s'", props.ButtonTextLower),
+						condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", props.IconPath)),
+						condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", props.ExePath)),
+						condStr(props.WindowHandle != 0, fmt.Sprintf("HWND: %d", props.WindowHandle)),
+					)
 				}
-				fmt.Println("Properties:")
-				fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-				fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-				fmt.Printf("  Icon Path: %s\n", props.IconPath)
-				fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
-				fmt.Printf("  Exe Path: %s\n", props.ExePath)
-
 			case TaskTypeShowProgramWindow:
 				props, err := GetTaskProperties[ShowProgramWindowProperties](task)
 				if err != nil {
-					log.Printf("ERROR: Failed to get/print ShowProgramWindowProperties for %s:%s - %v", profileID, buttonIDStr, err)
-					fmt.Println("Properties: <Error reading>")
-					continue
+					log.Printf("ERROR: Failed to get props for ShowProgramWindow %s:%s - %v", profileID, buttonIDStr, err)
+					taskSpecificDetails = "<Error reading props>"
+				} else {
+					taskSpecificDetails = formatProperties(
+						fmt.Sprintf("Upper: '%s'", props.ButtonTextUpper),
+						fmt.Sprintf("Lower: '%s'", props.ButtonTextLower),
+						condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", props.IconPath)),
+						condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", props.ExePath)),
+						condStr(props.WindowHandle != 0, fmt.Sprintf("HWND: %d", props.WindowHandle)),
+					)
 				}
-				fmt.Println("Properties:")
-				fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-				fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-				fmt.Printf("  Icon Path: %s\n", props.IconPath)
-				fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
-				fmt.Printf("  Exe Path: %s\n", props.ExePath)
-
-			// --- ADDED CASE for CallFunction ---
 			case TaskTypeCallFunction:
 				props, err := GetTaskProperties[CallFunctionProperties](task)
 				if err != nil {
-					log.Printf("ERROR: Failed to get/print CallFunctionProperties for %s:%s - %v", profileID, buttonIDStr, err)
-					fmt.Println("Properties: <Error reading>")
-					continue
+					log.Printf("ERROR: Failed to get props for CallFunction %s:%s - %v", profileID, buttonIDStr, err)
+					taskSpecificDetails = "<Error reading props>"
+				} else {
+					taskSpecificDetails = formatProperties(
+						fmt.Sprintf("Upper: '%s'", props.ButtonTextUpper),
+						fmt.Sprintf("Lower: '%s'", props.ButtonTextLower),
+						condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", props.IconPath)),
+					)
 				}
-				fmt.Println("Properties:")
-				fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-				fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-				fmt.Printf("  Icon Path: %s\n", props.IconPath)
-
-			// --- ADDED CASE for LaunchProgram ---
 			case TaskTypeLaunchProgram:
 				props, err := GetTaskProperties[LaunchProgramProperties](task)
 				if err != nil {
-					log.Printf("ERROR: Failed to get/print LaunchProgramProperties for %s:%s - %v", profileID, buttonIDStr, err)
-					fmt.Println("Properties: <Error reading>")
-					continue
+					log.Printf("ERROR: Failed to get props for LaunchProgram %s:%s - %v", profileID, buttonIDStr, err)
+					taskSpecificDetails = "<Error reading props>"
+				} else {
+					taskSpecificDetails = formatProperties(
+						fmt.Sprintf("Upper: '%s'", props.ButtonTextUpper),
+						fmt.Sprintf("Lower: '%s'", props.ButtonTextLower),
+						condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", props.IconPath)),
+						condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", props.ExePath)),
+					)
 				}
-				fmt.Println("Properties:")
-				fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-				fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-				fmt.Printf("  Icon Path: %s\n", props.IconPath)
-				fmt.Printf("  Exe Path: %s\n", props.ExePath)
-
 			case TaskTypeDisabled:
-				fmt.Println("Properties: (Disabled)")
-
+				taskSpecificDetails = "(Disabled)"
 			default:
-				fmt.Printf("Properties: (Unknown Task Type: %s)\n", task.TaskType)
+				taskSpecificDetails = fmt.Sprintf("(Unknown Task Type: %s)", task.TaskType)
 			}
+			
+			if taskSpecificDetails != "" {
+				sb.WriteString(taskSpecificDetails)
+			}
+			sb.WriteString("\n")
 		}
 	}
-	fmt.Println("================================================")
+	sb.WriteString("===========================================================\n")
+	fmt.Print(sb.String()) // Use fmt.Print as sb already contains newlines appropriately
+}
+
+// condStr is a helper to conditionally return a string.
+// If condition is true, returns str; otherwise, returns an empty string.
+// Useful for omitting empty property values in the formatted string.
+func condStr(condition bool, str string) string {
+	if condition {
+		return str
+	}
+	return ""
 }

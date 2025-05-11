@@ -196,13 +196,12 @@ func ExtractAndSaveIcons(appMap map[string]AppLaunchInfo) error {
 					reportMutex.Lock()
 					failedExeNames = append(failedExeNames, baseName)
 					reportMutex.Unlock()
-					log.Printf("ERROR processing icon for %s: %v", baseName, err) // Log actual failures
 				}
 			}
 		}(exePath)
 	}
 	wg.Wait()
-	log.Println(generateSummaryReport(totalAttempted.Load(), skippedCount.Load(), failureCount.Load(), skippedExeNames, failedExeNames))
+	// log.Println(generateSummaryReport(totalAttempted.Load(), skippedCount.Load(), failureCount.Load(), skippedExeNames, failedExeNames))
 	return nil
 }
 
