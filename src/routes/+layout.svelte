@@ -7,9 +7,13 @@
         connectToNats,
         disconnectFromNats,
         getConnectionStatus,
+        publishMessage,
         useNatsSubscription,
     } from "$lib/natsAdapter.svelte.ts";
-    import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE} from '$env/static/public';
+    import {
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE,
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE
+    } from '$env/static/public';
     import type {ConfigData} from '$lib/components/piebutton/piebuttonTypes.ts';
     import {
         parseNestedRawConfig,
@@ -18,19 +22,72 @@
 
     let {children} = $props();
     let displayStatus = $state('Idle');
+    let initialUpdateRequestSent = $state(false);
 
+
+    // Effect to monitor connection status
     $effect(() => {
-        displayStatus = getConnectionStatus();
-        console.log("NATS connection status:", displayStatus);
+        const currentStatus = getConnectionStatus();
+        displayStatus = currentStatus;
+        console.log("NATS connection status:", displayStatus); // Log the actual value/object
+
+        // Corrected comparison (assuming 'connected' is the right string literal):
+        if (currentStatus === 'connected' && !initialUpdateRequestSent) {
+            console.log('NATS connected, sending initial button manager update request.');
+            try {
+                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE, {});
+                initialUpdateRequestSent = true;
+            } catch (error) {
+                console.error('[+layout.svelte] Failed to publish initial button manager update request:', error);
+            }
+        }
+
+        // Resetting the flag (using the same correct status literal)
+        if (currentStatus !== 'connected' && initialUpdateRequestSent) {
+            console.log('NATS disconnected/not connected, resetting initial update request flag.');
+            initialUpdateRequestSent = false;
+        }
     });
 
     const handleButtonUpdateMessage = async (message: string) => {
+        let parsedJsonPayload: any;
+
         try {
-            const configData: ConfigData = JSON.parse(message);
+            parsedJsonPayload = JSON.parse(message);
+        } catch (parseError) {
+            console.error(
+                '[+layout.svelte] Failed to parse incoming button manager update JSON:',
+                parseError,
+                'Raw message:',
+                message
+            );
+            return;
+        }
+
+        // Handle cases where the payload is explicitly "null" from the wire.
+        if (parsedJsonPayload === null) {
+            console.error(
+                '[+layout.svelte] Received null as button manager update configuration. Raw message:',
+                message
+            );
+            return;
+        }
+
+        // Assuming parsedJsonPayload is valid ConfigData at this point.
+        // For enhanced safety, consider runtime validation (e.g., with Zod or a type guard)
+        // if the data source is not fully trusted or the ConfigData structure is complex.
+        const configData: ConfigData = parsedJsonPayload as ConfigData;
+
+        try {
             const newParsedConfig = parseNestedRawConfig(configData);
             updateProfilesConfiguration(newParsedConfig);
-        } catch (e) {
-            console.error('[+layout.svelte] Failed to parse or apply button manager update:', e);
+        } catch (applyError) {
+            console.error(
+                '[+layout.svelte] Failed to apply parsed button manager configuration:',
+                applyError,
+                'Parsed data:',
+                configData
+            );
         }
     };
 
@@ -50,15 +107,14 @@
     });
 
     onMount(() => {
-        let connectionAttempted = false;
-
-        if (browser && !connectionAttempted) {
-            connectionAttempted = true;
+        if (browser) {
             const initializeConnection = async () => {
                 try {
+                    console.log("Attempting to connect to NATS...");
                     await connectToNats();
+                    // The $effect watching displayStatus will handle sending the request
                 } catch (error) {
-                    console.error("Layout onMount: Failed to connect to NATS:", error);
+                    console.error("[+layout.svelte] Failed to connect to NATS:", error);
                 }
             };
             initializeConnection();

@@ -45,6 +45,19 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 	buttonUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
 	windowUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
+	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE")
+
+	a.natsAdapter.SubscribeToSubject(requestUpdateSubject, func(msg *nats.Msg) {
+		log.Printf("INFO: Config request on '%s'.", msg.Subject)
+
+		currentConfigSnapshot := GetButtonConfig()
+		if currentConfigSnapshot == nil {
+			log.Printf("WARN: Button config not available for request on '%s'. No config published.", msg.Subject)
+			return
+		}
+
+		a.natsAdapter.PublishMessage(buttonUpdateSubject, currentConfigSnapshot);
+	})
 
 	// Subscribe to window updates for subsequent changes
 	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, func(msg *nats.Msg) {

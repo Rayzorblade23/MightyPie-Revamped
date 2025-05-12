@@ -349,6 +349,7 @@ export function publishMessage<T>(subject: string, message: T): void {
         const payloadString = JSON.stringify(message);
         const encodedPayload = sc.encode(payloadString);
         natsConnection.publish(subject, encodedPayload);
+        console.log("Message sent on subject:", subject);
     } catch (err: unknown) {
         console.error(`${NATS_LOG_PREFIX} Publish error to ${subject}:`, err);
         throw new Error(`${NATS_LOG_PREFIX} Publish failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
