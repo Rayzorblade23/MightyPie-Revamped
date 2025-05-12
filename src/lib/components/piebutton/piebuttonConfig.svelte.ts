@@ -121,3 +121,20 @@ export function getTaskType(profileIndex: number, menuIndex: number, buttonIndex
     const buttonMap = menuConfig?.get(menuIndex);
     return buttonMap?.get(buttonIndex)?.task_type;
 }
+
+/**
+ * Checks if a specific Menu Index exists within the configuration
+ * for a given Profile Index.
+ * (Uses the numeric index types you provided)
+ *
+ * @param profileIndex - The index of the profile to check.
+ * @param menuIndex - The index of the menu to look for within that profile.
+ * @returns True if the menu exists for the profile, false otherwise.
+ */
+export function hasMenuForProfile(profileIndex: number, menuIndex: number): boolean {
+    // Get the current configuration map
+    const config = getProfilesConfiguration(); // Or access internal `profilesConfiguration`
+
+    // Check if the profile index exists and then if the menu index exists within that profile's map
+    return config.get(profileIndex)?.has(menuIndex) ?? false;
+}

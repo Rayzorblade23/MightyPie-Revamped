@@ -13,8 +13,8 @@ const (
 
 // Message type for pie button execution
 type pieButtonExecute_Message struct {
-	MenuIndex   int         `json:"menu_index"`
-	ButtonIndex int         `json:"button_index"`
+	MenuIndex   int         `json:"menuID"`
+	ButtonIndex int         `json:"buttonID"`
 	TaskType    TaskType    `json:"task_type"`
 	Properties  interface{} `json:"properties"`
 	ClickType   string      `json:"click_type"`

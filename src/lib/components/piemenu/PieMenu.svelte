@@ -17,8 +17,6 @@
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
     import {PUBLIC_NATSSUBJECT_PIEMENU_CLICK, PUBLIC_NATSSUBJECT_PIEMENU_OPENED} from "$env/static/public";
 
-    export const menu_index = 0;
-
     const numButtons = 8;
     const radius = 150;
     const buttonWidth = 9.3
@@ -33,6 +31,8 @@
     let currentMouseEvent = $state<string>('');
     let indicator = $state("");
     let indicatorRotation = $state(0);
+
+    let {menuID}: { menuID: number } = $props();
 
     const handleButtonClickMessage = async (message: string) => {
         try {
@@ -126,8 +126,8 @@
             }}
         >
             <PieButton
-                    menu_index={menu_index}
-                    button_index={i}
+                    menuID={menuID}
+                    buttonID={i}
                     x={0}
                     y={0}
                     width={buttonWidth}
