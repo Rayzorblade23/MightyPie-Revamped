@@ -74,3 +74,20 @@ type MenuConfig map[string]ButtonMap // <-- Add this type alias
 // ProfileID (string, e.g., "0", "1") -> MenuConfig
 // This is the new top-level type for the entire application's button configuration.
 type ConfigData map[string]MenuConfig // <-- Update this definition
+
+// Helper types for ShowAnyWindow assignment
+type availableSlotInfo struct {
+	ProfileID string
+	MenuID    string
+	ButtonID  string
+	// Store numeric IDs for easy sorting
+	ProfileIdx int
+	MenuIdx    int
+	ButtonIdx  int
+}
+
+// Helper types for ShowAnyWindow assignment
+type availableWindowInfo struct {
+    Handle int
+    Info WindowInfo
+}
