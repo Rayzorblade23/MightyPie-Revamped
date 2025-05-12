@@ -6,9 +6,6 @@
     TaskType
 } from "$lib/components/piebutton/piebuttonTypes.ts";
 
-import {subscribeToTopic} from "$lib/natsAdapter.ts";
-import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE} from "$env/static/public";
-
 
 // Internal state
 let profilesConfiguration = $state<ProfilesConfiguration>(new Map());
@@ -22,21 +19,6 @@ export function getProfilesConfiguration(): ProfilesConfiguration {
 export function updateProfilesConfiguration(newConfig: ProfilesConfiguration) {
     profilesConfiguration = newConfig;
 }
-
-
-subscribeToTopic(PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE, message => {
-    try {
-        const configData: ConfigData = JSON.parse(message); // Uses updated ConfigData type
-        const newParsedConfig = parseNestedRawConfig(configData);
-        updateProfilesConfiguration(newParsedConfig);
-        console.log('Button configuration updated:', newParsedConfig); // Optional: for debugging
-    } catch (e) {
-        console.error('Failed to parse button manager update:', e);
-    }
-}).catch(error => {
-    console.error('Failed to subscribe to NATS topic:', error);
-});
-
 
 // --- Parsing Function (Handles Nested Input with Profiles) ---
 export function parseNestedRawConfig(data: ConfigData): ProfilesConfiguration {

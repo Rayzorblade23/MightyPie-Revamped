@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
     import {getTaskProperties, getTaskType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
-    import {publishMessage} from "$lib/natsAdapter.ts";
+    import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
 
     interface MouseState {

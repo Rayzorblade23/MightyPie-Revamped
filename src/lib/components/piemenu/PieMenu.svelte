@@ -1,12 +1,12 @@
 ﻿<script lang="ts">
     import {onDestroy, onMount} from 'svelte';
     import {fly} from 'svelte/transition';
-    import {publishMessage, subscribeToTopic} from "$lib/natsAdapter.ts";
+    import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {goto} from "$app/navigation";
     import PieButton from "$lib/components/piebutton/PieButton.svelte";
     import {
-        calculatePieButtonPosition,
         calculatePieButtonOffsets,
+        calculatePieButtonPosition,
         detectActivePieSlice
     } from "$lib/components/piemenu/piemenuUtils.ts";
     import {
@@ -34,7 +34,7 @@
     let indicator = $state("");
     let indicatorRotation = $state(0);
 
-    subscribeToTopic(PUBLIC_NATSSUBJECT_PIEMENU_CLICK, message => {
+    const handleButtonClickMessage = async (message: string) => {
         try {
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
             currentMouseEvent = clickMsg.click;
@@ -51,7 +51,20 @@
         } catch (e) {
             console.error('Failed to parse message:', e);
         }
-    })
+    }
+
+    const subscription_button_click = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
+        handleButtonClickMessage
+    );
+
+    $effect(() => {
+        console.log("subscription_button_click Status:", subscription_button_click.status); // e.g., 'subscribing', 'subscribed', 'failed'
+        if (subscription_button_click.error) {
+            console.error("subscription_button_click Error:", subscription_button_click.error);
+        }
+    });
+
 
     function startAnimationLoop() {
         const update = async () => {
