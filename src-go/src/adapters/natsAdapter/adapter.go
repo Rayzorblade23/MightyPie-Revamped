@@ -70,7 +70,7 @@ func (a *NatsAdapter) SubscribeToSubject(subject string, handleMessage func(*nat
     }
 
     sub, err := a.Connection.Subscribe(subject, func(msg *nats.Msg) {
-        log.Printf("Received message on '%s': %s", msg.Subject, string(msg.Data))
+        log.Printf("Received message on '%s'", msg.Subject)
         handleMessage(msg)
     })
 

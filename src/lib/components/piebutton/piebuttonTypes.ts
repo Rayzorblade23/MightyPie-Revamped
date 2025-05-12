@@ -53,8 +53,8 @@ export type Task =
     | { task_type: TaskType.Disabled };
 
 
-// Represents the structure like: { "0": { "0": TaskData, "1": TaskData }, "1": { ... } }
-export type ConfigData = Record<number, Record<number, TaskData>>;
+// Represents the raw JSON structure: { "profileId": { "menuId": { "buttonId": TaskData, ... }, ... }, ... }
+export type ConfigData = Record<string, Record<string, Record<string, TaskData>>>;
 
 export type TaskData = {
     task_type: string;
@@ -63,5 +63,9 @@ export type TaskData = {
 
 // Button Index -> Typed Task object
 export type ButtonMap = Map<number, Task>;
+
 // Menu Index -> ButtonMap
 export type MenuConfiguration = Map<number, ButtonMap>;
+
+// Profile Index -> MenuConfiguration
+export type ProfilesConfiguration = Map<number, MenuConfiguration>;

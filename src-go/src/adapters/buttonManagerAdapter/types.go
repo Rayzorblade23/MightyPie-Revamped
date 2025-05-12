@@ -64,5 +64,13 @@ type Task struct {
 	Properties json.RawMessage `json:"properties"`
 }
 
-type ButtonMap map[string]Task       // ButtonID (string) -> Task
-type ConfigData map[string]ButtonMap // MenuID (string) -> ButtonMap
+// ButtonID (string, e.g., "0", "1") -> Task
+type ButtonMap map[string]Task
+
+// MenuID (string, e.g., "0", "1") -> ButtonMap
+// This represents the configuration for all menus within a single profile.
+type MenuConfig map[string]ButtonMap // <-- Add this type alias
+
+// ProfileID (string, e.g., "0", "1") -> MenuConfig
+// This is the new top-level type for the entire application's button configuration.
+type ConfigData map[string]MenuConfig // <-- Update this definition

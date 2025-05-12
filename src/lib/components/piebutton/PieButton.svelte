@@ -24,8 +24,8 @@
         mouseState: MouseState
     } = $props();
 
-    const taskType = $derived(getTaskType(menu_index, button_index));
-    const properties = $derived(getTaskProperties(menu_index, button_index));
+    const taskType = $derived(getTaskType(0, menu_index, button_index));
+    const properties = $derived(getTaskProperties(0, menu_index, button_index));
 
     const buttonTextUpper = $derived(properties?.button_text_upper ?? `Button ${button_index + 1}`);
     const buttonTextLower = $derived(properties?.button_text_lower ?? "");
