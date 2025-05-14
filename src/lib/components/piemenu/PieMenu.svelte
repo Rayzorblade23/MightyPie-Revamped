@@ -16,6 +16,7 @@
     } from "$lib/components/piemenu/piemenuTypes.ts";
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
     import {PUBLIC_NATSSUBJECT_PIEMENU_CLICK, PUBLIC_NATSSUBJECT_PIEMENU_OPENED} from "$env/static/public";
+    import {getCurrentWindow} from "@tauri-apps/api/window";
 
     const numButtons = 8;
     const radius = 150;
@@ -44,7 +45,7 @@
             } else if (clickMsg.click == mouseEvents.right_up) {
                 console.log(`Right click in Slice: ${activeSlice}!`);
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
-                goto('/');
+                await getCurrentWindow().hide();
             } else if (clickMsg.click == mouseEvents.middle_up) {
                 console.log(`Middle click in Slice: ${activeSlice}!`);
             }
@@ -87,7 +88,6 @@
 
     onMount(async () => {
         console.log("PieMenu.svelte: onMount hook running");
-        publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true})
 
         indicator = await loadAndProcessIndicatorSVG();
 

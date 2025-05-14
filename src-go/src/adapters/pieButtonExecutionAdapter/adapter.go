@@ -45,27 +45,6 @@ type PieButtonExecutionAdapter struct {
 	functionHandlers map[string]HandlerWrapper
 }
 
-// WindowsUpdate stores information about currently open windows, keyed by HWND or other ID.
-type WindowsUpdate map[int]WindowInfo // Assuming int is the window handle/ID type
-
-// WindowInfo holds details about a specific window.
-type WindowInfo struct {
-	Title    string
-	ExeName  string
-	ExePath  string
-	AppName  string
-	Instance int
-	IconPath string
-}
-
-// AppLaunchInfo defines the structure of the VALUE in discoveredApps.
-type AppLaunchInfo struct {
-	Name             string `json:"name"`                       // The original display name
-	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
-	Args             string `json:"args,omitempty"`             // Command line args from LNK
-	URI              string `json:"uri,omitempty"`              // Add this field for store apps
-}
-
 // --- Adapter Implementation ---
 
 // New creates and initializes a new PieButtonExecutionAdapter.
@@ -190,27 +169,9 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 }
 
 // unmarshalProperties safely converts the generic properties map into a specific struct.
-func unmarshalProperties(props interface{}, target interface{}) error {
+func unmarshalProperties(props any, target any) error {
 	// 1. Type assert to the expected map type
-	propsMap, ok := props.(map[string]interface{})
-	if !ok {
-		// If it's already the target type due to direct unmarshalling, skip remarshal
-		// This requires careful message structure design on the publisher side.
-		// For robustness with interface{}, remarshalling is safer.
-		// return fmt.Errorf("invalid properties format: expected map[string]interface{}, got %T", props)
-
-		// Alternative: Attempt direct type assertion if the JSON unmarshaller might have already produced the correct type.
-		// if target != nil {
-		//    v := reflect.ValueOf(target)
-		//    if v.Kind() == reflect.Ptr {
-		// 		if reflect.TypeOf(props) == v.Elem().Type() {
-		// 			v.Elem().Set(reflect.ValueOf(props))
-		// 			return nil // Already correct type
-		//		}
-		//    }
-		// }
-		// Falling back to remarshalling for broad compatibility.
-	}
+	propsMap, _ := props.(map[string]any)
 
 	// 2. Marshal the map back to JSON bytes
 	propsBytes, err := json.Marshal(propsMap)
@@ -226,36 +187,83 @@ func unmarshalProperties(props interface{}, target interface{}) error {
 	return nil
 }
 
+// ----------------------------------------------------------------------
+// --------- Handler Functions for the different Button Types -----------
+// ----------------------------------------------------------------------
+
 func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieButtonExecute_Message) error {
 	var windowProps ShowWindowProperties
 	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
 		return fmt.Errorf("failed to process properties for show_program_window: %w", err)
 	}
 
-	log.Printf("Button %d - Showing program window: %s", executionInfo.ButtonIndex, windowProps.ButtonTextUpper)
-	// TODO: Implement actual window showing logic using windowProps and potentially a.windowsList
-	return nil // Placeholder
+	log.Printf("Button %d - Action: ShowProgramWindow, Target: %s, ClickType: %s",
+		executionInfo.ButtonIndex, windowProps.ButtonTextUpper, executionInfo.ClickType)
+
+	switch executionInfo.ClickType {
+	case ClickTypeLeftUp:
+		log.Printf("ShowProgramWindow (Left Click): Standard show for '%s'", windowProps.ButtonTextUpper)
+		// TODO: Implement actual window showing logic using windowProps and potentially a.windowsList
+		// This is where your original logic for handleShowProgramWindow would go.
+		// For now, it's a placeholder as in your original code.
+		log.Println("  (Executing placeholder for show_program_window left-click)")
+	case ClickTypeRightUp:
+		log.Printf("ShowProgramWindow (Right Click STUB) for '%s'", windowProps.ButtonTextUpper)
+		// No operation for right-click yet
+	case ClickTypeMiddleUp:
+		log.Printf("ShowProgramWindow (Middle Click STUB) for '%s'", windowProps.ButtonTextUpper)
+		// No operation for middle-click yet
+	default:
+		log.Printf("ShowProgramWindow: Unhandled ClickType '%s' for '%s'. Performing default (left-click like) action or nothing.",
+			executionInfo.ClickType, windowProps.ButtonTextUpper)
+		// Decide if unhandled types should default to left-click behavior or do nothing.
+		// For now, let's treat as a stub or do the left-click action.
+		log.Println("  (Executing placeholder for show_program_window default/unhandled click)")
+	}
+	return nil // Placeholder for actual operation
 }
 
-func (a *PieButtonExecutionAdapter) handleShowAnyWindow(msg *pieButtonExecute_Message) error {
+func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
 	var props ShowWindowProperties
-	if err := unmarshalProperties(msg.Properties, &props); err != nil {
+	if err := unmarshalProperties(executionInfo.Properties, &props); err != nil {
 		return fmt.Errorf("show_any_window: unmarshal failed: %w", err)
 	}
 
 	hwnd := uintptr(props.WindowHandle)
 	if hwnd == 0 {
-		return fmt.Errorf("show_any_window: HWND is zero (Button %d, Text: %s)", msg.ButtonIndex, props.ButtonTextUpper)
+		return fmt.Errorf("show_any_window: HWND is zero (Button %d, Text: %s)", executionInfo.ButtonIndex, props.ButtonTextUpper)
 	}
 
-	logWindowContext(msg.ButtonIndex, props.ButtonTextUpper, hwnd)
+	log.Printf("Button %d - Action: ShowAnyWindow, Target HWND: %X, Text: %s, ClickType: %s",
+		executionInfo.ButtonIndex, hwnd, props.ButtonTextUpper, executionInfo.ClickType)
 
-	if err := setForegroundOrMinimize(hwnd); err != nil {
-		log.Printf("show_any_window: Failed to foreground HWND %X: %v", hwnd, err)
-		return fmt.Errorf("show_any_window: %w", err)
+	var err error
+	switch executionInfo.ClickType {
+	case ClickTypeLeftUp:
+		log.Printf("ShowAnyWindow (Left Click): Standard foreground for HWND %X", hwnd)
+		// This is your original logic from handleShowAnyWindow
+		if e := setForegroundOrMinimize(hwnd); e != nil {
+			log.Printf("show_any_window (Left Click): Failed to foreground HWND %X: %v", hwnd, e)
+			err = fmt.Errorf("show_any_window (Left Click): %w", e)
+		} else {
+			log.Printf("show_any_window (Left Click): HWND %X requested to foreground (Button %d)", hwnd, executionInfo.ButtonIndex)
+		}
+	case ClickTypeRightUp:
+		log.Printf("ShowAnyWindow (Right Click STUB) for HWND %X", hwnd)
+		// No operation for right-click yet
+	case ClickTypeMiddleUp:
+		log.Printf("ShowAnyWindow (Middle Click STUB) for HWND %X", hwnd)
+		// No operation for middle-click yet
+	default:
+		log.Printf("ShowAnyWindow: Unhandled ClickType '%s' for HWND %X. Performing default (left-click like) action.",
+			executionInfo.ClickType, hwnd)
+		// Defaulting to left-click behavior for unhandled types
+		if e := setForegroundOrMinimize(hwnd); e != nil {
+			err = fmt.Errorf("show_any_window (Default Click): %w", e)
+		}
 	}
-	log.Printf("show_any_window: HWND %X requested to foreground (Button %d)", hwnd, msg.ButtonIndex)
-	return nil
+
+	return err // err will be nil if successful or if it's a stubbed action
 }
 
 func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButtonExecute_Message) error {
@@ -264,13 +272,35 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 		return fmt.Errorf("failed to process properties for launch_program: %w", err)
 	}
 
-	log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, launchProps.ButtonTextUpper)
+	log.Printf("Button %d - Action: LaunchProgram, Target: %s (%s), ClickType: %s",
+		executionInfo.ButtonIndex, launchProps.ButtonTextUpper, launchProps.ExePath, executionInfo.ClickType)
 
-	a.mu.RLock()
-	err := LaunchApp(launchProps.ExePath, a.discoveredApps)
-	a.mu.RUnlock()
+	var err error
+	switch executionInfo.ClickType {
+	case ClickTypeLeftUp:
+		log.Printf("LaunchProgram (Left Click): Standard launch for '%s'", launchProps.ExePath)
+		a.mu.RLock()
+		err = LaunchApp(launchProps.ExePath, a.discoveredApps) // Original logic
+		a.mu.RUnlock()
+	case ClickTypeRightUp:
+		log.Printf("LaunchProgram (Right Click STUB) for '%s'", launchProps.ExePath)
+		// No operation for right-click yet
+	case ClickTypeMiddleUp:
+		log.Printf("LaunchProgram (Middle Click STUB) for '%s'", launchProps.ExePath)
+		// No operation for middle-click yet
+	default:
+		log.Printf("LaunchProgram: Unhandled ClickType '%s' for '%s'. Performing default (left-click like) action.",
+			executionInfo.ClickType, launchProps.ExePath)
+		// Defaulting to left-click behavior
+		a.mu.RLock()
+		err = LaunchApp(launchProps.ExePath, a.discoveredApps)
+		a.mu.RUnlock()
+	}
 
-	return err
+	if err != nil && executionInfo.ClickType == ClickTypeLeftUp { // Only log launch failure for actual attempts
+		return fmt.Errorf("launch_program (Left Click) for '%s' failed: %w", launchProps.ExePath, err)
+	}
+	return err // err will be nil for successful left-click or for stubbed actions
 }
 
 func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
@@ -279,22 +309,53 @@ func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonE
 		return fmt.Errorf("failed to process properties for call_function: %w", err)
 	}
 
-	functionName := functionProps.ButtonTextUpper // Assuming this holds the function name
-	handler, exists := a.functionHandlers[functionName]
-	if !exists {
-		return fmt.Errorf("unknown function requested: %s", functionName)
-	}
+	functionName := functionProps.ButtonTextUpper
 
-	log.Printf("Button %d - Calling function: %s", executionInfo.ButtonIndex, functionName)
+	log.Printf("Button %d - Action: CallFunction, TargetFn: %s, ClickType: %s",
+		executionInfo.ButtonIndex, functionName, executionInfo.ClickType)
 
-	// Acquire Read Lock before accessing coordinates
+	// Get mouse coordinates regardless of click type, as they might be logged or used by left-click
 	a.mu.RLock()
 	mouseX := a.lastMouseX
 	mouseY := a.lastMouseY
-	a.mu.RUnlock() // Release Read Lock
+	a.mu.RUnlock()
 
-	return handler.Execute(mouseX, mouseY)
+	switch executionInfo.ClickType {
+	case ClickTypeLeftUp:
+		log.Printf("CallFunction (Left Click): Proceeding to execute function '%s'", functionName)
+		handler, exists := a.functionHandlers[functionName]
+		if !exists {
+			return fmt.Errorf("unknown function requested for left-click: %s", functionName)
+		}
+		// Calls the original handler.Execute(mouseX, mouseY)
+		// NO change to HandlerWrapper, Basic/CoordHandler, or a.MaximizeWindow signatures needed for THIS approach.
+		err := handler.Execute(mouseX, mouseY)
+		if err != nil {
+			return fmt.Errorf("call_function '%s' (Left Click) failed: %w", functionName, err)
+		}
+		return nil // Successfully executed left-click action
+
+	case ClickTypeRightUp:
+		log.Printf("CallFunction (Right Click STUB) for function '%s' at X:%d, Y:%d. No action taken.",
+			functionName, mouseX, mouseY)
+		return nil // Stub action for right-click
+
+	case ClickTypeMiddleUp:
+		log.Printf("CallFunction (Middle Click STUB) for function '%s' at X:%d, Y:%d. No action taken.",
+			functionName, mouseX, mouseY)
+		return nil // Stub action for middle-click
+
+	default:
+		log.Printf("CallFunction: Unhandled ClickType '%s' for function '%s'. No action taken.",
+			executionInfo.ClickType, functionName)
+
+		return nil // For now, unhandled also does nothing specific.
+	}
 }
+
+// -------------------------
+// --------- Run -----------
+// -------------------------
 
 // Run starts the adapter's main loop (currently just blocks).
 func (a *PieButtonExecutionAdapter) Run() error {
@@ -352,7 +413,9 @@ func (a *PieButtonExecutionAdapter) initFunctionHandlers() map[string]HandlerWra
 	return handlers
 }
 
+// -----------------------------------------
 // --- Concrete Function Implementations ---
+// -----------------------------------------
 
 // LaunchApp launches an application using its path.
 // Returns error if the app cannot be launched.

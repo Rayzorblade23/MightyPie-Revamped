@@ -11,13 +11,20 @@ const (
 	TaskTypeDisabled          TaskType = "disabled"
 )
 
+const (
+	ClickTypeLeftUp   = "left_up"
+	ClickTypeRightUp  = "right_up"
+	ClickTypeMiddleUp = "middle_up"
+
+)
+
 // Message type for pie button execution
 type pieButtonExecute_Message struct {
-	MenuIndex   int         `json:"menuID"`
-	ButtonIndex int         `json:"buttonID"`
-	TaskType    TaskType    `json:"task_type"`
-	Properties  interface{} `json:"properties"`
-	ClickType   string      `json:"click_type"`
+	MenuIndex   int      `json:"menuID"`
+	ButtonIndex int      `json:"buttonID"`
+	TaskType    TaskType `json:"task_type"`
+	Properties  any      `json:"properties"`
+	ClickType   string   `json:"click_type"`
 }
 
 type shortcutPressed_Message struct {
@@ -25,6 +32,32 @@ type shortcutPressed_Message struct {
 	MouseX          int `json:"mouseX"`
 	MouseY          int `json:"mouseY"`
 }
+
+// WindowsUpdate stores information about currently open windows, keyed by HWND or other ID.
+type WindowsUpdate map[int]WindowInfo // Assuming int is the window handle/ID type
+
+// WindowInfo holds details about a specific window.
+type WindowInfo struct {
+	Title    string
+	ExeName  string
+	ExePath  string
+	AppName  string
+	Instance int
+	IconPath string
+}
+
+
+// AppLaunchInfo defines the structure of the VALUE in discoveredApps.
+type AppLaunchInfo struct {
+	Name             string `json:"name"`                       // The original display name
+	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
+	Args             string `json:"args,omitempty"`             // Command line args from LNK
+	URI              string `json:"uri,omitempty"`              // Add this field for store apps
+}
+
+// --------------------------------------------
+// --------- Button Type properties -----------
+// --------------------------------------------
 
 // ShowWindowProperties contains common properties for window-related tasks
 type ShowWindowProperties struct {

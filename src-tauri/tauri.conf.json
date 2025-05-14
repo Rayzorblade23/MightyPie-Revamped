@@ -13,9 +13,9 @@
     "windows": [
       {
         "title": "mightypie-revamped",
-        "width": 800,
-        "height": 600,
-        "decorations": true,
+        "width": 600,
+        "height": 500,
+        "decorations": false,
         "shadow": true,
         "transparent": true,
         "resizable": false
