@@ -38,9 +38,13 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 	// 4. === Phase 1: Process Existing Handles and Non-Window Tasks ===
 	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1: Process existing state...") // Removed DEBUG
 	for profileID, menuConfig := range updatedConfig {
-		if menuConfig == nil { continue }
+		if menuConfig == nil {
+			continue
+		}
 		for menuID, buttonMap := range menuConfig {
-			if buttonMap == nil { continue }
+			if buttonMap == nil {
+				continue
+			}
 
 			var originalButtonMap ButtonMap
 			if currentConfig[profileID] != nil && currentConfig[profileID][menuID] != nil {
@@ -54,23 +58,20 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			a.processLaunchProgramTasks(profileID, menuID, launchProgramButtons, buttonMap)
 			a.processFunctionCallTasks(profileID, menuID, functionCallButtons, buttonMap, originalButtonMap)
 			a.processExistingShowProgramHandles(profileID, menuID, showProgramButtons, availableWindows, processedButtons, buttonMap)
+			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(profileID, menuID, showAnyButtons, availableWindows, processedButtons, buttonMap)
 		}
 	}
 	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
 
-
 	// 5. === Phase 1.5 (NEW): Assign Matching Program Windows ===
 	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1.5: Assign matching program windows...") // Removed DEBUG
-	a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1.5. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
-
 
 	// 6. === Phase 2: Assign Remaining Windows to Available ShowAny Slots ===
 	// log.Println("DEBUG: processWindowUpdate - Starting Phase 2: Assign remaining windows to ShowAny slots...") // Removed DEBUG
 	a.assignRemainingWindows(availableWindows, processedButtons, updatedConfig)
 	// log.Println("DEBUG: processWindowUpdate - Finished Phase 2.") // Removed DEBUG
-
 
 	// 7. Final Comparison (Use JSON)
 	// log.Println("DEBUG: processWindowUpdate - Performing final JSON comparison...") // Removed DEBUG
@@ -104,8 +105,8 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 	jsonSnapshot, errSnap := json.Marshal(currentConfig)
 	jsonAfterClear, errClear := json.Marshal(updatedConfig)
 	if errSnap != nil || errClear != nil {
-		 log.Printf("ERROR: Failed to marshal for empty list comparison (SnapErr: %v, ClearErr: %v)", errSnap, errClear)
-		 return nil, fmt.Errorf("marshal error during empty list check")
+		log.Printf("ERROR: Failed to marshal for empty list comparison (SnapErr: %v, ClearErr: %v)", errSnap, errClear)
+		return nil, fmt.Errorf("marshal error during empty list check")
 	}
 	if bytes.Equal(jsonSnapshot, jsonAfterClear) {
 		// log.Println("DEBUG: JSON comparison shows config unchanged after clearing. Returning nil.") // Removed DEBUG
@@ -129,7 +130,7 @@ func (a *ButtonManagerAdapter) separateTasksByType(buttonMap ButtonMap) (
 
 	for btnID := range buttonMap {
 		// Create a pointer to the task *in the map* to allow modification by callers
-        taskPtr := buttonMap[btnID] // Get pointer to map value directly
+		taskPtr := buttonMap[btnID] // Get pointer to map value directly
 
 		switch TaskType(taskPtr.TaskType) { // Check type via pointer
 		case TaskTypeShowProgramWindow:
@@ -151,9 +152,13 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 	anyChangeMade := false
 
 	for profileID, menuConfig := range configToModify {
-		if menuConfig == nil { continue }
+		if menuConfig == nil {
+			continue
+		}
 		for menuID, buttonMap := range menuConfig {
-			if buttonMap == nil { continue }
+			if buttonMap == nil {
+				continue
+			}
 			for btnID, task := range buttonMap {
 				taskCopy := task
 				originalTaskBeforeClear := task

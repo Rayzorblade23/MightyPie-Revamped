@@ -24,7 +24,9 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 	for btnID, taskPtr := range showProgramButtons {
 		taskCopy := *taskPtr
 		buttonKey := fmt.Sprintf("%s:%s:%s", profileID, menuID, btnID)
-		if processedButtons[buttonKey] { continue }
+		if processedButtons[buttonKey] {
+			continue
+		}
 
 		props, err := GetTaskProperties[ShowProgramWindowProperties](taskCopy)
 		if err != nil {
@@ -33,7 +35,7 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		}
 
 		taskModified := false
-		if props.WindowHandle != InvalidHandle {
+		if props.WindowHandle > 0 {
 			if winInfo, exists := availableWindows[props.WindowHandle]; exists {
 				if winInfo.ExePath == props.ExePath {
 					// log.Printf("DEBUG: [%s] Found valid existing handle %d for %s.", buttonKey, props.WindowHandle, props.ExePath) // Removed DEBUG
@@ -89,7 +91,9 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 	for btnID, taskPtr := range showAnyButtons {
 		taskCopy := *taskPtr
 		buttonKey := fmt.Sprintf("%s:%s:%s", profileID, menuID, btnID)
-		if processedButtons[buttonKey] { continue }
+		if processedButtons[buttonKey] {
+			continue
+		}
 
 		props, err := GetTaskProperties[ShowAnyWindowProperties](taskCopy)
 		if err != nil {
@@ -119,10 +123,10 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 				}
 			}
 		} else {
-			 originalTask := taskCopy
-			 if err := clearButtonWindowProperties(&taskCopy); err == nil && !reflect.DeepEqual(originalTask, taskCopy) {
-				 taskModified = true
-			 }
+			originalTask := taskCopy
+			if err := clearButtonWindowProperties(&taskCopy); err == nil && !reflect.DeepEqual(originalTask, taskCopy) {
+				taskModified = true
+			}
 		}
 
 		if taskModified {
@@ -147,9 +151,13 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 	windowsConsumed := make(map[int]bool)
 
 	for pID, mConfig := range fullUpdatedConfig {
-		if mConfig == nil { continue }
+		if mConfig == nil {
+			continue
+		}
 		for mID, bMap := range mConfig {
-			if bMap == nil { continue }
+			if bMap == nil {
+				continue
+			}
 			for bID, task := range bMap {
 				buttonKey := fmt.Sprintf("%s:%s:%s", pID, mID, bID)
 				if TaskType(task.TaskType) != TaskTypeShowProgramWindow || processedButtons[buttonKey] {
@@ -167,7 +175,9 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 					var foundWinInfo WindowInfo
 					for handle, winInfo := range availableWindows {
 						if !windowsConsumed[handle] && winInfo.ExePath == props.ExePath {
-							foundHandle = handle; foundWinInfo = winInfo; break
+							foundHandle = handle
+							foundWinInfo = winInfo
+							break
 						}
 					}
 
@@ -179,7 +189,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 
 						err := updateButtonWithWindowInfo(&taskToModify, foundWinInfo, foundHandle)
 						if err != nil {
-							 log.Printf("ERROR: [%s] assignMatchingProgramWindows - Failed update task: %v", buttonKey, err)
+							log.Printf("ERROR: [%s] assignMatchingProgramWindows - Failed update task: %v", buttonKey, err)
 						} else {
 							if !reflect.DeepEqual(originalTask, taskToModify) {
 								// log.Printf("DEBUG: [%s] Task updated by assignment, writing back.", buttonKey) // Removed DEBUG
@@ -202,10 +212,9 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 			delete(availableWindows, handle)
 		}
 	}
-    // else { log.Println("DEBUG: assignMatchingProgramWindows - Consumed 0 windows.") } // Removed DEBUG
+	// else { log.Println("DEBUG: assignMatchingProgramWindows - Consumed 0 windows.") } // Removed DEBUG
 	// log.Println("DEBUG: assignMatchingProgramWindows - Finished.") // Removed DEBUG
 }
-
 
 // assignRemainingWindows (Cleaned)
 func (a *ButtonManagerAdapter) assignRemainingWindows(
@@ -221,18 +230,37 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 
 	var availableSlots []availableSlotInfo
 	for pID, mConfig := range fullUpdatedConfig {
-		pIdx, errP := strconv.Atoi(pID); if errP != nil { continue }
-		if mConfig == nil { continue }
+		pIdx, errP := strconv.Atoi(pID)
+		if errP != nil {
+			continue
+		}
+		if mConfig == nil {
+			continue
+		}
 		for mID, bMap := range mConfig {
-			mIdx, errM := strconv.Atoi(mID); if errM != nil { continue }
-			if bMap == nil { continue }
+			mIdx, errM := strconv.Atoi(mID)
+			if errM != nil {
+				continue
+			}
+			if bMap == nil {
+				continue
+			}
 			for bID, task := range bMap {
-				bIdx, errB := strconv.Atoi(bID); if errB != nil { continue }
-				if TaskType(task.TaskType) != TaskTypeShowAnyWindow { continue }
+				bIdx, errB := strconv.Atoi(bID)
+				if errB != nil {
+					continue
+				}
+				if TaskType(task.TaskType) != TaskTypeShowAnyWindow {
+					continue
+				}
 				currentButtonKey := fmt.Sprintf("%s:%s:%s", pID, mID, bID)
-				if processedButtons[currentButtonKey] { continue }
+				if processedButtons[currentButtonKey] {
+					continue
+				}
 				props, err := GetTaskProperties[ShowAnyWindowProperties](task)
-				if err != nil || props.WindowHandle != InvalidHandle { continue }
+				if err != nil || props.WindowHandle != InvalidHandle {
+					continue
+				}
 				availableSlots = append(availableSlots, availableSlotInfo{
 					ProfileID: pID, MenuID: mID, ButtonID: bID,
 					ProfileIdx: pIdx, MenuIdx: mIdx, ButtonIdx: bIdx,
@@ -247,8 +275,12 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	}
 
 	sort.SliceStable(availableSlots, func(i, j int) bool {
-		if availableSlots[i].ProfileIdx != availableSlots[j].ProfileIdx { return availableSlots[i].ProfileIdx < availableSlots[j].ProfileIdx }
-		if availableSlots[i].MenuIdx != availableSlots[j].MenuIdx { return availableSlots[i].MenuIdx < availableSlots[j].MenuIdx }
+		if availableSlots[i].ProfileIdx != availableSlots[j].ProfileIdx {
+			return availableSlots[i].ProfileIdx < availableSlots[j].ProfileIdx
+		}
+		if availableSlots[i].MenuIdx != availableSlots[j].MenuIdx {
+			return availableSlots[i].MenuIdx < availableSlots[j].MenuIdx
+		}
 		return availableSlots[i].ButtonIdx < availableSlots[j].ButtonIdx
 	})
 
@@ -283,37 +315,38 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 			// log.Printf("DEBUG: [%s] Task updated by assignment, writing back.", slotButtonKey) // Removed DEBUG
 			targetButtonMap[slot.ButtonID] = taskToModify
 		}
-        // else { log.Printf("DEBUG: [%s] Task update assignment resulted in no change.", slotButtonKey) } // Removed DEBUG
+		// else { log.Printf("DEBUG: [%s] Task update assignment resulted in no change.", slotButtonKey) } // Removed DEBUG
 
 		windowsConsumed[window.Handle] = true
 		processedButtons[slotButtonKey] = true
 		assignedCount++
 	}
 
-	for handle := range windowsConsumed { delete(availableWindows, handle) }
+	for handle := range windowsConsumed {
+		delete(availableWindows, handle)
+	}
 	// log.Printf("DEBUG: assignRemainingWindows - Assigned %d windows.", assignedCount) // Removed DEBUG
 
 	// Clear remaining slots
 	if assignedCount < len(availableSlots) {
 		// log.Printf("DEBUG: Clearing %d remaining empty ShowAny slots.", len(availableSlots)-assignedCount) // Removed DEBUG
 		for i := assignedCount; i < len(availableSlots); i++ {
-			 slot := availableSlots[i]
-			 slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.ProfileID, slot.MenuID, slot.ButtonID)
-			 targetButtonMap := fullUpdatedConfig[slot.ProfileID][slot.MenuID]
-			 taskToModify := targetButtonMap[slot.ButtonID]
-			 originalTask := taskToModify
-			 err := clearButtonWindowProperties(&taskToModify)
-			 if err != nil {
-				  log.Printf("ERROR: [%s] Failed to clear remaining empty slot: %v", slotButtonKey, err)
-			 } else if !reflect.DeepEqual(originalTask, taskToModify) {
-				  // log.Printf("DEBUG: [%s] Cleared remaining empty slot.", slotButtonKey) // Removed DEBUG
-				  targetButtonMap[slot.ButtonID] = taskToModify
-			 }
+			slot := availableSlots[i]
+			slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.ProfileID, slot.MenuID, slot.ButtonID)
+			targetButtonMap := fullUpdatedConfig[slot.ProfileID][slot.MenuID]
+			taskToModify := targetButtonMap[slot.ButtonID]
+			originalTask := taskToModify
+			err := clearButtonWindowProperties(&taskToModify)
+			if err != nil {
+				log.Printf("ERROR: [%s] Failed to clear remaining empty slot: %v", slotButtonKey, err)
+			} else if !reflect.DeepEqual(originalTask, taskToModify) {
+				// log.Printf("DEBUG: [%s] Cleared remaining empty slot.", slotButtonKey) // Removed DEBUG
+				targetButtonMap[slot.ButtonID] = taskToModify
+			}
 		}
 	}
 	// log.Println("DEBUG: assignRemainingWindows - Finished.") // Removed DEBUG
 }
-
 
 // processLaunchProgramTasks (Assuming no DEBUG logs added)
 func (a *ButtonManagerAdapter) processLaunchProgramTasks(profileID, menuID string, launchProgramButtons map[string]*Task, buttonMap ButtonMap) {
@@ -337,27 +370,34 @@ func (a *ButtonManagerAdapter) processFunctionCallTasks(profileID, menuID string
 	}
 }
 
-
 // updateButtonWithWindowInfo (Cleaned)
 func updateButtonWithWindowInfo(task *Task, winInfo WindowInfo, newHandle int) error {
 	// log.Printf("DEBUG: updateButtonWithWindowInfo called for task type %s with handle %d", task.TaskType, newHandle) // Removed DEBUG
 	switch TaskType(task.TaskType) {
 	case TaskTypeShowProgramWindow:
 		props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
-		if err != nil { return fmt.Errorf("get_props: %w", err) }
+		if err != nil {
+			return fmt.Errorf("get_props: %w", err)
+		}
 		props.WindowHandle = newHandle
 		props.ButtonTextUpper = winInfo.Title
 		props.ButtonTextLower = winInfo.AppName
-		if winInfo.IconPath != "" { props.IconPath = winInfo.IconPath }
+		if winInfo.IconPath != "" {
+			props.IconPath = winInfo.IconPath
+		}
 		return SetTaskProperties(task, props) // Returns error from SetTaskProperties
 	case TaskTypeShowAnyWindow:
 		props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
-		if err != nil { return fmt.Errorf("get_props: %w", err) }
+		if err != nil {
+			return fmt.Errorf("get_props: %w", err)
+		}
 		props.WindowHandle = newHandle
 		props.ButtonTextUpper = winInfo.Title
 		props.ButtonTextLower = winInfo.AppName
 		props.ExePath = winInfo.ExePath // Update ExePath for ShowAny
-		if winInfo.IconPath != "" { props.IconPath = winInfo.IconPath }
+		if winInfo.IconPath != "" {
+			props.IconPath = winInfo.IconPath
+		}
 		return SetTaskProperties(task, props)
 	}
 	return nil // No update needed for other types
@@ -365,34 +405,44 @@ func updateButtonWithWindowInfo(task *Task, winInfo WindowInfo, newHandle int) e
 
 // clearButtonWindowProperties (Cleaned)
 func clearButtonWindowProperties(task *Task) error {
-	// log.Printf("DEBUG: Entering clearButtonWindowProperties for task type %s", task.TaskType) // Removed DEBUG
-	switch TaskType(task.TaskType) {
-	case TaskTypeShowProgramWindow:
-		props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
-		if err != nil { return fmt.Errorf("get_props: %w", err) }
-		if props.WindowHandle == InvalidHandle && props.ButtonTextUpper == "" && props.ButtonTextLower == "" && props.IconPath == "" {
-			// log.Println("DEBUG: clearButtonWindowProperties - Task already cleared.") // Removed DEBUG
-			return nil
-		}
-		// log.Println("DEBUG: clearButtonWindowProperties - Modifying props...") // Removed DEBUG
-		props.WindowHandle = InvalidHandle; props.ButtonTextUpper = ""; props.ButtonTextLower = ""; props.IconPath = ""
-		// log.Println("DEBUG: clearButtonWindowProperties - Calling SetTaskProperties...") // Removed DEBUG
-		err = SetTaskProperties(task, props)
-		// if err == nil { log.Println("DEBUG: clearButtonWindowProperties - SetTaskProperties successful.") } // Removed DEBUG
-        return err // Return error from SetTaskProperties
-	case TaskTypeShowAnyWindow:
-		props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
-		if err != nil { return fmt.Errorf("get_props: %w", err) }
-		if props.WindowHandle == InvalidHandle && props.ButtonTextUpper == "" && props.ButtonTextLower == "" && props.IconPath == "" && props.ExePath == "" {
-			// log.Println("DEBUG: clearButtonWindowProperties - Task already cleared.") // Removed DEBUG
-			return nil
-		}
-		// log.Println("DEBUG: clearButtonWindowProperties - Modifying props...") // Removed DEBUG
-		props.WindowHandle = InvalidHandle; props.ButtonTextUpper = ""; props.ButtonTextLower = ""; props.IconPath = ""; props.ExePath = ""
-		// log.Println("DEBUG: clearButtonWindowProperties - Calling SetTaskProperties...") // Removed DEBUG
-		err = SetTaskProperties(task, props)
-        // if err == nil { log.Println("DEBUG: clearButtonWindowProperties - SetTaskProperties successful.") } // Removed DEBUG
-		return err
-	}
-	return nil // No clearing needed for other types
+    switch TaskType(task.TaskType) {
+    case TaskTypeShowProgramWindow:
+        props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
+        if err != nil {
+            return fmt.Errorf("get_props: %w", err)
+        }
+
+        // Preserve existing properties from buttonConfig
+        exePath := props.ExePath
+        buttonLower := props.ButtonTextLower
+        iconPath := props.IconPath
+
+        // Clear window-specific properties but maintain program identity
+        props.WindowHandle = InvalidHandle // Use InvalidHandle (-1) for no window
+        props.ButtonTextUpper = ""         // Clear window title
+
+        // Ensure we keep program identity
+        props.ExePath = exePath             // Keep the program path
+        props.ButtonTextLower = buttonLower // Keep app name
+        props.IconPath = iconPath           // Keep icon from buttonConfig
+
+        return SetTaskProperties(task, props)
+
+    case TaskTypeShowAnyWindow:
+        props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
+        if err != nil {
+            return fmt.Errorf("get_props: %w", err)
+        }
+
+        // Clear all properties for ShowAnyWindow
+        props.WindowHandle = InvalidHandle
+        props.ButtonTextUpper = ""
+        props.ButtonTextLower = ""
+        props.IconPath = ""
+        props.ExePath = ""
+
+        return SetTaskProperties(task, props)
+    }
+
+    return nil // No clearing needed for other types
 }

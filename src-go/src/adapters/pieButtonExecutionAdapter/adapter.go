@@ -192,35 +192,47 @@ func unmarshalProperties(props any, target any) error {
 // ----------------------------------------------------------------------
 
 func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieButtonExecute_Message) error {
-	var windowProps ShowWindowProperties
-	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
-		return fmt.Errorf("failed to process properties for show_program_window: %w", err)
-	}
+    var windowProps ShowWindowProperties
+    if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
+        return fmt.Errorf("failed to process properties for show_program_window: %w", err)
+    }
 
-	log.Printf("Button %d - Action: ShowProgramWindow, Target: %s, ClickType: %s",
-		executionInfo.ButtonIndex, windowProps.ButtonTextUpper, executionInfo.ClickType)
+    log.Printf("Button %d - Action: ShowProgramWindow, Target: %s (%s), ClickType: %s",
+        executionInfo.ButtonIndex, windowProps.ButtonTextUpper, windowProps.ExePath, executionInfo.ClickType)
 
-	switch executionInfo.ClickType {
-	case ClickTypeLeftUp:
-		log.Printf("ShowProgramWindow (Left Click): Standard show for '%s'", windowProps.ButtonTextUpper)
-		// TODO: Implement actual window showing logic using windowProps and potentially a.windowsList
-		// This is where your original logic for handleShowProgramWindow would go.
-		// For now, it's a placeholder as in your original code.
-		log.Println("  (Executing placeholder for show_program_window left-click)")
-	case ClickTypeRightUp:
-		log.Printf("ShowProgramWindow (Right Click STUB) for '%s'", windowProps.ButtonTextUpper)
-		// No operation for right-click yet
-	case ClickTypeMiddleUp:
-		log.Printf("ShowProgramWindow (Middle Click STUB) for '%s'", windowProps.ButtonTextUpper)
-		// No operation for middle-click yet
-	default:
-		log.Printf("ShowProgramWindow: Unhandled ClickType '%s' for '%s'. Performing default (left-click like) action or nothing.",
-			executionInfo.ClickType, windowProps.ButtonTextUpper)
-		// Decide if unhandled types should default to left-click behavior or do nothing.
-		// For now, let's treat as a stub or do the left-click action.
-		log.Println("  (Executing placeholder for show_program_window default/unhandled click)")
-	}
-	return nil // Placeholder for actual operation
+    switch executionInfo.ClickType {
+    case ClickTypeLeftUp:
+        // Check if we have a valid window handle (should be > 0, not just != InvalidHandle)
+        if windowProps.WindowHandle > 0 {
+            // Window exists - try to bring it to foreground
+            hwnd := uintptr(windowProps.WindowHandle)
+            if err := setForegroundOrMinimize(hwnd); err != nil {
+                return fmt.Errorf("show_program_window: failed to focus window: %w", err)
+            }
+            return nil
+        }
+
+        // No window handle - launch the program
+        a.mu.RLock()
+        err := LaunchApp(windowProps.ExePath, a.discoveredApps)
+        a.mu.RUnlock()
+        if err != nil {
+            return fmt.Errorf("show_program_window: failed to launch program: %w", err)
+        }
+        return nil
+
+    case ClickTypeRightUp:
+        // Future: Right-click actions for program windows
+        return nil
+
+    case ClickTypeMiddleUp:
+        // Future: Middle-click actions for program windows
+        return nil
+
+    default:
+        log.Printf("ShowProgramWindow: Unhandled click type: %s", executionInfo.ClickType)
+        return nil
+    }
 }
 
 func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
