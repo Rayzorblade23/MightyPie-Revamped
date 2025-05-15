@@ -52,6 +52,22 @@ var winEventProcCallback = windows.NewCallback(func(hWinEventHook windows.Handle
 		return 0
 	}
 
+	if event == EVENT_OBJECT_NAMECHANGE {
+    fmt.Printf("[CALLBACK DEBUG] Title change detected for HWND: 0x%X\n", hwnd)
+
+    // Perform additional actions here, such as updating the window list
+    watcher.mutex.Lock()
+    watcher.lastEventTime = time.Now()
+    watcher.mutex.Unlock()
+
+    select {
+    case watcher.changeDetected <- struct{}{}:
+        fmt.Printf("[CALLBACK DEBUG] Title change signal sent for HWND: 0x%X\n", hwnd)
+    default:
+        fmt.Printf("[CALLBACK DEBUG] Title change signal skipped (channel busy) for HWND: 0x%X\n", hwnd)
+    }
+}
+
 	// fmt.Printf("[CALLBACK DEBUG] Filter PASSED! Event=0x%X, Hwnd=0x%X\n", event, hwnd)
 
 	// Debounce and signal logic
@@ -118,12 +134,12 @@ func (w *WindowWatcher) hookAndMessageLoop() {
 	hookCallbackPtr := winEventProcCallback
 	fmt.Printf("[HOOK LOOP] Attempting SetWinEventHook with callback: %v\n", hookCallbackPtr)
 
-	hook, _, err := procSetWinEventHook.Call(
-		uintptr(EVENT_OBJECT_SHOW),
-		uintptr(EVENT_OBJECT_HIDE),
-		0, hookCallbackPtr, 0, 0,
-		uintptr(WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS),
-	)
+hook, _, err := procSetWinEventHook.Call(
+    uintptr(EVENT_OBJECT_SHOW),       // Start of event range
+    uintptr(EVENT_OBJECT_NAMECHANGE), // End of event range
+    0, uintptr(hookCallbackPtr), 0, 0,
+    uintptr(WINEVENT_OUTOFCONTEXT|WINEVENT_SKIPOWNPROCESS),
+)
 
 	hookErrString := ""
 	if err != nil {

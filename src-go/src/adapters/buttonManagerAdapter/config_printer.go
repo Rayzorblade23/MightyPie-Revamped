@@ -85,7 +85,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 
 	sb.WriteString("\n======================= Mighty Pie Configuration =======================\n")
 
-	if config == nil || len(config) == 0 {
+	if len(config) == 0 {
 		sb.WriteString("  (No profiles configured or configuration is nil)\n")
 		sb.WriteString("======================================================================\n")
 		fmt.Print(sb.String())
@@ -102,7 +102,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 		menuConfig := config[profileID]
 		fmt.Fprintf(&sb, "Profile: %s\n", profileID)
 
-		if menuConfig == nil || len(menuConfig) == 0 {
+		if len(menuConfig) == 0 {
 			sb.WriteString("  (No menus configured for this profile)\n")
 			continue
 		}
@@ -117,7 +117,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 			buttonMap := menuConfig[menuID]
 			fmt.Fprintf(&sb, "  Menu: %s\n", menuID)
 
-			if buttonMap == nil || len(buttonMap) == 0 {
+			if len(buttonMap) == 0 {
 				sb.WriteString("    (No buttons configured for this menu)\n")
 				continue
 			}
