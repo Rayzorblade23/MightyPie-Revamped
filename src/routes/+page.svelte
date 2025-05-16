@@ -48,29 +48,23 @@
 
             if (shortcutDetectedMsg.shortcutPressed === 1) {
                 console.log("[NATS] Shortcut (1): Show/Cycle.");
-                let newMenuID = menuID;
-                const tauriWindowWasProgrammaticallyVisible = await currentWindow.isVisible();
+                let newMenuID: number;
 
-                if (!tauriWindowWasProgrammaticallyVisible || !isPieMenuVisible) {
-                    newMenuID = 0;
-                } else {
+                // Simplified logic: if window is visible AND pie menu is visible, then cycle
+                if (await currentWindow.isVisible() && isPieMenuVisible) {
                     const nextPotentialMenuID = menuID + 1;
                     newMenuID = hasMenuForProfile(profileID, nextPotentialMenuID) ? nextPotentialMenuID : 0;
+                } else {
+                    newMenuID = 0;  // Always start with menu 0 when showing initially
                 }
 
                 monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 await currentWindow.show();
 
-                const tauriWindowIsNowProgrammaticallyVisible = await currentWindow.isVisible();
-                if (tauriWindowIsNowProgrammaticallyVisible) {
-                    if (!document.hidden) {
-                        await handlePieMenuVisible(newMenuID);
-                    } else {
-                        console.warn("[NATS] Tauri window shown, but document.hidden is true. UI remains hidden.");
-                        await handlePieMenuHidden();
-                    }
+                if (!document.hidden) {
+                    await handlePieMenuVisible(newMenuID);
                 } else {
-                    console.warn("[NATS] Tauri window not visible after show() call.");
+                    console.warn("[NATS] Document is hidden. UI remains hidden.");
                     await handlePieMenuHidden();
                 }
             } else {
@@ -83,7 +77,6 @@
             await handlePieMenuHidden();
         }
     };
-
     const subscription_shortcut_pressed = useNatsSubscription(
         PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
         handleShortcutMessage
