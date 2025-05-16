@@ -56,9 +56,9 @@
                     newMenuID = hasMenuForProfile(profileID, nextPotentialMenuID) ? nextPotentialMenuID : 0;
                 } else {
                     newMenuID = 0;  // Always start with menu 0 when showing initially
+                    monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
 
-                monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 await currentWindow.show();
 
                 if (!document.hidden) {

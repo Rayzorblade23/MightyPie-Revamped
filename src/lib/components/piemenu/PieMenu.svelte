@@ -40,21 +40,28 @@
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
             currentMouseEvent = clickMsg.click;
 
-            if (activeSlice === -1) {
+            if (clickMsg.click == mouseEvents.right_up) {
+                console.log(`Right click in Slice: ${activeSlice}!`);
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
-                console.log("Deadzone clicked! Open settings.");
-                await goto('/specialMenu');
+                await getCurrentWindow().hide();
                 return;
             }
 
             if (clickMsg.click == mouseEvents.left_up) {
                 console.log(`Left click in Slice: ${activeSlice}!`);
-            } else if (clickMsg.click == mouseEvents.right_up) {
-                console.log(`Right click in Slice: ${activeSlice}!`);
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
                 await getCurrentWindow().hide();
-            } else if (clickMsg.click == mouseEvents.middle_up) {
+                return;
+            }
+
+            if (clickMsg.click == mouseEvents.middle_up) {
                 console.log(`Middle click in Slice: ${activeSlice}!`);
+                if (activeSlice === -1) {
+                    publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
+                    console.log("Deadzone clicked! Open settings.");
+                    await goto('/specialMenu');
+                    return;
+                }
             }
         } catch (e) {
             console.error('Failed to parse message:', e);
