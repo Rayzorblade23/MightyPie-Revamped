@@ -40,6 +40,13 @@
             const clickMsg: IPiemenuClickMessage = JSON.parse(message);
             currentMouseEvent = clickMsg.click;
 
+            if (activeSlice === -1) {
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
+                console.log("Deadzone clicked! Open settings.");
+                await goto('/specialMenu');
+                return;
+            }
+
             if (clickMsg.click == mouseEvents.left_up) {
                 console.log(`Left click in Slice: ${activeSlice}!`);
             } else if (clickMsg.click == mouseEvents.right_up) {

@@ -16,7 +16,7 @@
         "width": 600,
         "height": 500,
         "decorations": false,
-        "shadow": true,
+        "shadow": false,
         "transparent": true,
         "resizable": false
       }
