@@ -8,7 +8,6 @@ type AppInfo struct {
 	IconPath         string `json:"iconPath,omitempty"`         // Path to the icon file
 }
 
-
 // WindowsUpdate represents the structure received via NATS containing the current window list,
 // mapping window handle (int) to core.WindowInfo.
 type WindowsUpdate map[int]WindowInfo
@@ -21,4 +20,39 @@ type WindowInfo struct {
 	AppName  string `json:"AppName"`
 	Instance int    `json:"Instance"`
 	IconPath string `json:"IconPath"`
+}
+
+
+// --------------------------------------------
+// --------- Button Type properties -----------
+// --------------------------------------------
+
+
+type ShowAnyWindowProperties struct {
+	ButtonTextUpper string `json:"button_text_upper"` // Window Title
+	ButtonTextLower string `json:"button_text_lower"` // AppName
+	IconPath        string `json:"icon_path"`
+	WindowHandle    int    `json:"window_handle"`
+	ExePath         string `json:"exe_path"`
+}
+
+type ShowProgramWindowProperties struct {
+	ButtonTextUpper string `json:"button_text_upper"` // Window Title
+	ButtonTextLower string `json:"button_text_lower"` // AppName
+	IconPath        string `json:"icon_path"`
+	WindowHandle    int    `json:"window_handle"`
+	ExePath         string `json:"exe_path"`
+}
+
+type LaunchProgramProperties struct {
+	ButtonTextUpper string `json:"button_text_upper"` // AppName
+	ButtonTextLower string `json:"button_text_lower"` // " - Launch - "
+	IconPath        string `json:"icon_path"`
+	ExePath         string `json:"exe_path"`
+}
+
+type CallFunctionProperties struct {
+	ButtonTextUpper string `json:"button_text_upper"` // function name
+	ButtonTextLower string `json:"button_text_lower"` // empty string
+	IconPath        string `json:"icon_path"`
 }

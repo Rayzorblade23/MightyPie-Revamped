@@ -41,7 +41,7 @@ func PrintTask(task Task) {
 
 	switch task.TaskType {
 	case string(TaskTypeShowProgramWindow):
-		props, err := GetTaskProperties[ShowProgramWindowProperties](task)
+		props, err := GetTaskProperties[core.ShowProgramWindowProperties](task)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
 			return
@@ -54,7 +54,7 @@ func PrintTask(task Task) {
 		fmt.Printf("  Exe Path: %s\n", props.ExePath)
 
 	case string(TaskTypeShowAnyWindow):
-		props, err := GetTaskProperties[ShowAnyWindowProperties](task)
+		props, err := GetTaskProperties[core.ShowAnyWindowProperties](task)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
 			return
@@ -152,7 +152,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				taskSpecificDetails := ""
 				switch TaskType(task.TaskType) {
 				case TaskTypeShowAnyWindow:
-					props, err := GetTaskProperties[ShowAnyWindowProperties](task)
+					props, err := GetTaskProperties[core.ShowAnyWindowProperties](task)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
@@ -168,7 +168,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 						)
 					}
 				case TaskTypeShowProgramWindow:
-					props, err := GetTaskProperties[ShowProgramWindowProperties](task)
+					props, err := GetTaskProperties[core.ShowProgramWindowProperties](task)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
@@ -184,7 +184,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 						)
 					}
 				case TaskTypeCallFunction:
-					props, err := GetTaskProperties[CallFunctionProperties](task)
+					props, err := GetTaskProperties[core.CallFunctionProperties](task)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
@@ -198,7 +198,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 						)
 					}
 				case TaskTypeLaunchProgram:
-					props, err := GetTaskProperties[LaunchProgramProperties](task)
+					props, err := GetTaskProperties[core.LaunchProgramProperties](task)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"

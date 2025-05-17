@@ -30,7 +30,7 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 			continue
 		}
 
-		props, err := GetTaskProperties[ShowProgramWindowProperties](taskCopy)
+		props, err := GetTaskProperties[core.ShowProgramWindowProperties](taskCopy)
 		if err != nil {
 			log.Printf("WARN: [%s] Failed to get ShowProgram props: %v", buttonKey, err)
 			continue
@@ -97,7 +97,7 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 			continue
 		}
 
-		props, err := GetTaskProperties[ShowAnyWindowProperties](taskCopy)
+		props, err := GetTaskProperties[core.ShowAnyWindowProperties](taskCopy)
 		if err != nil {
 			log.Printf("WARN: [%s] Failed get ShowAny props: %v", buttonKey, err)
 			continue
@@ -166,7 +166,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 					continue
 				}
 
-				props, err := GetTaskProperties[ShowProgramWindowProperties](task)
+				props, err := GetTaskProperties[core.ShowProgramWindowProperties](task)
 				if err != nil {
 					log.Printf("WARN: [%s] assignMatchingProgramWindows - Failed to get props: %v", buttonKey, err)
 					continue
@@ -259,7 +259,7 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 				if processedButtons[currentButtonKey] {
 					continue
 				}
-				props, err := GetTaskProperties[ShowAnyWindowProperties](task)
+				props, err := GetTaskProperties[core.ShowAnyWindowProperties](task)
 				if err != nil || props.WindowHandle != InvalidHandle {
 					continue
 				}
@@ -377,7 +377,7 @@ func updateButtonWithWindowInfo(task *Task, winInfo core.WindowInfo, newHandle i
 	// log.Printf("DEBUG: updateButtonWithWindowInfo called for task type %s with handle %d", task.TaskType, newHandle) // Removed DEBUG
 	switch TaskType(task.TaskType) {
 	case TaskTypeShowProgramWindow:
-		props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
+		props, err := GetTaskProperties[core.ShowProgramWindowProperties](*task)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
 		}
@@ -389,7 +389,7 @@ func updateButtonWithWindowInfo(task *Task, winInfo core.WindowInfo, newHandle i
 		}
 		return SetTaskProperties(task, props) // Returns error from SetTaskProperties
 	case TaskTypeShowAnyWindow:
-		props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
+		props, err := GetTaskProperties[core.ShowAnyWindowProperties](*task)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
 		}
@@ -409,7 +409,7 @@ func updateButtonWithWindowInfo(task *Task, winInfo core.WindowInfo, newHandle i
 func clearButtonWindowProperties(task *Task) error {
 	switch TaskType(task.TaskType) {
 	case TaskTypeShowProgramWindow:
-		props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
+		props, err := GetTaskProperties[core.ShowProgramWindowProperties](*task)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
 		}
@@ -431,7 +431,7 @@ func clearButtonWindowProperties(task *Task) error {
 		return SetTaskProperties(task, props)
 
 	case TaskTypeShowAnyWindow:
-		props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
+		props, err := GetTaskProperties[core.ShowAnyWindowProperties](*task)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
 		}

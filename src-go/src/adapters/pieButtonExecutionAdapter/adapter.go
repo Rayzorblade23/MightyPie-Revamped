@@ -190,7 +190,7 @@ func unmarshalProperties(props any, target any) error {
 // ----------------------------------------------------------------------
 
 func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieButtonExecute_Message) error {
-	var windowProps ShowWindowProperties
+	var windowProps core.ShowProgramWindowProperties
 	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
 		return fmt.Errorf("failed to process properties for show_program_window: %w", err)
 	}
@@ -237,7 +237,7 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 }
 
 func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
-	var props ShowWindowProperties
+	var props core.ShowAnyWindowProperties
 	if err := unmarshalProperties(executionInfo.Properties, &props); err != nil {
 		return fmt.Errorf("show_any_window: unmarshal failed: %w", err)
 	}
@@ -280,7 +280,7 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 }
 
 func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButtonExecute_Message) error {
-	var launchProps LaunchProgramProperties
+	var launchProps core.LaunchProgramProperties
 	if err := unmarshalProperties(executionInfo.Properties, &launchProps); err != nil {
 		return fmt.Errorf("failed to process properties for launch_program: %w", err)
 	}
@@ -318,7 +318,7 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 }
 
 func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
-	var functionProps CallFunctionProperties
+	var functionProps core.CallFunctionProperties
 	if err := unmarshalProperties(executionInfo.Properties, &functionProps); err != nil {
 		return fmt.Errorf("failed to process properties for call_function: %w", err)
 	}

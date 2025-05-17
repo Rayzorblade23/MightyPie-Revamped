@@ -31,31 +31,3 @@ type shortcutPressed_Message struct {
 	MouseX          int `json:"mouseX"`
 	MouseY          int `json:"mouseY"`
 }
-
-// --------------------------------------------
-// --------- Button Type properties -----------
-// --------------------------------------------
-
-// ShowWindowProperties contains common properties for window-related tasks
-type ShowWindowProperties struct {
-	ButtonTextUpper string `json:"button_text_upper"` // window title
-	ButtonTextLower string `json:"button_text_lower"` // app name
-	IconPath        string `json:"icon_path"`
-	WindowHandle    int64  `json:"window_handle"`
-	ExePath         string `json:"exe_path"`
-}
-
-// LaunchProgramProperties contains properties for launching programs
-type LaunchProgramProperties struct {
-	ButtonTextUpper string `json:"button_text_upper"` // app name
-	ButtonTextLower string `json:"button_text_lower"` // " - Launch - "
-	IconPath        string `json:"icon_path"`
-	ExePath         string `json:"exe_path"`
-}
-
-// CallFunctionProperties contains properties for function calls
-type CallFunctionProperties struct {
-	ButtonTextUpper string `json:"button_text_upper"` // function name
-	ButtonTextLower string `json:"button_text_lower"` // empty string
-	IconPath        string `json:"icon_path"`
-}
