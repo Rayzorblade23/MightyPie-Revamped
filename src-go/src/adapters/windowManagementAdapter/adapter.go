@@ -11,6 +11,7 @@ import (
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter" // Import needed here
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
 
@@ -19,8 +20,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	discoveredApps = FetchExecutableApplicationMap()
 	ProcessIcons()
 
-	// b, _ := json.MarshalIndent(discoveredApps, "", "  ")
-	// fmt.Println(string(b))
+	b, _ := json.MarshalIndent(discoveredApps, "", "  ")
+	fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
@@ -61,7 +62,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 }
 
 // publishDiscoveredApps sends the current discovered apps list to the NATS subject
-func (a *WindowManagementAdapter) publishDiscoveredApps(apps map[string]AppLaunchInfo) {
+func (a *WindowManagementAdapter) publishDiscoveredApps(apps map[string]core.AppLaunchInfo) {
 	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED"), apps)
 }
 

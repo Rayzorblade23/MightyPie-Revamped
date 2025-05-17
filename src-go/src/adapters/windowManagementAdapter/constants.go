@@ -6,6 +6,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
 )
@@ -63,6 +64,6 @@ var (
 	// Mutex for thread safety when accessing activeWindowWatcher
 	activeWatcherMutex sync.RWMutex
 
-	// maps ExePaths to AppNames, WorkingDirectories, and Args
-	discoveredApps map[string]AppLaunchInfo
+	// maps AppName to Exe Paths, WorkingDirectories, Args and IconPaths
+	discoveredApps map[string]core.AppLaunchInfo
 )

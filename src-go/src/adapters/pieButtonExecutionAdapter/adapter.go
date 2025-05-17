@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"log" // Use the standard log package
 	"maps"
-	"os/exec"
-	"path/filepath"
-	"strings"
 	"sync"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd" // Assuming this provides environment variables
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
 
@@ -41,7 +39,7 @@ type PieButtonExecutionAdapter struct {
 	lastMouseY       int
 	mu               sync.RWMutex // Protects access to windowsList
 	windowsList      WindowsUpdate
-	discoveredApps   map[string]AppLaunchInfo
+	discoveredApps   map[string]core.AppLaunchInfo
 	functionHandlers map[string]HandlerWrapper
 }
 
@@ -52,7 +50,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 	a := &PieButtonExecutionAdapter{
 		natsAdapter:    natsAdapter,
 		windowsList:    make(WindowsUpdate),
-		discoveredApps: make(map[string]AppLaunchInfo),
+		discoveredApps: make(map[string]core.AppLaunchInfo),
 	}
 
 	a.functionHandlers = a.initFunctionHandlers() // Initialize handlers
@@ -111,7 +109,7 @@ func (a *PieButtonExecutionAdapter) handleShortcutPressedMessage(msg *nats.Msg) 
 
 // handleDiscoveredAppsMessage updates the internal list of discovered applications
 func (a *PieButtonExecutionAdapter) handleDiscoveredAppsMessage(msg *nats.Msg) {
-	var apps map[string]AppLaunchInfo
+	var apps map[string]core.AppLaunchInfo
 	if err := json.Unmarshal(msg.Data, &apps); err != nil {
 		log.Printf("Failed to decode discovered apps message: %v. Data: %s", err, string(msg.Data))
 		return
@@ -192,47 +190,50 @@ func unmarshalProperties(props any, target any) error {
 // ----------------------------------------------------------------------
 
 func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieButtonExecute_Message) error {
-    var windowProps ShowWindowProperties
-    if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
-        return fmt.Errorf("failed to process properties for show_program_window: %w", err)
-    }
+	var windowProps ShowWindowProperties
+	if err := unmarshalProperties(executionInfo.Properties, &windowProps); err != nil {
+		return fmt.Errorf("failed to process properties for show_program_window: %w", err)
+	}
 
-    log.Printf("Button %d - Action: ShowProgramWindow, Target: %s (%s), ClickType: %s",
-        executionInfo.ButtonIndex, windowProps.ButtonTextUpper, windowProps.ExePath, executionInfo.ClickType)
+	appNameKey := windowProps.ButtonTextLower
 
-    switch executionInfo.ClickType {
-    case ClickTypeLeftUp:
-        // Check if we have a valid window handle (should be > 0, not just != InvalidHandle)
-        if windowProps.WindowHandle > 0 {
-            // Window exists - try to bring it to foreground
-            hwnd := uintptr(windowProps.WindowHandle)
-            if err := setForegroundOrMinimize(hwnd); err != nil {
-                return fmt.Errorf("show_program_window: failed to focus window: %w", err)
-            }
-            return nil
-        }
+	log.Printf("Button %d - Action: ShowProgramWindow, Target AppName: %s (Window Title: %s), ClickType: %s",
+		executionInfo.ButtonIndex, appNameKey, windowProps.ButtonTextUpper, executionInfo.ClickType)
 
-        // No window handle - launch the program
-        a.mu.RLock()
-        err := LaunchApp(windowProps.ExePath, a.discoveredApps)
-        a.mu.RUnlock()
-        if err != nil {
-            return fmt.Errorf("show_program_window: failed to launch program: %w", err)
-        }
-        return nil
+	switch executionInfo.ClickType {
+	case ClickTypeLeftUp:
+		if windowProps.WindowHandle > 0 {
+			hwnd := uintptr(windowProps.WindowHandle)
+			if err := setForegroundOrMinimize(hwnd); err != nil {
+				return fmt.Errorf("show_program_window: failed to focus window: %w", err)
+			}
+			log.Printf("ShowProgramWindow: Focused existing window for '%s' (Title: %s, HWND: %X)",
+				appNameKey, windowProps.ButtonTextUpper, hwnd)
+			return nil
+		}
 
-    case ClickTypeRightUp:
-        // Future: Right-click actions for program windows
-        return nil
+		log.Printf("ShowProgramWindow: No existing window found for '%s'. Attempting to launch.", appNameKey)
+		a.mu.RLock()
+		// Assuming appNameKey (from ButtonTextLower) will always be in discoveredApps
+		appInfoToLaunch, _ := a.discoveredApps[appNameKey]
+		a.mu.RUnlock()
 
-    case ClickTypeMiddleUp:
-        // Future: Middle-click actions for program windows
-        return nil
+		if err := LaunchApp(appNameKey, appInfoToLaunch); err != nil {
+			return fmt.Errorf("show_program_window: failed to launch program '%s': %w", appNameKey, err)
+		}
+		return nil
 
-    default:
-        log.Printf("ShowProgramWindow: Unhandled click type: %s", executionInfo.ClickType)
-        return nil
-    }
+	case ClickTypeRightUp:
+		log.Printf("ShowProgramWindow (Right Click STUB) for app '%s'", appNameKey)
+		return nil
+	case ClickTypeMiddleUp:
+		log.Printf("ShowProgramWindow (Middle Click STUB) for app '%s'", appNameKey)
+		return nil
+	default:
+		log.Printf("ShowProgramWindow: Unhandled click type '%s' for app '%s'. No action taken.",
+			executionInfo.ClickType, appNameKey)
+		return nil
+	}
 }
 
 func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButtonExecute_Message) error {
@@ -284,35 +285,36 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 		return fmt.Errorf("failed to process properties for launch_program: %w", err)
 	}
 
-	log.Printf("Button %d - Action: LaunchProgram, Target: %s (%s), ClickType: %s",
-		executionInfo.ButtonIndex, launchProps.ButtonTextUpper, launchProps.ExePath, executionInfo.ClickType)
+	appNameKey := launchProps.ButtonTextUpper
+
+	log.Printf("Button %d - Action: LaunchProgram, Target AppName: %s (Configured ExePath: %s), ClickType: %s",
+		executionInfo.ButtonIndex, appNameKey, launchProps.ExePath, executionInfo.ClickType)
 
 	var err error
+	a.mu.RLock()
+
+	appInfoToLaunch := a.discoveredApps[appNameKey]
+
+	a.mu.RUnlock()
+
 	switch executionInfo.ClickType {
 	case ClickTypeLeftUp:
-		log.Printf("LaunchProgram (Left Click): Standard launch for '%s'", launchProps.ExePath)
-		a.mu.RLock()
-		err = LaunchApp(launchProps.ExePath, a.discoveredApps) // Original logic
-		a.mu.RUnlock()
+		log.Printf("LaunchProgram (Left Click): Standard launch for '%s'", appNameKey)
+		err = LaunchApp(appNameKey, appInfoToLaunch)
 	case ClickTypeRightUp:
-		log.Printf("LaunchProgram (Right Click STUB) for '%s'", launchProps.ExePath)
-		// No operation for right-click yet
+		log.Printf("LaunchProgram (Right Click STUB) for '%s'", appNameKey)
 	case ClickTypeMiddleUp:
-		log.Printf("LaunchProgram (Middle Click STUB) for '%s'", launchProps.ExePath)
-		// No operation for middle-click yet
+		log.Printf("LaunchProgram (Middle Click STUB) for '%s'", appNameKey)
 	default:
 		log.Printf("LaunchProgram: Unhandled ClickType '%s' for '%s'. Performing default (left-click like) action.",
-			executionInfo.ClickType, launchProps.ExePath)
-		// Defaulting to left-click behavior
-		a.mu.RLock()
-		err = LaunchApp(launchProps.ExePath, a.discoveredApps)
-		a.mu.RUnlock()
+			executionInfo.ClickType, appNameKey)
+		err = LaunchApp(appNameKey, appInfoToLaunch)
 	}
 
-	if err != nil && executionInfo.ClickType == ClickTypeLeftUp { // Only log launch failure for actual attempts
-		return fmt.Errorf("launch_program (Left Click) for '%s' failed: %w", launchProps.ExePath, err)
+	if err != nil && (executionInfo.ClickType == ClickTypeLeftUp || executionInfo.ClickType == "") {
+		return fmt.Errorf("launch_program action for '%s' failed: %w", appNameKey, err)
 	}
-	return err // err will be nil for successful left-click or for stubbed actions
+	return err
 }
 
 func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonExecute_Message) error {
@@ -429,53 +431,30 @@ func (a *PieButtonExecutionAdapter) initFunctionHandlers() map[string]HandlerWra
 // --- Concrete Function Implementations ---
 // -----------------------------------------
 
-// LaunchApp launches an application using its path.
-// Returns error if the app cannot be launched.
-func LaunchApp(exePath string, apps map[string]AppLaunchInfo) error {
-	app, exists := apps[exePath]
-	if !exists {
-		return fmt.Errorf("application not found: %s", exePath)
+// LaunchApp launches an application using its unique application name.
+func LaunchApp(appNameKey string, appInfo core.AppLaunchInfo) error {
+
+	if appInfo.URI != "" {
+		return launchViaURI(appNameKey, appInfo.URI)
 	}
 
-	// If URI is specified, use it instead of exe path
-	if app.URI != "" {
-		cmd := exec.Command("cmd", "/C", "start", app.URI)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to start %s via URI: %w", app.Name, err)
-		}
-		log.Printf("Started %s via URI handler", app.Name)
-		return nil
+	// appInfo.ExePath could still be empty if the app is misconfigured and not URI-based.
+	if appInfo.ExePath == "" {
+		return fmt.Errorf("no executable path or URI for application '%s'", appNameKey)
 	}
 
-	// Prepare command
-	cmd := exec.Command(exePath)
-
-	// Set working directory if specified
-	if app.WorkingDirectory != "" {
-		// If working directory is relative, make it relative to exe path
-		if !filepath.IsAbs(app.WorkingDirectory) {
-			cmd.Dir = filepath.Join(filepath.Dir(exePath), app.WorkingDirectory)
-		} else {
-			cmd.Dir = app.WorkingDirectory
-		}
-	} else {
-		// Default to exe's directory
-		cmd.Dir = filepath.Dir(exePath)
+	cmd, err := buildExecCmd(appInfo.ExePath, appInfo.WorkingDirectory, appInfo.Args)
+	if err != nil {
+		// This error from _prepareExecutableCommand would typically be because appInfo.ExePath was empty,
+		// but we have a check above for that already. Still, good to propagate.
+		return fmt.Errorf("cannot launch '%s', failed to prepare command: %w", appNameKey, err)
 	}
 
-	// Add arguments if specified
-	if app.Args != "" {
-		// Split args respecting quoted strings
-		args := strings.Fields(app.Args)
-		cmd.Args = append([]string{exePath}, args...)
-	}
-
-	// Start the application
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", app.Name, err)
+		return fmt.Errorf("failed to start executable '%s' for app '%s': %w", appInfo.ExePath, appNameKey, err)
 	}
 
-	fmt.Printf("Started application: %s (Path: %s)", app.Name, exePath)
+	log.Printf("Successfully started application: '%s' (Path: %s, PID: %d)", appNameKey, appInfo.ExePath, cmd.Process.Pid)
 	return nil
 }
 

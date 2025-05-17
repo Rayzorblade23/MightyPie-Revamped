@@ -46,15 +46,6 @@ type WindowInfo struct {
 	IconPath string
 }
 
-
-// AppLaunchInfo defines the structure of the VALUE in discoveredApps.
-type AppLaunchInfo struct {
-	Name             string `json:"name"`                       // The original display name
-	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
-	Args             string `json:"args,omitempty"`             // Command line args from LNK
-	URI              string `json:"uri,omitempty"`              // Add this field for store apps
-}
-
 // --------------------------------------------
 // --------- Button Type properties -----------
 // --------------------------------------------

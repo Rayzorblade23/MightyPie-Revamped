@@ -26,11 +26,11 @@ type shortcutPressed_Message struct {
 
 // WindowInfo stores information about a window
 type WindowInfo struct {
-    Title    string
-    ExeName  string
-    ExePath  string
-    AppName  string
-    Instance int
+	Title    string
+	ExeName  string
+	ExePath  string
+	AppName  string
+	Instance int
 	IconPath string
 }
 
@@ -75,4 +75,15 @@ type MSG struct {
 // Point represents a 2D point
 type Point struct {
 	X, Y int32
+}
+
+type AppEntry struct {
+	Name string
+	Path string // Resolved executable path
+	URI  string // Optional URI for store apps
+}
+
+type PackageInfo struct {
+	PackageFamilyName string `json:"PackageFamilyName"`
+	InstallLocation   string `json:"InstallLocation"`
 }

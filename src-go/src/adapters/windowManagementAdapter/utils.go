@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
 )
@@ -134,82 +135,110 @@ func assignInstanceNumbers(tempMapping WindowMapping, existingMapping WindowMapp
 	return resultMapping
 }
 
-// getWindowInfo gets information about a window
+// getWindowInfo gets information about a window by its handle (HWND).
+// It attempts to identify the application using the discoveredApps map and returns
+// a WindowMapping containing details and the identified application name.
 func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	result := make(WindowMapping)
-	windowTitle := GetWindowText(hwnd)
+	windowTitle := GetWindowText(hwnd) // Assume GetWindowText is defined
 
-	if hwnd != 0 {
-		var pid uint32
-		procGetWindowThreadProcessId.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&pid)))
+	// Default values if app cannot be fully identified
+	defaultAppName := "Unknown App"
+	defaultExeName := "Unknown"
 
-		if pid != 0 {
-			// exePathFromProcess will be the TARGET_PATH for Sourcetree
-			exePathFromProcess, err := getProcessExePath(pid)
-			if err != nil {
-				// Handle error getting process path - return unknown app info
-				result[hwnd] = WindowInfo{ Title: windowTitle, AppName: "ErrorApp", ExeName: "Error", IconPath: "" }
-				return result, "ErrorApp"
-			}
+	if hwnd == 0 {
+		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		return result, defaultAppName
+	}
 
-			if fileExists(exePathFromProcess) {
-				exeNameFromProcess := strings.ToLower(filepath.Base(exePathFromProcess))
+	var pid uint32
+	// Assume procGetWindowThreadProcessId and other win.* types/funcs are available
+	procGetWindowThreadProcessId.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&pid)))
 
-				// --- AppName and Key Lookup ---
-				appName := "Unknown App"
-				// keyUsedForIcon is the path string used as the key in discoveredApps
-				// and therefore used for icon creation/lookup. Initialize to empty.
-				keyUsedForIcon := ""
+	if pid == 0 {
+		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		return result, defaultAppName
+	}
 
-				// Try exact match first using the process path (might work for non-launcher apps)
-				if app, exists := discoveredApps[exePathFromProcess]; exists {
-					appName = app.Name
-					keyUsedForIcon = exePathFromProcess // Found by exact match
-				} else {
-					// Fallback: Try matching basename against keys in discoveredApps
-					for mapKey, app := range discoveredApps { // mapKey is the LAUNCHER_PATH for Sourcetree
-						if strings.EqualFold(filepath.Base(mapKey), exeNameFromProcess) {
-							appName = app.Name
-							keyUsedForIcon = mapKey // CAPTURE THE MAP KEY!
-							break
-						}
-					}
-				}
-				// --- End AppName and Key Lookup ---
+	// exePathFromProcess is the full path to the actual running executable.
+	exePathFromProcess, err := getProcessExePath(pid) // Assume getProcessExePath is defined
+	if err != nil {
+		log.Printf("Error getting process exe path for PID %d: %v", pid, err)
+		// Use a distinct AppName to indicate this specific error state
+		errorAppName := "ErrorApp"
+		result[hwnd] = WindowInfo{Title: windowTitle, AppName: errorAppName, ExeName: "Error", IconPath: ""}
+		return result, errorAppName
+	}
 
-				// --- Get icon path using the CORRECT key ---
-				iconPath := ""
-				if keyUsedForIcon != "" { // If we found a matching key in discoveredApps
-					// Use the captured key (LAUNCHER_PATH for Sourcetree) to get the icon path
-					if path, err := GetIconPathForExe(keyUsedForIcon); err == nil {
-						iconPath = path
-					} else {
-						log.Printf("Warning: GetIconPathForExe failed for known key '%s': %v", keyUsedForIcon, err)
-					}
-				} else {
-					// We couldn't associate this running process with any known app in discoveredApps
-					// based on exact path or basename. Icon path remains empty.
-					log.Printf("Warning: Could not find key in discoveredApps matching process '%s' (basename '%s') to determine icon path.",
-						exePathFromProcess, exeNameFromProcess)
-				}
-				// --- End Get icon path ---
+	// Ensure the path obtained is not empty and theoretically exists.
+	// fileExists might be redundant if getProcessExePath already ensures validity,
+	// but it's a safe check.
+	if exePathFromProcess == "" || !fileExists(exePathFromProcess) { // Assume fileExists is defined
+		log.Printf("Warning: Process exe path '%s' for PID %d is invalid or file does not exist.", exePathFromProcess, pid)
+		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		return result, defaultAppName
+	}
 
-				result[hwnd] = WindowInfo{
-					Title:    windowTitle,
-					ExeName:  exeNameFromProcess,         // Basename from process
-					ExePath:  exePathFromProcess,         // Full path from process (TARGET_PATH)
-					AppName:  appName,                    // Name found from discoveredApps
-					Instance: 0,                          // Instance logic not shown/needed here
-					IconPath: iconPath,                   // Path derived using keyUsedForIcon
-				}
-				return result, appName // Return appName found
-			}
-			// else: exePathFromProcess doesn't exist (unlikely if process running)
+	exeNameFromProcess := strings.ToLower(filepath.Base(exePathFromProcess))
+
+	// --- Identify AppName and IconPath from discoveredApps ---
+	identifiedAppName := defaultAppName // This will be the key from the discoveredApps map (e.g., "My App")
+	appIconPath := ""           // This will be appLaunchInfo.IconPath from discoveredApps
+
+	var bestMatchInfo *core.AppLaunchInfo // Using pointer to distinguish from zero-value struct
+	var bestMatchKey string               // The AppName key from discoveredApps
+
+	// Priority 1: Exact match of the running process's ExePath against AppLaunchInfo.ExePath
+	for appKey, appInfoEntry := range discoveredApps {
+		// appKey is the unique application name (e.g., "Firefox", "Firefox (1)")
+		// appInfoEntry.ExePath is the launcher/configured path for this discovered application
+		if appInfoEntry.ExePath != "" && strings.EqualFold(appInfoEntry.ExePath, exePathFromProcess) {
+			// Must copy appInfoEntry if we were to take its address and it's a loop variable used later by pointer.
+			// Here, we only need its fields, so direct use or copy is fine.
+			// Since we just need its fields for now and not the pointer to the loop variable, this is safe.
+			tempAppInfo := appInfoEntry // Create a local copy to safely point to if needed
+			bestMatchInfo = &tempAppInfo
+			bestMatchKey = appKey
+			break // Found the best possible match
 		}
-		// Fallback if pid is 0 or getProcessExePath fails or file doesn't exist
-		result[hwnd] = WindowInfo{ Title: windowTitle, AppName: "Unknown App", ExeName: "Unknown", IconPath: "" }
-	} // else: hwnd is 0
-	return result, "Unknown App"
+	}
+
+	// Priority 2: Basename match if no exact ExePath match was found
+	if bestMatchInfo == nil {
+		for appKey, appInfoEntry := range discoveredApps {
+			if appInfoEntry.ExePath != "" && strings.EqualFold(filepath.Base(appInfoEntry.ExePath), exeNameFromProcess) {
+				tempAppInfo := appInfoEntry
+				bestMatchInfo = &tempAppInfo
+				bestMatchKey = appKey
+				break // Take the first basename match encountered
+			}
+		}
+	}
+
+	if bestMatchInfo != nil {
+		identifiedAppName = bestMatchKey        // Use the map key (e.g., "My App") as the AppName
+		appIconPath = bestMatchInfo.IconPath    // Directly use the pre-resolved icon path
+	} else {
+		// Process not found in discoveredApps by its ExePath or basename.
+		// It might be an app not in our list, or a transient system process.
+		// Icon path remains empty if not associated with an entry in discoveredApps.
+		log.Printf("Info: Running process '%s' (basename: '%s') not found in discoveredApps. AppName set to '%s'.",
+			exePathFromProcess, exeNameFromProcess, identifiedAppName)
+		// Optional: if you still want an icon for a completely unknown app, you could call GetIconPathForExe here:
+		// genericIconPath, errIcon := GetIconPathForExe(exePathFromProcess)
+		// if errIcon == nil { appIconPath = genericIconPath }
+	}
+	// --- End AppName and IconPath Lookup ---
+
+	result[hwnd] = WindowInfo{
+		Title:    windowTitle,
+		ExeName:  exeNameFromProcess, // Basename from the actual running process
+		ExePath:  exePathFromProcess, // Full path from the actual running process
+		AppName:  identifiedAppName,  // Name identified from discoveredApps (map key)
+		Instance: 0,                  // Instance logic is not part of this snippet
+		IconPath: appIconPath,        // IconPath from discoveredApps.AppLaunchInfo
+	}
+	return result, identifiedAppName
 }
 
 // getProcessExePath gets the executable path for a process

@@ -9,9 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	lnk "github.com/parsiya/golnk"
 )
 
@@ -54,27 +54,6 @@ var (
 		"cmd.exe":      "Command Prompt",
 	}
 )
-
-// --- Structs ---
-
-type AppEntry struct {
-	Name string
-	Path string // Resolved executable path
-	URI  string // Optional URI for store apps
-}
-
-// AppLaunchInfo defines the structure of the VALUE in the final JSON map sent to stdout.
-type AppLaunchInfo struct {
-	Name             string `json:"name"`                       // The original display name
-	WorkingDirectory string `json:"workingDirectory,omitempty"` // Working directory from LNK
-	Args             string `json:"args,omitempty"`             // Command line args from LNK
-	URI              string `json:"uri,omitempty"`              // Add this field for store apps
-}
-
-type PackageInfo struct {
-	PackageFamilyName string `json:"PackageFamilyName"`
-	InstallLocation   string `json:"InstallLocation"`
-}
 
 // --- Core Functions ---
 
@@ -129,110 +108,45 @@ func getStartMenuDirs() []string {
 	}
 }
 
-// Add system executables as hardcoded entries
-func addSystemApps(apps []AppEntry) []AppEntry {
-	systemPaths := map[string]string{
+// addSystemApps adds hardcoded system executables to the apps list
+// if they exist on disk and their paths haven't been seen yet.
+// It updates seenExeTargets for any apps it adds.
+func addSystemApps(apps []AppEntry, seenExeTargets map[string]bool) []AppEntry {
+	systemPaths := map[string]string{ // Base exe name -> Full Path
 		"explorer.exe": `C:\Windows\explorer.exe`,
 		"taskmgr.exe":  `C:\Windows\System32\taskmgr.exe`,
 		"cmd.exe":      `C:\Windows\System32\cmd.exe`,
+		// Add other system apps here
 	}
 
-	for exeName, path := range systemPaths {
-		if _, err := os.Stat(path); err == nil {
+	for exeBaseName, fullPath := range systemPaths {
+		lowerFullPath := strings.ToLower(fullPath)
+
+		// Only add if the path hasn't been seen from other sources (LNKs, etc.)
+		if _, seen := seenExeTargets[lowerFullPath]; seen {
+			// log.Printf("Info: System app path '%s' already seen, skipping hardcoded add.", fullPath)
+			continue
+		}
+
+		// Check if the system executable actually exists at the specified path
+		if _, err := os.Stat(fullPath); err == nil { // File exists
+			displayName, nameExists := systemApps[exeBaseName]
+			if !nameExists {
+				// Fallback name if not in systemApps map (should not happen for predefined list)
+				log.Printf("Warning: System app base name '%s' not found in systemApps display name map. Using base name.", exeBaseName)
+				displayName = exeBaseName
+			}
+
 			apps = append(apps, AppEntry{
-				Name: systemApps[exeName],
-				Path: path,
+				Name: displayName, // Use the display name from systemApps
+				Path: fullPath,
+				// URI will be empty for these traditional executables
 			})
+			// Mark this path as seen so it won't be added again by later stages (e.g., Start Menu scan)
+			seenExeTargets[lowerFullPath] = true
 		}
 	}
 	return apps
-}
-
-// --- Filtering Logic ---
-
-func isWhitelisted(lowerName string, components []string) bool {
-	for _, w := range whitelistKeywords {
-		if strings.Contains(lowerName, w) {
-			return true
-		}
-		for _, component := range components {
-			if component != "" && strings.Contains(component, w) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func containsUnwantedKeyword(text string) bool {
-	for _, k := range unwantedKeywords {
-		if strings.Contains(text, k) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasUnwantedExtensionOrPattern(filename string) bool {
-	if filename == "" {
-		return false
-	}
-	if strings.HasPrefix(filename, "unins") && strings.HasSuffix(filename, ".exe") {
-		return true
-	}
-	for _, ext := range nonExecExtensions {
-		if strings.HasSuffix(filename, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-// isUnwantedEntry orchestrates filtering checks.
-func isUnwantedEntry(name, path string) bool {
-	if filename := filepath.Base(strings.ToLower(path)); systemApps[filename] != "" {
-		return false
-	}
-
-	lowerName := strings.ToLower(name)
-	lowerPath := strings.ToLower(path)
-
-	if path == "" { // Cannot proceed with empty path
-		return true
-	}
-
-	var components []string
-	if lowerPath != "" {
-		components = strings.Split(lowerPath, string(filepath.Separator))
-	}
-
-	// Check whitelist first
-	if isWhitelisted(lowerName, components) {
-		return false // Keep if whitelisted
-	}
-
-	// Check name keywords
-	if containsUnwantedKeyword(lowerName) {
-		return true
-	}
-
-	// Check path keywords
-	for _, component := range components {
-		if component != "" && containsUnwantedKeyword(component) {
-			return true
-		}
-	}
-
-	// Check filename patterns/extensions
-	var lowerFilename string
-	if len(components) > 0 {
-		lowerFilename = components[len(components)-1]
-	}
-	if hasUnwantedExtensionOrPattern(lowerFilename) {
-		return true
-	}
-
-	return false // Not unwanted
 }
 
 // --- Normalization ---
@@ -566,99 +480,48 @@ func getStartMenuApps() []AppEntry {
 
 // --- Main Execution ---
 
-func FetchExecutableApplicationMap() map[string]AppLaunchInfo {
-	// Step 1: Discover EXE apps from LNK files.
-	// Keep using your existing getExeApps function.
+// FetchExecutableApplicationMap discovers applications and returns a map of
+// unique application names to their launch information.
+func FetchExecutableApplicationMap() map[string]core.AppLaunchInfo {
 	exeApps, seenExeTargets, exeLnkPaths := getExeApps()
-	// Log errors from getExeApps if it were modified to return them, otherwise
-	// assume it logs internally or they are handled in processLnkEntry.
+	startMenuApps := getStartMenuApps()
 
-	// Step 2: Discover StartMenu apps and resolve executables.
-	// Keep using your existing getUWPApps function.
-	startMenuAppsResolved := getStartMenuApps()
-	// Log errors from getUWPApps if it returned them.
+	combinedEntries := prepareCombinedAppList(exeApps, startMenuApps, seenExeTargets)
+	sortAppEntries(combinedEntries)
 
-	// Step 3: Combine lists, ensuring UWP entries don't duplicate already found EXEs.
-	// Keep your existing combination logic.
-	combinedAppEntries := make([]AppEntry, 0, len(exeApps)+len(startMenuAppsResolved))
-	combinedAppEntries = append(combinedAppEntries, exeApps...)
-	combinedAppEntries = addSystemApps(combinedAppEntries)
+	finalMap := make(map[string]core.AppLaunchInfo, len(combinedEntries))
 
-	for _, startMenuApp := range startMenuAppsResolved {
-		lowerStartMenuPath := strings.ToLower(startMenuApp.Path)
-		if !seenExeTargets[lowerStartMenuPath] {
-			combinedAppEntries = append(combinedAppEntries, startMenuApp)
-			// Add to seen targets to prevent duplicates if Start Menu list has them
-			seenExeTargets[lowerStartMenuPath] = true
-		}
-	}
+	for _, appEntry := range combinedEntries {
+		baseAppName := appEntry.Name
+		isSystemApp := false
 
-	// Step 4: Sort the combined list for consistent output order.
-	// Keep your existing sorting logic.
-	sort.Slice(combinedAppEntries, func(i, j int) bool {
-		normNameI := normalizeAppName(combinedAppEntries[i].Name)
-		normNameJ := normalizeAppName(combinedAppEntries[j].Name)
-		if normNameI != normNameJ {
-			return normNameI < normNameJ
-		}
-		// Fallback sort by path
-		return strings.ToLower(combinedAppEntries[i].Path) < strings.ToLower(combinedAppEntries[j].Path)
-	})
-
-	// Step 5: Build final output map (Path -> FinalAppOutput).
-	// Keep your existing logic for building the map and extracting LNK details.
-	finalMap := make(map[string]AppLaunchInfo, len(combinedAppEntries))
-	processedPathsForOutput := make(map[string]bool, len(combinedAppEntries))
-
-	for _, appEntry := range combinedAppEntries {
-		pathKey := appEntry.Path
-		lowerPathKey := strings.ToLower(pathKey)
-
-		// Deduplicate based on final path key during map creation.
-		if _, exists := processedPathsForOutput[lowerPathKey]; exists {
-			continue
-		}
-
-		// Create the FinalAppOutput value with proper name handling
-		outputValue := AppLaunchInfo{Name: appEntry.Name}
-
-		if appEntry.URI != "" {
-			outputValue.URI = appEntry.URI
-		}
-
-		// Check if it's a system app and use the system name
-		if sysName, isSys := systemApps[strings.ToLower(filepath.Base(pathKey))]; isSys {
-			outputValue.Name = sysName
-			// For system apps, don't include any LNK data
-			finalMap[pathKey] = outputValue
-			processedPathsForOutput[lowerPathKey] = true
-			continue // Skip LNK processing for system apps
-		}
-
-		// Check if this app originated from an LNK file to get extra data
-		if originalLnkPath, found := exeLnkPaths[lowerPathKey]; found {
-			// Re-parse the LNK to get extra data.
-			linkFile, err := lnk.File(originalLnkPath)
-			if err == nil {
-				flagMap := linkFile.Header.LinkFlags
-				if flagMap["HasWorkingDir"] {
-					// Consider making WD absolute relative to LNK or Target Dir
-					outputValue.WorkingDirectory = linkFile.StringData.WorkingDir
-				}
-				if flagMap["HasArguments"] {
-					outputValue.Args = linkFile.StringData.CommandLineArguments
-				}
-			} else {
-				log.Printf("Warning: Failed to re-parse LNK '%s' for extra data: %v\n", originalLnkPath, err)
+		if baseFileName := filepath.Base(appEntry.Path); baseFileName != "." && baseFileName != "/" {
+			if sysName, isSys := systemApps[strings.ToLower(baseFileName)]; isSys {
+				baseAppName = sysName
+				isSystemApp = true
 			}
 		}
-		// Store apps will naturally have empty extra fields.
 
-		finalMap[pathKey] = outputValue
-		processedPathsForOutput[lowerPathKey] = true // Mark path as added.
+		uniqueAppNameKey := baseAppName
+		if _, exists := finalMap[uniqueAppNameKey]; exists {
+			count := 1
+			for {
+				uniqueAppNameKey = fmt.Sprintf("%s (%d)", baseAppName, count)
+				if _, nameExists := finalMap[uniqueAppNameKey]; !nameExists {
+					break
+				}
+				count++
+				if count > 100 {
+					log.Printf("Warning: Exceeded max attempts to generate unique name for '%s'. Using: '%s'", baseAppName, uniqueAppNameKey)
+					break
+				}
+			}
+		}
+
+		launchInfo := buildLaunchInfo(appEntry, isSystemApp, exeLnkPaths)
+		finalMap[uniqueAppNameKey] = launchInfo
 	}
 
-	// Step 6: Return the result map (removed JSON marshaling/printing)
-	log.Printf("Application discovery finished. Found %d unique applications.", len(finalMap))
+	log.Printf("Application discovery finished. Found %d applications.", len(finalMap))
 	return finalMap
 }
