@@ -176,10 +176,24 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 					foundHandle := -1
 					var foundWinInfo core.WindowInfo
 					for handle, winInfo := range availableWindows {
-						if !windowsConsumed[handle] && winInfo.ExePath == props.ExePath {
-							foundHandle = handle
-							foundWinInfo = winInfo
-							break
+						if windowsConsumed[handle] {
+							continue
+						}
+						isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
+						if isEdge {
+							// Try matching by window title (ButtonTextUpper)
+							if winInfo.Title == props.ButtonTextLower {
+								foundHandle = handle
+								foundWinInfo = winInfo
+								break
+							}
+						} else {
+							// Default: match by AppName (ButtonTextLower)
+							if winInfo.AppName == props.ButtonTextUpper {
+								foundHandle = handle
+								foundWinInfo = winInfo
+								break
+							}
 						}
 					}
 
@@ -348,28 +362,6 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 		}
 	}
 	// log.Println("DEBUG: assignRemainingWindows - Finished.") // Removed DEBUG
-}
-
-// processLaunchProgramTasks (Assuming no DEBUG logs added)
-func (a *ButtonManagerAdapter) processLaunchProgramTasks(menuID, pageID string, launchProgramButtons map[string]*Task, buttonMap PageConfig) {
-	for btnID, taskPtr := range launchProgramButtons {
-		// No window-based updates typically needed, ensure task is present
-		if _, ok := buttonMap[btnID]; !ok {
-			buttonMap[btnID] = *taskPtr // Ensure original task state is preserved
-		}
-	}
-}
-
-// processFunctionCallTasks (Assuming no DEBUG logs added)
-func (a *ButtonManagerAdapter) processFunctionCallTasks(menuID, pageID string, functionCallButtons map[string]*Task, buttonMap PageConfig, originalMenuButtonMap PageConfig) {
-	for btnID, taskPtrCurrent := range functionCallButtons {
-		if originalTask, exists := originalMenuButtonMap[btnID]; exists && TaskType(originalTask.TaskType) == TaskTypeCallFunction {
-			buttonMap[btnID] = originalTask // Restore from original snapshot
-		} else {
-			// Keep current task if not found in original (shouldn't happen often)
-			buttonMap[btnID] = *taskPtrCurrent
-		}
-	}
 }
 
 // updateButtonWithWindowInfo (Cleaned)

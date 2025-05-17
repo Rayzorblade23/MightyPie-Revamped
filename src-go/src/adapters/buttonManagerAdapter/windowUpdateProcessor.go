@@ -48,17 +48,10 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 				continue
 			}
 
-			var originalButtonMap PageConfig
-			if currentConfig[menuID] != nil && currentConfig[menuID][pageID] != nil {
-				originalButtonMap = currentConfig[menuID][pageID]
-			}
-
-			showProgramButtons, showAnyButtons, launchProgramButtons, functionCallButtons :=
+			showProgramButtons, showAnyButtons, _, _ :=
 				a.separateTasksByType(buttonMap)
 
 			// Process tasks
-			a.processLaunchProgramTasks(menuID, pageID, launchProgramButtons, buttonMap)
-			a.processFunctionCallTasks(menuID, pageID, functionCallButtons, buttonMap, originalButtonMap)
 			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, buttonMap)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, buttonMap)
