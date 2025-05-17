@@ -65,7 +65,7 @@ export type TaskData = {
 export type ButtonMap = Map<number, Task>;
 
 // Menu Index -> ButtonMap
-export type MenuConfiguration = Map<number, ButtonMap>;
+export type PageConfiguration = Map<number, ButtonMap>;
 
-// Profile Index -> MenuConfiguration
-export type ProfilesConfiguration = Map<number, MenuConfiguration>;
+// Profile Index -> PageConfiguration
+export type MenuConfiguration = Map<number, PageConfiguration>;

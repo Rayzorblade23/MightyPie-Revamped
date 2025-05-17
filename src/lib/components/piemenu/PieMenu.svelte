@@ -33,7 +33,7 @@
     let indicator = $state("");
     let indicatorRotation = $state(0);
 
-    let {menuID}: { menuID: number } = $props();
+    let {pageID}: { pageID: number } = $props();
 
     const handleButtonClickMessage = async (message: string) => {
         try {
@@ -140,7 +140,7 @@
             }}
         >
             <PieButton
-                    menuID={menuID}
+                    pageID={pageID}
                     buttonID={i}
                     x={0}
                     y={0}

@@ -15,12 +15,11 @@ const (
 	ClickTypeLeftUp   = "left_up"
 	ClickTypeRightUp  = "right_up"
 	ClickTypeMiddleUp = "middle_up"
-
 )
 
 // Message type for pie button execution
 type pieButtonExecute_Message struct {
-	MenuIndex   int      `json:"menuID"`
+	MenuIndex   int      `json:"pageID"`
 	ButtonIndex int      `json:"buttonID"`
 	TaskType    TaskType `json:"task_type"`
 	Properties  any      `json:"properties"`
@@ -31,19 +30,6 @@ type shortcutPressed_Message struct {
 	ShortcutPressed int `json:"shortcutPressed"`
 	MouseX          int `json:"mouseX"`
 	MouseY          int `json:"mouseY"`
-}
-
-// WindowsUpdate stores information about currently open windows, keyed by HWND or other ID.
-type WindowsUpdate map[int]WindowInfo // Assuming int is the window handle/ID type
-
-// WindowInfo holds details about a specific window.
-type WindowInfo struct {
-	Title    string
-	ExeName  string
-	ExePath  string
-	AppName  string
-	Instance int
-	IconPath string
 }
 
 // --------------------------------------------

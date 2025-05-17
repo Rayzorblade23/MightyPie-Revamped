@@ -14,8 +14,8 @@
         middleUp: boolean;
     }
 
-    let {menuID, buttonID, x, y, width, height, mouseState}: {
-        menuID: number,
+    let {pageID, buttonID, x, y, width, height, mouseState}: {
+        pageID: number,
         buttonID: number,
         x: number,
         y: number,
@@ -24,8 +24,8 @@
         mouseState: MouseState
     } = $props();
 
-    const taskType = $derived(getTaskType(0, menuID, buttonID));
-    const properties = $derived(getTaskProperties(0, menuID, buttonID));
+    const taskType = $derived(getTaskType(0, pageID, buttonID));
+    const properties = $derived(getTaskProperties(0, pageID, buttonID));
 
     const buttonTextUpper = $derived(properties?.button_text_upper ?? `Button ${buttonID + 1}`);
     const buttonTextLower = $derived(properties?.button_text_lower ?? "");
@@ -81,7 +81,7 @@
         if (!properties || !taskType) return;
 
         const message: IPieButtonExecuteMessage = {
-            menu_index: menuID,
+            menu_index: pageID,
             button_index: buttonID,
             task_type: taskType,
             properties: properties,

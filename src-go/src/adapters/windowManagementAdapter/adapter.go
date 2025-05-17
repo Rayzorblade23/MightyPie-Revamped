@@ -17,10 +17,10 @@ import (
 
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
-	discoveredApps = FetchExecutableApplicationMap()
+	installedAppsInfo = FetchExecutableApplicationMap()
 	ProcessIcons()
 
-	b, _ := json.MarshalIndent(discoveredApps, "", "  ")
+	b, _ := json.MarshalIndent(installedAppsInfo, "", "  ")
 	fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
@@ -34,7 +34,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 		windowWatcher: windowWatcher,
 	}
 
-	a.publishDiscoveredApps(discoveredApps)
+	a.publishinstalledAppsInfo(installedAppsInfo)
 
 	// NATS Subscription for shortcut pressed events
 	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
@@ -61,8 +61,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	return a
 }
 
-// publishDiscoveredApps sends the current discovered apps list to the NATS subject
-func (a *WindowManagementAdapter) publishDiscoveredApps(apps map[string]core.AppLaunchInfo) {
+// publishinstalledAppsInfo sends the current discovered apps list to the NATS subject
+func (a *WindowManagementAdapter) publishinstalledAppsInfo(apps map[string]core.AppInfo) {
 	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED"), apps)
 }
 
@@ -205,7 +205,7 @@ func (a *WindowManagementAdapter) monitorWindows() {
 
 // publishWindowListUpdate sends the updated window list to the NATS subject
 func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping) {
-	convertedMap := make(map[int]WindowInfo)
+	convertedMap := make(map[int]core.WindowInfo)
 	for hwnd, info := range windows {
 		convertedMap[int(hwnd)] = info
 	}

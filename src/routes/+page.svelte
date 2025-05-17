@@ -6,24 +6,24 @@
     import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
-    import {hasMenuForProfile} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+    import {hasPageForMenu} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import {getCurrentWindow} from "@tauri-apps/api/window";
     import {onMount} from "svelte";
 
     // --- Core State ---
     let isPieMenuVisible = $state(false);
+    let pageID = $state(0);
     let menuID = $state(0);
-    let profileID = $state(0);
     let monitorScaleFactor = $state(1);
     let isNatsReady = $state(false);
 
-    async function handlePieMenuVisible(newMenuID?: number) {
-        if (newMenuID !== undefined) {
-            menuID = newMenuID;
+    async function handlePieMenuVisible(newPageID?: number) {
+        if (newPageID !== undefined) {
+            pageID = newPageID;
         }
         if (!isPieMenuVisible) {
             isPieMenuVisible = true;
-            console.log("PieMenu state: VISIBLE, MenuID:", menuID);
+            console.log("PieMenu state: VISIBLE, PageID:", pageID);
             if (isNatsReady) {
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
             }
@@ -33,7 +33,7 @@
     async function handlePieMenuHidden() {
         if (isPieMenuVisible) {
             isPieMenuVisible = false;
-            menuID = 0;
+            pageID = 0;
             console.log("PieMenu state: HIDDEN");
             if (isNatsReady) {
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
@@ -48,21 +48,21 @@
 
             if (shortcutDetectedMsg.shortcutPressed === 1) {
                 console.log("[NATS] Shortcut (1): Show/Cycle.");
-                let newMenuID: number;
+                let newPageID: number;
 
                 // Simplified logic: if window is visible AND pie menu is visible, then cycle
                 if (await currentWindow.isVisible() && isPieMenuVisible) {
-                    const nextPotentialMenuID = menuID + 1;
-                    newMenuID = hasMenuForProfile(profileID, nextPotentialMenuID) ? nextPotentialMenuID : 0;
+                    const nextPotentialPageID = pageID + 1;
+                    newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
                 } else {
-                    newMenuID = 0;  // Always start with menu 0 when showing initially
+                    newPageID = 0;  // Always start with menu 0 when showing initially
                     monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
 
                 await currentWindow.show();
 
                 if (!document.hidden) {
-                    await handlePieMenuVisible(newMenuID);
+                    await handlePieMenuVisible(newPageID);
                 } else {
                     console.warn("[NATS] Document is hidden. UI remains hidden.");
                     await handlePieMenuHidden();
@@ -102,7 +102,7 @@
                 console.log("Document visibility: VISIBLE");
                 const tauriWindowIsProgrammaticallyVisible = await currentWindow.isVisible();
                 if (tauriWindowIsProgrammaticallyVisible) {
-                    await handlePieMenuVisible(menuID);
+                    await handlePieMenuVisible(pageID);
                 } else {
                     await handlePieMenuHidden();
                 }
@@ -146,6 +146,6 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenu menuID={menuID}/>
+        <PieMenu pageID={pageID}/>
     </div>
 </main>

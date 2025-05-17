@@ -2,27 +2,27 @@
     type ButtonMap,
     type ConfigData,
     type MenuConfiguration,
-    type ProfilesConfiguration,
+    type PageConfiguration,
     TaskType
 } from "$lib/components/piebutton/piebuttonTypes.ts";
 
 
 // Internal state
-let profilesConfiguration = $state<ProfilesConfiguration>(new Map());
+let profilesConfiguration = $state<MenuConfiguration>(new Map());
 
 // Getter for external access
-export function getProfilesConfiguration(): ProfilesConfiguration {
+export function getProfilesConfiguration(): MenuConfiguration {
     return profilesConfiguration;
 }
 
 // Setter for updating the configuration
-export function updateProfilesConfiguration(newConfig: ProfilesConfiguration) {
+export function updateProfilesConfiguration(newConfig: MenuConfiguration) {
     profilesConfiguration = newConfig;
 }
 
 // --- Parsing Function (Handles Nested Input with Profiles) ---
-export function parseNestedRawConfig(data: ConfigData): ProfilesConfiguration {
-    const newProfilesConfig: ProfilesConfiguration = new Map();
+export function parseNestedRawConfig(data: ConfigData): MenuConfiguration {
+    const newProfilesConfig: MenuConfiguration = new Map();
 
     Object.entries(data).forEach(([profileKey, profileData]) => {
         const profileIndex = parseInt(profileKey, 10);
@@ -31,7 +31,7 @@ export function parseNestedRawConfig(data: ConfigData): ProfilesConfiguration {
             return;
         }
 
-        const menuConfigForProfile: MenuConfiguration = new Map();
+        const menuConfigForProfile: PageConfiguration = new Map();
 
         Object.entries(profileData).forEach(([menuKey, menuData]) => {
             const menuIndex = parseInt(menuKey, 10);
@@ -131,7 +131,7 @@ export function getTaskType(profileIndex: number, menuIndex: number, buttonIndex
  * @param menuIndex - The index of the menu to look for within that profile.
  * @returns True if the menu exists for the profile, false otherwise.
  */
-export function hasMenuForProfile(profileIndex: number, menuIndex: number): boolean {
+export function hasPageForMenu(profileIndex: number, menuIndex: number): boolean {
     // Get the current configuration map
     const config = getProfilesConfiguration(); // Or access internal `profilesConfiguration`
 

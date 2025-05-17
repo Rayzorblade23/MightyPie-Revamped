@@ -482,14 +482,14 @@ func getStartMenuApps() []AppEntry {
 
 // FetchExecutableApplicationMap discovers applications and returns a map of
 // unique application names to their launch information.
-func FetchExecutableApplicationMap() map[string]core.AppLaunchInfo {
+func FetchExecutableApplicationMap() map[string]core.AppInfo {
 	exeApps, seenExeTargets, exeLnkPaths := getExeApps()
 	startMenuApps := getStartMenuApps()
 
 	combinedEntries := prepareCombinedAppList(exeApps, startMenuApps, seenExeTargets)
 	sortAppEntries(combinedEntries)
 
-	finalMap := make(map[string]core.AppLaunchInfo, len(combinedEntries))
+	finalMap := make(map[string]core.AppInfo, len(combinedEntries))
 
 	for _, appEntry := range combinedEntries {
 		baseAppName := appEntry.Name

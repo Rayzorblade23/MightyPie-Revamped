@@ -52,14 +52,14 @@ func sortAppEntries(entries []AppEntry) {
 	})
 }
 
-// buildLaunchInfo constructs a AppLaunchInfo struct for a given AppEntry.
+// buildLaunchInfo constructs a AppInfo struct for a given AppEntry.
 // It populates ExePath, URI, IconPath, and LNK-specific data if applicable.
 func buildLaunchInfo(
 	appEntry AppEntry,
 	isSystemApp bool,
 	exeLnkPaths map[string]string, // map[lower(targetExePath)]lnkFilePath
-) core.AppLaunchInfo {
-	info := core.AppLaunchInfo{
+) core.AppInfo {
+	info := core.AppInfo{
 		ExePath: appEntry.Path,
 		URI:     appEntry.URI,
 	}
@@ -95,7 +95,6 @@ func buildLaunchInfo(
 	}
 	return info
 }
-
 
 // --- Filtering Logic ---
 

@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
 // --- Helper types assumed from types.go ---
@@ -14,16 +16,16 @@ import (
 
 // processExistingShowProgramHandles (Cleaned)
 func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
-	profileID, menuID string,
+	menuID, pageID string,
 	showProgramButtons map[string]*Task,
-	availableWindows WindowsUpdate,
+	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
-	buttonMap ButtonMap,
+	buttonMap PageConfig,
 ) {
-	// log.Printf("DEBUG: processExistingShowProgramHandles - Starting for P:%s M:%s", profileID, menuID) // Removed DEBUG
+	// log.Printf("DEBUG: processExistingShowProgramHandles - Starting for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, taskPtr := range showProgramButtons {
 		taskCopy := *taskPtr
-		buttonKey := fmt.Sprintf("%s:%s:%s", profileID, menuID, btnID)
+		buttonKey := fmt.Sprintf("%s:%s:%s", menuID, pageID, btnID)
 		if processedButtons[buttonKey] {
 			continue
 		}
@@ -81,16 +83,16 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 
 // processExistingShowAnyHandles (Cleaned)
 func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
-	profileID, menuID string,
+	menuID, pageID string,
 	showAnyButtons map[string]*Task,
-	availableWindows WindowsUpdate,
+	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
-	buttonMap ButtonMap,
+	buttonMap PageConfig,
 ) {
-	// log.Printf("DEBUG: processExistingShowAnyHandles - Starting Step D logic for P:%s M:%s", profileID, menuID) // Removed DEBUG
+	// log.Printf("DEBUG: processExistingShowAnyHandles - Starting Step D logic for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, taskPtr := range showAnyButtons {
 		taskCopy := *taskPtr
-		buttonKey := fmt.Sprintf("%s:%s:%s", profileID, menuID, btnID)
+		buttonKey := fmt.Sprintf("%s:%s:%s", menuID, pageID, btnID)
 		if processedButtons[buttonKey] {
 			continue
 		}
@@ -138,7 +140,7 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 
 // assignMatchingProgramWindows (Cleaned)
 func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
-	availableWindows WindowsUpdate,
+	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
 	fullUpdatedConfig ConfigData,
 ) {
@@ -172,7 +174,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 
 				if props.WindowHandle == InvalidHandle && props.ExePath != "" {
 					foundHandle := -1
-					var foundWinInfo WindowInfo
+					var foundWinInfo core.WindowInfo
 					for handle, winInfo := range availableWindows {
 						if !windowsConsumed[handle] && winInfo.ExePath == props.ExePath {
 							foundHandle = handle
@@ -218,7 +220,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 
 // assignRemainingWindows (Cleaned)
 func (a *ButtonManagerAdapter) assignRemainingWindows(
-	availableWindows WindowsUpdate,
+	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
 	fullUpdatedConfig ConfigData,
 ) {
@@ -262,8 +264,8 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 					continue
 				}
 				availableSlots = append(availableSlots, availableSlotInfo{
-					ProfileID: pID, MenuID: mID, ButtonID: bID,
-					ProfileIdx: pIdx, MenuIdx: mIdx, ButtonIdx: bIdx,
+					MenuID: pID, PageID: mID, ButtonID: bID,
+					MenuIdx: pIdx, PageIdx: mIdx, ButtonIdx: bIdx,
 				})
 			}
 		}
@@ -275,11 +277,11 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	}
 
 	sort.SliceStable(availableSlots, func(i, j int) bool {
-		if availableSlots[i].ProfileIdx != availableSlots[j].ProfileIdx {
-			return availableSlots[i].ProfileIdx < availableSlots[j].ProfileIdx
-		}
 		if availableSlots[i].MenuIdx != availableSlots[j].MenuIdx {
 			return availableSlots[i].MenuIdx < availableSlots[j].MenuIdx
+		}
+		if availableSlots[i].PageIdx != availableSlots[j].PageIdx {
+			return availableSlots[i].PageIdx < availableSlots[j].PageIdx
 		}
 		return availableSlots[i].ButtonIdx < availableSlots[j].ButtonIdx
 	})
@@ -297,9 +299,9 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	for i := 0; i < len(availableSlots) && assignedCount < len(windowsToAssign); i++ {
 		slot := availableSlots[i]
 		window := windowsToAssign[assignedCount]
-		slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.ProfileID, slot.MenuID, slot.ButtonID)
+		slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.MenuID, slot.PageID, slot.ButtonID)
 
-		targetButtonMap := fullUpdatedConfig[slot.ProfileID][slot.MenuID]
+		targetButtonMap := fullUpdatedConfig[slot.MenuID][slot.PageID]
 		taskToModify := targetButtonMap[slot.ButtonID]
 		originalTask := taskToModify
 
@@ -332,8 +334,8 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 		// log.Printf("DEBUG: Clearing %d remaining empty ShowAny slots.", len(availableSlots)-assignedCount) // Removed DEBUG
 		for i := assignedCount; i < len(availableSlots); i++ {
 			slot := availableSlots[i]
-			slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.ProfileID, slot.MenuID, slot.ButtonID)
-			targetButtonMap := fullUpdatedConfig[slot.ProfileID][slot.MenuID]
+			slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.MenuID, slot.PageID, slot.ButtonID)
+			targetButtonMap := fullUpdatedConfig[slot.MenuID][slot.PageID]
 			taskToModify := targetButtonMap[slot.ButtonID]
 			originalTask := taskToModify
 			err := clearButtonWindowProperties(&taskToModify)
@@ -349,7 +351,7 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 }
 
 // processLaunchProgramTasks (Assuming no DEBUG logs added)
-func (a *ButtonManagerAdapter) processLaunchProgramTasks(profileID, menuID string, launchProgramButtons map[string]*Task, buttonMap ButtonMap) {
+func (a *ButtonManagerAdapter) processLaunchProgramTasks(menuID, pageID string, launchProgramButtons map[string]*Task, buttonMap PageConfig) {
 	for btnID, taskPtr := range launchProgramButtons {
 		// No window-based updates typically needed, ensure task is present
 		if _, ok := buttonMap[btnID]; !ok {
@@ -359,7 +361,7 @@ func (a *ButtonManagerAdapter) processLaunchProgramTasks(profileID, menuID strin
 }
 
 // processFunctionCallTasks (Assuming no DEBUG logs added)
-func (a *ButtonManagerAdapter) processFunctionCallTasks(profileID, menuID string, functionCallButtons map[string]*Task, buttonMap ButtonMap, originalMenuButtonMap ButtonMap) {
+func (a *ButtonManagerAdapter) processFunctionCallTasks(menuID, pageID string, functionCallButtons map[string]*Task, buttonMap PageConfig, originalMenuButtonMap PageConfig) {
 	for btnID, taskPtrCurrent := range functionCallButtons {
 		if originalTask, exists := originalMenuButtonMap[btnID]; exists && TaskType(originalTask.TaskType) == TaskTypeCallFunction {
 			buttonMap[btnID] = originalTask // Restore from original snapshot
@@ -371,7 +373,7 @@ func (a *ButtonManagerAdapter) processFunctionCallTasks(profileID, menuID string
 }
 
 // updateButtonWithWindowInfo (Cleaned)
-func updateButtonWithWindowInfo(task *Task, winInfo WindowInfo, newHandle int) error {
+func updateButtonWithWindowInfo(task *Task, winInfo core.WindowInfo, newHandle int) error {
 	// log.Printf("DEBUG: updateButtonWithWindowInfo called for task type %s with handle %d", task.TaskType, newHandle) // Removed DEBUG
 	switch TaskType(task.TaskType) {
 	case TaskTypeShowProgramWindow:
@@ -405,44 +407,44 @@ func updateButtonWithWindowInfo(task *Task, winInfo WindowInfo, newHandle int) e
 
 // clearButtonWindowProperties (Cleaned)
 func clearButtonWindowProperties(task *Task) error {
-    switch TaskType(task.TaskType) {
-    case TaskTypeShowProgramWindow:
-        props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
-        if err != nil {
-            return fmt.Errorf("get_props: %w", err)
-        }
+	switch TaskType(task.TaskType) {
+	case TaskTypeShowProgramWindow:
+		props, err := GetTaskProperties[ShowProgramWindowProperties](*task)
+		if err != nil {
+			return fmt.Errorf("get_props: %w", err)
+		}
 
-        // Preserve existing properties from buttonConfig
-        exePath := props.ExePath
-        buttonLower := props.ButtonTextLower
-        iconPath := props.IconPath
+		// Preserve existing properties from buttonConfig
+		exePath := props.ExePath
+		buttonLower := props.ButtonTextLower
+		iconPath := props.IconPath
 
-        // Clear window-specific properties but maintain program identity
-        props.WindowHandle = InvalidHandle // Use InvalidHandle (-1) for no window
-        props.ButtonTextUpper = ""         // Clear window title
+		// Clear window-specific properties but maintain program identity
+		props.WindowHandle = InvalidHandle // Use InvalidHandle (-1) for no window
+		props.ButtonTextUpper = ""         // Clear window title
 
-        // Ensure we keep program identity
-        props.ExePath = exePath             // Keep the program path
-        props.ButtonTextLower = buttonLower // Keep app name
-        props.IconPath = iconPath           // Keep icon from buttonConfig
+		// Ensure we keep program identity
+		props.ExePath = exePath             // Keep the program path
+		props.ButtonTextLower = buttonLower // Keep app name
+		props.IconPath = iconPath           // Keep icon from buttonConfig
 
-        return SetTaskProperties(task, props)
+		return SetTaskProperties(task, props)
 
-    case TaskTypeShowAnyWindow:
-        props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
-        if err != nil {
-            return fmt.Errorf("get_props: %w", err)
-        }
+	case TaskTypeShowAnyWindow:
+		props, err := GetTaskProperties[ShowAnyWindowProperties](*task)
+		if err != nil {
+			return fmt.Errorf("get_props: %w", err)
+		}
 
-        // Clear all properties for ShowAnyWindow
-        props.WindowHandle = InvalidHandle
-        props.ButtonTextUpper = ""
-        props.ButtonTextLower = ""
-        props.IconPath = ""
-        props.ExePath = ""
+		// Clear all properties for ShowAnyWindow
+		props.WindowHandle = InvalidHandle
+		props.ButtonTextUpper = ""
+		props.ButtonTextLower = ""
+		props.IconPath = ""
+		props.ExePath = ""
 
-        return SetTaskProperties(task, props)
-    }
+		return SetTaskProperties(task, props)
+	}
 
-    return nil // No clearing needed for other types
+	return nil // No clearing needed for other types
 }

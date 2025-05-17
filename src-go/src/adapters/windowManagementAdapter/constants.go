@@ -65,5 +65,5 @@ var (
 	activeWatcherMutex sync.RWMutex
 
 	// maps AppName to Exe Paths, WorkingDirectories, Args and IconPaths
-	discoveredApps map[string]core.AppLaunchInfo
+	installedAppsInfo map[string]core.AppInfo
 )

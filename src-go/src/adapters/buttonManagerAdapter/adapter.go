@@ -8,13 +8,14 @@ import (
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"                  // Verify path
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter" // Verify path
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
 
 var (
-	// Assumes ConfigData is map[string]MenuConfig (ProfileID -> MenuID -> ButtonMap)
+	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> ButtonMap)
 	buttonConfig ConfigData
-	windowsList  WindowsUpdate // May not be strictly needed globally if only used in NATS callback scope
+	windowsList  core.WindowsUpdate // May not be strictly needed globally if only used in NATS callback scope
 	mu           sync.RWMutex
 )
 
@@ -56,12 +57,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			return
 		}
 
-		a.natsAdapter.PublishMessage(buttonUpdateSubject, currentConfigSnapshot);
+		a.natsAdapter.PublishMessage(buttonUpdateSubject, currentConfigSnapshot)
 	})
 
 	// Subscribe to window updates for subsequent changes
 	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, func(msg *nats.Msg) {
-		var currentWindows WindowsUpdate
+		var currentWindows core.WindowsUpdate
 		if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
 			log.Printf("ERROR: Failed to decode window update message: %v", err)
 			return
@@ -69,7 +70,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 		// Update global windows list (if needed elsewhere, otherwise could be local)
 		mu.Lock()
-		windowsList = make(WindowsUpdate, len(currentWindows))
+		windowsList = make(core.WindowsUpdate, len(currentWindows))
 		maps.Copy(windowsList, currentWindows)
 		mu.Unlock()
 

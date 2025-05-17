@@ -7,11 +7,13 @@ import (
 	"log"
 	"maps"
 	"reflect"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	// No reflect needed here if only using JSON compare
 )
 
 // processWindowUpdate - Refactored structure (Cleaned)
-func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows WindowsUpdate) (ConfigData, error) {
+func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows core.WindowsUpdate) (ConfigData, error) {
 	if len(currentConfig) == 0 {
 		// INFO level might be appropriate if this state is unusual
 		log.Println("INFO: Skipping button processing - currentConfig is empty.")
@@ -31,35 +33,35 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 	}
 
 	// 3. Setup for Processing - Shared State
-	availableWindows := make(WindowsUpdate, len(windows))
+	availableWindows := make(core.WindowsUpdate, len(windows))
 	maps.Copy(availableWindows, windows)
 	processedButtons := make(map[string]bool)
 
 	// 4. === Phase 1: Process Existing Handles and Non-Window Tasks ===
 	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1: Process existing state...") // Removed DEBUG
-	for profileID, menuConfig := range updatedConfig {
+	for menuID, menuConfig := range updatedConfig {
 		if menuConfig == nil {
 			continue
 		}
-		for menuID, buttonMap := range menuConfig {
+		for pageID, buttonMap := range menuConfig {
 			if buttonMap == nil {
 				continue
 			}
 
-			var originalButtonMap ButtonMap
-			if currentConfig[profileID] != nil && currentConfig[profileID][menuID] != nil {
-				originalButtonMap = currentConfig[profileID][menuID]
+			var originalButtonMap PageConfig
+			if currentConfig[menuID] != nil && currentConfig[menuID][pageID] != nil {
+				originalButtonMap = currentConfig[menuID][pageID]
 			}
 
 			showProgramButtons, showAnyButtons, launchProgramButtons, functionCallButtons :=
 				a.separateTasksByType(buttonMap)
 
 			// Process tasks
-			a.processLaunchProgramTasks(profileID, menuID, launchProgramButtons, buttonMap)
-			a.processFunctionCallTasks(profileID, menuID, functionCallButtons, buttonMap, originalButtonMap)
-			a.processExistingShowProgramHandles(profileID, menuID, showProgramButtons, availableWindows, processedButtons, buttonMap)
+			a.processLaunchProgramTasks(menuID, pageID, launchProgramButtons, buttonMap)
+			a.processFunctionCallTasks(menuID, pageID, functionCallButtons, buttonMap, originalButtonMap)
+			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, buttonMap)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
-			a.processExistingShowAnyHandles(profileID, menuID, showAnyButtons, availableWindows, processedButtons, buttonMap)
+			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, buttonMap)
 		}
 	}
 	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
@@ -117,7 +119,7 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 }
 
 // separateTasksByType (Assuming no DEBUG logs were present)
-func (a *ButtonManagerAdapter) separateTasksByType(buttonMap ButtonMap) (
+func (a *ButtonManagerAdapter) separateTasksByType(buttonMap PageConfig) (
 	showProgram map[string]*Task,
 	showAny map[string]*Task,
 	launchProgram map[string]*Task,
@@ -151,11 +153,11 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 	// log.Println("DEBUG: Entering handleEmptyWindowList...") // Removed DEBUG
 	anyChangeMade := false
 
-	for profileID, menuConfig := range configToModify {
+	for menuID, menuConfig := range configToModify {
 		if menuConfig == nil {
 			continue
 		}
-		for menuID, buttonMap := range menuConfig {
+		for pageID, buttonMap := range menuConfig {
 			if buttonMap == nil {
 				continue
 			}
@@ -165,7 +167,7 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 
 				err := clearButtonWindowProperties(&taskCopy) // Try to clear the copy
 				if err != nil {
-					log.Printf("ERROR: Failed to clear properties for task (P:%s M:%s B:%s) on empty window list: %v", profileID, menuID, btnID, err)
+					log.Printf("ERROR: Failed to clear properties for task (P:%s M:%s B:%s) on empty window list: %v", menuID, pageID, btnID, err)
 					// Continue? Or return error? Continue seems reasonable.
 				} else {
 					if !reflect.DeepEqual(originalTaskBeforeClear, taskCopy) {

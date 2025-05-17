@@ -7,15 +7,17 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
 // Constants for shortening thresholds
-const maxPathDisplayLength = 40  // Max length before shortening paths
-const maxTextDisplayLength = 30  // Max length before shortening other text
+const maxPathDisplayLength = 40 // Max length before shortening paths
+const maxTextDisplayLength = 30 // Max length before shortening other text
 const ellipsis = "..."
 
 // // PrintWindowList prints the current window list for debugging
-func PrintWindowList(mapping map[int]WindowInfo) {
+func PrintWindowList(mapping map[int]core.WindowInfo) {
 	fmt.Println("------------------ Current Window List ------------------")
 	if len(mapping) == 0 {
 		fmt.Println("(empty)")
@@ -93,29 +95,37 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 	}
 
 	// --- Iterate Profiles ---
-	profileIDs := make([]string, 0, len(config))
-	for id := range config { profileIDs = append(profileIDs, id) }
-	sort.Strings(profileIDs)
+	menuIDs := make([]string, 0, len(config))
+	for id := range config {
+		menuIDs = append(menuIDs, id)
+	}
+	sort.Strings(menuIDs)
 
-	for i, profileID := range profileIDs {
-		if i > 0 { sb.WriteString("----------------------------------------------------------------------\n") }
-		menuConfig := config[profileID]
-		fmt.Fprintf(&sb, "Profile: %s\n", profileID)
+	for i, menuID := range menuIDs {
+		if i > 0 {
+			sb.WriteString("----------------------------------------------------------------------\n")
+		}
+		menuConfig := config[menuID]
+		fmt.Fprintf(&sb, "Menu: %s\n", menuID)
 
 		if len(menuConfig) == 0 {
-			sb.WriteString("  (No menus configured for this profile)\n")
+			sb.WriteString("  (No Pages configured for this profile)\n")
 			continue
 		}
 
-		// --- Iterate Menus ---
-		menuIDs := make([]string, 0, len(menuConfig))
-		for id := range menuConfig { menuIDs = append(menuIDs, id) }
-		sort.Strings(menuIDs)
+		// --- Iterate Pages ---
+		pageIDs := make([]string, 0, len(menuConfig))
+		for id := range menuConfig {
+			pageIDs = append(pageIDs, id)
+		}
+		sort.Strings(pageIDs)
 
-		for j, menuID := range menuIDs {
-			if j > 0 { sb.WriteString("  ---\n") }
-			buttonMap := menuConfig[menuID]
-			fmt.Fprintf(&sb, "  Menu: %s\n", menuID)
+		for j, pageID := range pageIDs {
+			if j > 0 {
+				sb.WriteString("  ---\n")
+			}
+			buttonMap := menuConfig[pageID]
+			fmt.Fprintf(&sb, "  Page: %s\n", pageID)
 
 			if len(buttonMap) == 0 {
 				sb.WriteString("    (No buttons configured for this menu)\n")
@@ -126,7 +136,10 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 			buttonIDs := make([]int, 0, len(buttonMap))
 			for idStr := range buttonMap {
 				id, err := strconv.Atoi(idStr)
-				if err != nil { log.Printf("WARN: Invalid button ID format '%s' in P:%s M:%s", idStr, profileID, menuID); continue }
+				if err != nil {
+					log.Printf("WARN: Invalid button ID format '%s' in P:%s M:%s", idStr, menuID, pageID)
+					continue
+				}
 				buttonIDs = append(buttonIDs, id)
 			}
 			sort.Ints(buttonIDs)
@@ -141,7 +154,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case TaskTypeShowAnyWindow:
 					props, err := GetTaskProperties[ShowAnyWindowProperties](task)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", profileID, menuID, buttonIDStr, err)
+						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
 					} else {
 						taskSpecificDetails = formatProperties(
@@ -157,7 +170,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case TaskTypeShowProgramWindow:
 					props, err := GetTaskProperties[ShowProgramWindowProperties](task)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", profileID, menuID, buttonIDStr, err)
+						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
 					} else {
 						taskSpecificDetails = formatProperties(
@@ -173,7 +186,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case TaskTypeCallFunction:
 					props, err := GetTaskProperties[CallFunctionProperties](task)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s) - %v", profileID, menuID, buttonIDStr, err)
+						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
 					} else {
 						taskSpecificDetails = formatProperties(
@@ -187,7 +200,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case TaskTypeLaunchProgram:
 					props, err := GetTaskProperties[LaunchProgramProperties](task)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", profileID, menuID, buttonIDStr, err)
+						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						taskSpecificDetails = "<Error reading props>"
 					} else {
 						taskSpecificDetails = formatProperties(
@@ -205,7 +218,9 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 					taskSpecificDetails = fmt.Sprintf("(Unknown Task Type: %s)", task.TaskType)
 				}
 
-				if taskSpecificDetails != "" { sb.WriteString(taskSpecificDetails) }
+				if taskSpecificDetails != "" {
+					sb.WriteString(taskSpecificDetails)
+				}
 				sb.WriteString("\n")
 			} // End Button Loop
 		} // End Menu Loop

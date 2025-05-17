@@ -172,7 +172,7 @@ func generateSummaryReport(total, skipped, failures uint64, skippedNames, failed
 
 // ExtractAndSaveIcons concurrently processes a map of applications to extract and save their icons,
 // updating appMap with the new icon paths.
-func ExtractAndSaveIcons(appMap map[string]core.AppLaunchInfo) error {
+func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 	if len(appMap) == 0 {
 		log.Println("App map is empty, icon extraction skipped.")
 		return nil
@@ -294,7 +294,7 @@ func ExtractAndSaveIcons(appMap map[string]core.AppLaunchInfo) error {
 
 // CleanOrphanedIcons removes icon files from the storage directory that are not
 // referenced by any application in the provided appMap.
-func CleanOrphanedIcons(appMap map[string]core.AppLaunchInfo) error {
+func CleanOrphanedIcons(appMap map[string]core.AppInfo) error {
 	log.Println("Starting orphaned icon cleanup...")
 	iconStorageDir, err := getIconStorageDir() // Assume getIconStorageDir is defined
 	if err != nil {
@@ -303,7 +303,7 @@ func CleanOrphanedIcons(appMap map[string]core.AppLaunchInfo) error {
 
 	// Populate a set of expected icon filenames from the appMap.
 	expectedIconFiles := make(map[string]struct{}, len(appMap))
-	for _, appInfo := range appMap { // Iterate over the values (AppLaunchInfo structs)
+	for _, appInfo := range appMap { // Iterate over the values (AppInfo structs)
 		if appInfo.IconPath != "" {
 			// appInfo.IconPath is a web-servable path like "/icons/actual_icon.png".
 			// We need the base filename, e.g., "actual_icon.png".
@@ -385,18 +385,18 @@ func GetIconPathForExe(exePath string) (string, error) {
 
 // ProcessIcons orchestrates icon extraction and cleanup.
 func ProcessIcons() {
-	if discoveredApps == nil { // Defensive check for nil map
+	if installedAppsInfo == nil { // Defensive check for nil map
 		log.Println("No discovered apps for icon processing.")
 		return
 	}
 	log.Println("Starting background icon processing...")
 	go func() {
-		if err := ExtractAndSaveIcons(discoveredApps); err != nil {
+		if err := ExtractAndSaveIcons(installedAppsInfo); err != nil {
 			log.Printf("CRITICAL: Icon extraction process failed: %v", err)
 		} else {
 			log.Println("Background icon extraction finished.")
 		}
-		if err := CleanOrphanedIcons(discoveredApps); err != nil {
+		if err := CleanOrphanedIcons(installedAppsInfo); err != nil {
 			log.Printf("Error during icon cleanup: %v", err)
 		} else {
 			log.Println("Icon cleanup finished.")

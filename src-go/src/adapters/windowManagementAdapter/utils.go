@@ -65,24 +65,24 @@ func shouldIncludeWindow(hwnd win.HWND, windowTitle, className string, isCloaked
 
 // cleanWindowTitles updates window titles in the mapping
 func cleanWindowTitles(mapping WindowMapping, entry WindowMapping, appName string) {
-    for hwnd, info := range entry {
-        cleanTitle := info.Title
+	for hwnd, info := range entry {
+		cleanTitle := info.Title
 
-        if info.ExeName == "explorer.exe" && strings.Contains(info.Title, " - File Explorer") {
-            cleanTitle = strings.Replace(info.Title, " - File Explorer", "", -1)
-        } else if strings.Contains(info.Title, " - "+appName) {
-            cleanTitle = strings.Replace(info.Title, " - "+appName, "", -1)
-        }
+		if info.ExeName == "explorer.exe" && strings.Contains(info.Title, " - File Explorer") {
+			cleanTitle = strings.Replace(info.Title, " - File Explorer", "", -1)
+		} else if strings.Contains(info.Title, " - "+appName) {
+			cleanTitle = strings.Replace(info.Title, " - "+appName, "", -1)
+		}
 
-        mapping[hwnd] = WindowInfo{
-            Title:    cleanTitle,
-            ExeName:  info.ExeName,
-            ExePath:  info.ExePath,
-            AppName:  info.AppName,
-            IconPath: info.IconPath,
-            Instance: 0,
-        }
-    }
+		mapping[hwnd] = core.WindowInfo{
+			Title:    cleanTitle,
+			ExeName:  info.ExeName,
+			ExePath:  info.ExePath,
+			AppName:  info.AppName,
+			IconPath: info.IconPath,
+			Instance: 0,
+		}
+	}
 }
 
 // assignInstanceNumbers assigns instance numbers to windows with the same title and exe
@@ -136,7 +136,7 @@ func assignInstanceNumbers(tempMapping WindowMapping, existingMapping WindowMapp
 }
 
 // getWindowInfo gets information about a window by its handle (HWND).
-// It attempts to identify the application using the discoveredApps map and returns
+// It attempts to identify the application using the installedAppsInfo map and returns
 // a WindowMapping containing details and the identified application name.
 func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	result := make(WindowMapping)
@@ -147,7 +147,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	defaultExeName := "Unknown"
 
 	if hwnd == 0 {
-		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
 		return result, defaultAppName
 	}
 
@@ -156,7 +156,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	procGetWindowThreadProcessId.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&pid)))
 
 	if pid == 0 {
-		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
 		return result, defaultAppName
 	}
 
@@ -166,7 +166,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 		log.Printf("Error getting process exe path for PID %d: %v", pid, err)
 		// Use a distinct AppName to indicate this specific error state
 		errorAppName := "ErrorApp"
-		result[hwnd] = WindowInfo{Title: windowTitle, AppName: errorAppName, ExeName: "Error", IconPath: ""}
+		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: errorAppName, ExeName: "Error", IconPath: ""}
 		return result, errorAppName
 	}
 
@@ -175,21 +175,21 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	// but it's a safe check.
 	if exePathFromProcess == "" || !fileExists(exePathFromProcess) { // Assume fileExists is defined
 		log.Printf("Warning: Process exe path '%s' for PID %d is invalid or file does not exist.", exePathFromProcess, pid)
-		result[hwnd] = WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
+		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
 		return result, defaultAppName
 	}
 
 	exeNameFromProcess := strings.ToLower(filepath.Base(exePathFromProcess))
 
-	// --- Identify AppName and IconPath from discoveredApps ---
-	identifiedAppName := defaultAppName // This will be the key from the discoveredApps map (e.g., "My App")
-	appIconPath := ""           // This will be appLaunchInfo.IconPath from discoveredApps
+	// --- Identify AppName and IconPath from installedAppsInfo ---
+	identifiedAppName := defaultAppName // This will be the key from the installedAppsInfo map (e.g., "My App")
+	appIconPath := ""                   // This will be appLaunchInfo.IconPath from installedAppsInfo
 
-	var bestMatchInfo *core.AppLaunchInfo // Using pointer to distinguish from zero-value struct
-	var bestMatchKey string               // The AppName key from discoveredApps
+	var bestMatchInfo *core.AppInfo // Using pointer to distinguish from zero-value struct
+	var bestMatchKey string         // The AppName key from installedAppsInfo
 
-	// Priority 1: Exact match of the running process's ExePath against AppLaunchInfo.ExePath
-	for appKey, appInfoEntry := range discoveredApps {
+	// Priority 1: Exact match of the running process's ExePath against AppInfo.ExePath
+	for appKey, appInfoEntry := range installedAppsInfo {
 		// appKey is the unique application name (e.g., "Firefox", "Firefox (1)")
 		// appInfoEntry.ExePath is the launcher/configured path for this discovered application
 		if appInfoEntry.ExePath != "" && strings.EqualFold(appInfoEntry.ExePath, exePathFromProcess) {
@@ -205,7 +205,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 
 	// Priority 2: Basename match if no exact ExePath match was found
 	if bestMatchInfo == nil {
-		for appKey, appInfoEntry := range discoveredApps {
+		for appKey, appInfoEntry := range installedAppsInfo {
 			if appInfoEntry.ExePath != "" && strings.EqualFold(filepath.Base(appInfoEntry.ExePath), exeNameFromProcess) {
 				tempAppInfo := appInfoEntry
 				bestMatchInfo = &tempAppInfo
@@ -216,13 +216,13 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	}
 
 	if bestMatchInfo != nil {
-		identifiedAppName = bestMatchKey        // Use the map key (e.g., "My App") as the AppName
-		appIconPath = bestMatchInfo.IconPath    // Directly use the pre-resolved icon path
+		identifiedAppName = bestMatchKey     // Use the map key (e.g., "My App") as the AppName
+		appIconPath = bestMatchInfo.IconPath // Directly use the pre-resolved icon path
 	} else {
-		// Process not found in discoveredApps by its ExePath or basename.
+		// Process not found in installedAppsInfo by its ExePath or basename.
 		// It might be an app not in our list, or a transient system process.
-		// Icon path remains empty if not associated with an entry in discoveredApps.
-		log.Printf("Info: Running process '%s' (basename: '%s') not found in discoveredApps. AppName set to '%s'.",
+		// Icon path remains empty if not associated with an entry in installedAppsInfo.
+		log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
 			exePathFromProcess, exeNameFromProcess, identifiedAppName)
 		// Optional: if you still want an icon for a completely unknown app, you could call GetIconPathForExe here:
 		// genericIconPath, errIcon := GetIconPathForExe(exePathFromProcess)
@@ -230,13 +230,13 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	}
 	// --- End AppName and IconPath Lookup ---
 
-	result[hwnd] = WindowInfo{
+	result[hwnd] = core.WindowInfo{
 		Title:    windowTitle,
 		ExeName:  exeNameFromProcess, // Basename from the actual running process
 		ExePath:  exePathFromProcess, // Full path from the actual running process
-		AppName:  identifiedAppName,  // Name identified from discoveredApps (map key)
+		AppName:  identifiedAppName,  // Name identified from installedAppsInfo (map key)
 		Instance: 0,                  // Instance logic is not part of this snippet
-		IconPath: appIconPath,        // IconPath from discoveredApps.AppLaunchInfo
+		IconPath: appIconPath,        // IconPath from installedAppsInfo.AppInfo
 	}
 	return result, identifiedAppName
 }

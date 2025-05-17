@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
 )
@@ -24,18 +25,8 @@ type shortcutPressed_Message struct {
 	MouseY          int `json:"mouseY"`
 }
 
-// WindowInfo stores information about a window
-type WindowInfo struct {
-	Title    string
-	ExeName  string
-	ExePath  string
-	AppName  string
-	Instance int
-	IconPath string
-}
-
 // WindowMapping maps window handles to window information
-type WindowMapping map[win.HWND]WindowInfo
+type WindowMapping map[win.HWND]core.WindowInfo
 
 // WindowManager keeps track of open windows
 type WindowManager struct {

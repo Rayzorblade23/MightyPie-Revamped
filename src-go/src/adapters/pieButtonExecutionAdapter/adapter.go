@@ -21,7 +21,7 @@ var (
 	natsSubjectPieButtonExecute    = env.Get("PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE")
 	natsSubjectShortcutPressed     = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	natsSubjectWindowManagerUpdate = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	natsSubjectDiscoveredApps      = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED")
+	natsSubjectInstalledAppsInfo   = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
 )
 
 // Function names - fetched from environment, consider constants if static.
@@ -34,13 +34,13 @@ var (
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.
 type PieButtonExecutionAdapter struct {
-	natsAdapter      *natsAdapter.NatsAdapter
-	lastMouseX       int
-	lastMouseY       int
-	mu               sync.RWMutex // Protects access to windowsList
-	windowsList      WindowsUpdate
-	discoveredApps   map[string]core.AppLaunchInfo
-	functionHandlers map[string]HandlerWrapper
+	natsAdapter       *natsAdapter.NatsAdapter
+	lastMouseX        int
+	lastMouseY        int
+	mu                sync.RWMutex // Protects access to windowsList
+	windowsList       core.WindowsUpdate
+	installedAppsInfo map[string]core.AppInfo
+	functionHandlers  map[string]HandlerWrapper
 }
 
 // --- Adapter Implementation ---
@@ -48,9 +48,9 @@ type PieButtonExecutionAdapter struct {
 // New creates and initializes a new PieButtonExecutionAdapter.
 func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 	a := &PieButtonExecutionAdapter{
-		natsAdapter:    natsAdapter,
-		windowsList:    make(WindowsUpdate),
-		discoveredApps: make(map[string]core.AppLaunchInfo),
+		natsAdapter:       natsAdapter,
+		windowsList:       make(core.WindowsUpdate),
+		installedAppsInfo: make(map[string]core.AppInfo),
 	}
 
 	a.functionHandlers = a.initFunctionHandlers() // Initialize handlers
@@ -64,7 +64,7 @@ func (a *PieButtonExecutionAdapter) subscribeToEvents() {
 	a.subscribe(natsSubjectPieButtonExecute, a.handlePieButtonExecuteMessage)
 	a.subscribe(natsSubjectShortcutPressed, a.handleShortcutPressedMessage)
 	a.subscribe(natsSubjectWindowManagerUpdate, a.handleWindowUpdateMessage)
-	a.subscribe(natsSubjectDiscoveredApps, a.handleDiscoveredAppsMessage)
+	a.subscribe(natsSubjectInstalledAppsInfo, a.handleInstalledAppsInfoMessage)
 }
 
 // subscribe is a helper to subscribe to a NATS subject with unified error logging.
@@ -107,16 +107,16 @@ func (a *PieButtonExecutionAdapter) handleShortcutPressedMessage(msg *nats.Msg) 
 	// log.Printf("Shortcut %d pressed at X: %d, Y: %d", message.ShortcutPressed, message.MouseX, message.MouseY) // Debug logging if needed
 }
 
-// handleDiscoveredAppsMessage updates the internal list of discovered applications
-func (a *PieButtonExecutionAdapter) handleDiscoveredAppsMessage(msg *nats.Msg) {
-	var apps map[string]core.AppLaunchInfo
+// handleInstalledAppsInfoMessage updates the internal list of discovered applications
+func (a *PieButtonExecutionAdapter) handleInstalledAppsInfoMessage(msg *nats.Msg) {
+	var apps map[string]core.AppInfo
 	if err := json.Unmarshal(msg.Data, &apps); err != nil {
 		log.Printf("Failed to decode discovered apps message: %v. Data: %s", err, string(msg.Data))
 		return
 	}
 
 	a.mu.Lock()
-	a.discoveredApps = apps
+	a.installedAppsInfo = apps
 	a.mu.Unlock()
 
 	log.Printf("Updated discovered apps list, %d apps tracked", len(apps))
@@ -124,7 +124,7 @@ func (a *PieButtonExecutionAdapter) handleDiscoveredAppsMessage(msg *nats.Msg) {
 
 // handleWindowUpdateMessage updates the internal list of active windows.
 func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
-	var currentWindows WindowsUpdate
+	var currentWindows core.WindowsUpdate
 	if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
 		log.Printf("Failed to decode window update message: %v. Data: %s", err, string(msg.Data))
 		return
@@ -135,7 +135,7 @@ func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
 	clear(a.windowsList) // Clear existing entries (Go 1.21+)
 	maps.Copy(a.windowsList, currentWindows)
 	// For older Go versions:
-	// a.windowsList = make(WindowsUpdate, len(currentWindows))
+	// a.windowsList = make(core.WindowsUpdate, len(currentWindows))
 	// maps.Copy(a.windowsList, currentWindows)
 	a.mu.Unlock()
 
@@ -214,8 +214,8 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 
 		log.Printf("ShowProgramWindow: No existing window found for '%s'. Attempting to launch.", appNameKey)
 		a.mu.RLock()
-		// Assuming appNameKey (from ButtonTextLower) will always be in discoveredApps
-		appInfoToLaunch, _ := a.discoveredApps[appNameKey]
+		// Assuming appNameKey (from ButtonTextLower) will always be in installedAppsInfo
+		appInfoToLaunch, _ := a.installedAppsInfo[appNameKey]
 		a.mu.RUnlock()
 
 		if err := LaunchApp(appNameKey, appInfoToLaunch); err != nil {
@@ -293,7 +293,7 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 	var err error
 	a.mu.RLock()
 
-	appInfoToLaunch := a.discoveredApps[appNameKey]
+	appInfoToLaunch := a.installedAppsInfo[appNameKey]
 
 	a.mu.RUnlock()
 
@@ -432,7 +432,7 @@ func (a *PieButtonExecutionAdapter) initFunctionHandlers() map[string]HandlerWra
 // -----------------------------------------
 
 // LaunchApp launches an application using its unique application name.
-func LaunchApp(appNameKey string, appInfo core.AppLaunchInfo) error {
+func LaunchApp(appNameKey string, appInfo core.AppInfo) error {
 
 	if appInfo.URI != "" {
 		return launchViaURI(appNameKey, appInfo.URI)

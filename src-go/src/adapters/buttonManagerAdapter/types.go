@@ -1,20 +1,10 @@
 package buttonManagerAdapter
 
-import "encoding/json"
+import (
+	"encoding/json"
 
-// WindowInfo represents information about a single window (used in NATS messages and internally)
-type WindowInfo struct {
-	Title    string `json:"Title"`
-	ExeName  string `json:"ExeName"`
-	ExePath  string `json:"ExePath"`
-	AppName  string `json:"AppName"`
-	Instance int    `json:"Instance"`
-	IconPath string `json:"IconPath"`
-}
-
-// WindowsUpdate represents the structure received via NATS containing the current window list,
-// mapping window handle (int) to WindowInfo.
-type WindowsUpdate map[int]WindowInfo
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+)
 
 type TaskType string
 
@@ -42,7 +32,7 @@ type ShowProgramWindowProperties struct {
 	ButtonTextLower string `json:"button_text_lower"` // Mapped to AppName
 	IconPath        string `json:"icon_path"`         // Mapped to Window IconPath
 	WindowHandle    int    `json:"window_handle"`     // Mapped to Window Handle
-	ExePath         string `json:"exe_path"`          // PRE-CONFIGURED - Used for matching, DO NOT OVERWRITE from WindowInfo
+	ExePath         string `json:"exe_path"`          // PRE-CONFIGURED - Used for matching, DO NOT OVERWRITE from core.WindowInfo
 }
 
 type LaunchProgramProperties struct {
@@ -64,30 +54,30 @@ type Task struct {
 	Properties json.RawMessage `json:"properties"`
 }
 
-// ButtonID (string, e.g., "0", "1") -> Task
-type ButtonMap map[string]Task
+// PageID (string, e.g., "0", "1") -> Tasks
+type PageConfig map[string]Task
 
-// MenuID (string, e.g., "0", "1") -> ButtonMap
-// This represents the configuration for all menus within a single profile.
-type MenuConfig map[string]ButtonMap // <-- Add this type alias
+// MenuID (string, e.g., "0", "1") -> PageConfigs
+// This represents the configuration for all Pages within a single Menu.
+type MenuConfig map[string]PageConfig
 
-// ProfileID (string, e.g., "0", "1") -> MenuConfig
+// ProfileID (string, e.g., "0", "1") -> MenuConfigs
 // This is the new top-level type for the entire application's button configuration.
-type ConfigData map[string]MenuConfig // <-- Update this definition
+type ConfigData map[string]MenuConfig
 
 // Helper types for ShowAnyWindow assignment
 type availableSlotInfo struct {
-	ProfileID string
-	MenuID    string
-	ButtonID  string
+	MenuID   string
+	PageID   string
+	ButtonID string
 	// Store numeric IDs for easy sorting
-	ProfileIdx int
-	MenuIdx    int
-	ButtonIdx  int
+	MenuIdx   int
+	PageIdx   int
+	ButtonIdx int
 }
 
 // Helper types for ShowAnyWindow assignment
 type availableWindowInfo struct {
-    Handle int
-    Info WindowInfo
+	Handle int
+	Info   core.WindowInfo
 }
