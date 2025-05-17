@@ -215,7 +215,7 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 		log.Printf("ShowProgramWindow: No existing window found for '%s'. Attempting to launch.", appNameKey)
 		a.mu.RLock()
 		// Assuming appNameKey (from ButtonTextLower) will always be in installedAppsInfo
-		appInfoToLaunch, _ := a.installedAppsInfo[appNameKey]
+		appInfoToLaunch := a.installedAppsInfo[appNameKey]
 		a.mu.RUnlock()
 
 		if err := LaunchApp(appNameKey, appInfoToLaunch); err != nil {

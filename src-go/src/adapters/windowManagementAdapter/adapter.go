@@ -63,7 +63,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 // publishinstalledAppsInfo sends the current discovered apps list to the NATS subject
 func (a *WindowManagementAdapter) publishinstalledAppsInfo(apps map[string]core.AppInfo) {
-	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_APPSDISCOVERED"), apps)
+	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO"), apps)
 }
 
 // Run starts the adapter, including the initial window scan and monitoring loop
