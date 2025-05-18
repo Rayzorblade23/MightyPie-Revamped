@@ -1,3 +1,5 @@
+$host.UI.RawUI.WindowTitle = "Go Workers"
+
 # Hardcoded folder path
 $FolderPath = "E:\Repos\MightyPie-Revamped\src-go\cmd"
 

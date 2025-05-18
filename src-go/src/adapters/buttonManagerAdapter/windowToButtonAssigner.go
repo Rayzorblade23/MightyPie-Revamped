@@ -181,15 +181,15 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 						}
 						isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
 						if isEdge {
-							// Try matching by window title (ButtonTextUpper)
+							// Try matching by window title
 							if winInfo.Title == props.ButtonTextLower {
 								foundHandle = handle
 								foundWinInfo = winInfo
 								break
 							}
 						} else {
-							// Default: match by AppName (ButtonTextLower)
-							if winInfo.AppName == props.ButtonTextUpper {
+							// Default: match by AppName
+							if winInfo.AppName == props.ButtonTextLower {
 								foundHandle = handle
 								foundWinInfo = winInfo
 								break
@@ -374,8 +374,16 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 			return fmt.Errorf("get_props: %w", err)
 		}
 		props.WindowHandle = newHandle
-		props.ButtonTextUpper = winInfo.Title
-		props.ButtonTextLower = winInfo.AppName
+
+		isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
+		if isEdge {
+			props.ButtonTextUpper = ""
+			props.ButtonTextLower = winInfo.Title
+		} else {
+			props.ButtonTextUpper = winInfo.Title
+			props.ButtonTextLower = winInfo.AppName
+		}
+
 		if winInfo.IconPath != "" {
 			props.IconPath = winInfo.IconPath
 		}

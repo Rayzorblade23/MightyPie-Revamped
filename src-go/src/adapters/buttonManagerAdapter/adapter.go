@@ -52,6 +52,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		log.Printf("INFO: Config request on '%s'.", msg.Subject)
 
 		currentConfigSnapshot := GetButtonConfig()
+
 		if currentConfigSnapshot == nil {
 			log.Printf("WARN: Button config not available for request on '%s'. No config published.", msg.Subject)
 			return
