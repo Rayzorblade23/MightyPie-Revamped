@@ -1,14 +1,14 @@
 package pieButtonExecutionAdapter
 
-// TaskType represents the available task types
-type TaskType string
+// ButtonType represents the available button types
+type ButtonType string
 
 const (
-	TaskTypeShowProgramWindow TaskType = "show_program_window"
-	TaskTypeShowAnyWindow     TaskType = "show_any_window"
-	TaskTypeCallFunction      TaskType = "call_function"
-	TaskTypeLaunchProgram     TaskType = "launch_program"
-	TaskTypeDisabled          TaskType = "disabled"
+	ButtonTypeShowProgramWindow ButtonType = "show_program_window"
+	ButtonTypeShowAnyWindow     ButtonType = "show_any_window"
+	ButtonTypeCallFunction      ButtonType = "call_function"
+	ButtonTypeLaunchProgram     ButtonType = "launch_program"
+	ButtonTypeDisabled          ButtonType = "disabled"
 )
 
 const (
@@ -19,11 +19,11 @@ const (
 
 // Message type for pie button execution
 type pieButtonExecute_Message struct {
-	MenuIndex   int      `json:"pageID"`
-	ButtonIndex int      `json:"buttonID"`
-	TaskType    TaskType `json:"task_type"`
-	Properties  any      `json:"properties"`
-	ClickType   string   `json:"click_type"`
+	PageIndex   int        `json:"page_index"`
+	ButtonIndex int        `json:"button_index"`
+	ButtonType  ButtonType `json:"button_type"`
+	Properties  any        `json:"properties"`
+	ClickType   string     `json:"click_type"`
 }
 
 type shortcutPressed_Message struct {

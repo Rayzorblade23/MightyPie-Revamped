@@ -1,28 +1,28 @@
 ﻿import {
-    type ButtonMap,
+    ButtonType,
     type ConfigData,
     type MenuConfiguration,
     type PageConfiguration,
-    TaskType
+    type ProfileConfiguration
 } from "$lib/components/piebutton/piebuttonTypes.ts";
 
 
 // Internal state
-let profilesConfiguration = $state<MenuConfiguration>(new Map());
+let profileConfiguration = $state<ProfileConfiguration>(new Map());
 
 // Getter for external access
-export function getProfilesConfiguration(): MenuConfiguration {
-    return profilesConfiguration;
+export function getProfileConfiguration(): ProfileConfiguration {
+    return profileConfiguration;
 }
 
 // Setter for updating the configuration
-export function updateProfilesConfiguration(newConfig: MenuConfiguration) {
-    profilesConfiguration = newConfig;
+export function updateProfileConfiguration(newConfig: ProfileConfiguration) {
+    profileConfiguration = newConfig;
 }
 
 // --- Parsing Function (Handles Nested Input with Profiles) ---
-export function parseNestedRawConfig(data: ConfigData): MenuConfiguration {
-    const newProfilesConfig: MenuConfiguration = new Map();
+export function parseNestedRawConfig(data: ConfigData): ProfileConfiguration {
+    const newProfileConfig: ProfileConfiguration = new Map();
 
     Object.entries(data).forEach(([profileKey, profileData]) => {
         const profileIndex = parseInt(profileKey, 10);
@@ -31,7 +31,7 @@ export function parseNestedRawConfig(data: ConfigData): MenuConfiguration {
             return;
         }
 
-        const menuConfigForProfile: PageConfiguration = new Map();
+        const menuConfiguration: MenuConfiguration = new Map();
 
         Object.entries(profileData).forEach(([menuKey, menuData]) => {
             const menuIndex = parseInt(menuKey, 10);
@@ -40,55 +40,55 @@ export function parseNestedRawConfig(data: ConfigData): MenuConfiguration {
                 return;
             }
 
-            const buttonMapForMenu: ButtonMap = new Map();
+            const buttonMapForMenu: PageConfiguration = new Map();
 
-            Object.entries(menuData).forEach(([buttonKey, taskData]) => {
+            Object.entries(menuData).forEach(([buttonKey, buttonData]) => {
                 const buttonIndex = parseInt(buttonKey, 10);
                 if (isNaN(buttonIndex)) {
                     console.warn(`Invalid button key: ${buttonKey} for menu ${menuIndex}, profile ${profileIndex}, skipping.`);
                     return;
                 }
 
-                // The internal logic for parsing individual taskData remains the same
-                switch (taskData.task_type) {
-                    case TaskType.LaunchProgram:
-                        if (taskData.properties) {
+                // The internal logic for parsing individual buttonData remains the same
+                switch (buttonData.button_type) {
+                    case ButtonType.LaunchProgram:
+                        if (buttonData.properties) {
                             buttonMapForMenu.set(buttonIndex, {
-                                task_type: TaskType.LaunchProgram,
+                                button_type: ButtonType.LaunchProgram,
                                 properties: {
-                                    button_text_upper: taskData.properties.button_text_upper ?? '',
-                                    button_text_lower: taskData.properties.button_text_lower ?? '',
-                                    icon_path: taskData.properties.icon_path ?? '',
-                                    exe_path: taskData.properties.exe_path ?? ''
+                                    button_text_upper: buttonData.properties.button_text_upper ?? '',
+                                    button_text_lower: buttonData.properties.button_text_lower ?? '',
+                                    icon_path: buttonData.properties.icon_path ?? '',
+                                    exe_path: buttonData.properties.exe_path ?? ''
                                 }
                             });
                         }
                         break;
 
-                    case TaskType.ShowProgramWindow:
-                    case TaskType.ShowAnyWindow:
-                        if (taskData.properties) {
+                    case ButtonType.ShowProgramWindow:
+                    case ButtonType.ShowAnyWindow:
+                        if (buttonData.properties) {
                             buttonMapForMenu.set(buttonIndex, {
-                                task_type: taskData.task_type as TaskType.ShowProgramWindow | TaskType.ShowAnyWindow,
+                                button_type: buttonData.button_type as ButtonType.ShowProgramWindow | ButtonType.ShowAnyWindow,
                                 properties: {
-                                    button_text_upper: taskData.properties.button_text_upper ?? '',
-                                    button_text_lower: taskData.properties.button_text_lower ?? '',
-                                    icon_path: taskData.properties.icon_path ?? '',
-                                    window_handle: taskData.properties.window_handle ?? 0,
-                                    exe_path: taskData.properties.exe_path ?? ''
+                                    button_text_upper: buttonData.properties.button_text_upper ?? '',
+                                    button_text_lower: buttonData.properties.button_text_lower ?? '',
+                                    icon_path: buttonData.properties.icon_path ?? '',
+                                    window_handle: buttonData.properties.window_handle ?? 0,
+                                    exe_path: buttonData.properties.exe_path ?? ''
                                 }
                             });
                         }
                         break;
 
-                    case TaskType.CallFunction:
-                        if (taskData.properties) {
+                    case ButtonType.CallFunction:
+                        if (buttonData.properties) {
                             buttonMapForMenu.set(buttonIndex, {
-                                task_type: TaskType.CallFunction,
+                                button_type: ButtonType.CallFunction,
                                 properties: {
-                                    button_text_upper: taskData.properties.button_text_upper ?? '',
-                                    button_text_lower: taskData.properties.button_text_lower ?? '',
-                                    icon_path: taskData.properties.icon_path ?? ''
+                                    button_text_upper: buttonData.properties.button_text_upper ?? '',
+                                    button_text_lower: buttonData.properties.button_text_lower ?? '',
+                                    icon_path: buttonData.properties.icon_path ?? ''
                                 }
                             });
                         }
@@ -96,30 +96,30 @@ export function parseNestedRawConfig(data: ConfigData): MenuConfiguration {
 
                     default:
                         buttonMapForMenu.set(buttonIndex, {
-                            task_type: TaskType.Disabled
+                            button_type: ButtonType.Disabled
                         });
                 }
             });
-            menuConfigForProfile.set(menuIndex, buttonMapForMenu);
+            menuConfiguration.set(menuIndex, buttonMapForMenu);
         });
-        newProfilesConfig.set(profileIndex, menuConfigForProfile);
+        newProfileConfig.set(profileIndex, menuConfiguration);
     });
 
-    return newProfilesConfig;
+    return newProfileConfig;
 }
 
 // Accessor functions
-export function getTaskProperties(profileIndex: number, menuIndex: number, buttonIndex: number) {
-    const menuConfig = profilesConfiguration.get(profileIndex);
+export function getButtonProperties(profileIndex: number, menuIndex: number, buttonIndex: number) {
+    const menuConfig = profileConfiguration.get(profileIndex);
     const buttonMap = menuConfig?.get(menuIndex);
-    const task = buttonMap?.get(buttonIndex);
-    return task && 'properties' in task ? task.properties : undefined;
+    const button = buttonMap?.get(buttonIndex);
+    return button && 'properties' in button ? button.properties : undefined;
 }
 
-export function getTaskType(profileIndex: number, menuIndex: number, buttonIndex: number) {
-    const menuConfig = profilesConfiguration.get(profileIndex);
+export function getButtonType(profileIndex: number, menuIndex: number, buttonIndex: number) {
+    const menuConfig = profileConfiguration.get(profileIndex);
     const buttonMap = menuConfig?.get(menuIndex);
-    return buttonMap?.get(buttonIndex)?.task_type;
+    return buttonMap?.get(buttonIndex)?.button_type;
 }
 
 /**
@@ -133,7 +133,7 @@ export function getTaskType(profileIndex: number, menuIndex: number, buttonIndex
  */
 export function hasPageForMenu(profileIndex: number, menuIndex: number): boolean {
     // Get the current configuration map
-    const config = getProfilesConfiguration(); // Or access internal `profilesConfiguration`
+    const config = getProfileConfiguration(); // Or access internal `profilesConfiguration`
 
     // Check if the profile index exists and then if the menu index exists within that profile's map
     return config.get(profileIndex)?.has(menuIndex) ?? false;

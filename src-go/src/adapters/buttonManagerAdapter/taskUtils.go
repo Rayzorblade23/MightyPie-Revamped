@@ -5,17 +5,17 @@ import (
 	"fmt"
 )
 
-// Helper function to get typed properties from a task
-func GetTaskProperties[T any](task Task) (T, error) {
+// Helper function to get typed properties from a button
+func GetButtonProperties[T any](button Button) (T, error) {
 	var props T
-	if err := json.Unmarshal(task.Properties, &props); err != nil {
+	if err := json.Unmarshal(button.Properties, &props); err != nil {
 		return props, err
 	}
 	return props, nil
 }
 
-// SetTaskProperties updates the properties of a task with new values
-func SetTaskProperties[T any](task *Task, props T) error {
+// SetButtonProperties updates the properties of a button with new values
+func SetButtonProperties[T any](button *Button, props T) error {
 	// Marshal the properties to JSON
 	jsonData, err := json.Marshal(props)
 	if err != nil {
@@ -23,6 +23,6 @@ func SetTaskProperties[T any](task *Task, props T) error {
 	}
 
 	// Set the raw message
-	task.Properties = json.RawMessage(jsonData)
+	button.Properties = json.RawMessage(jsonData)
 	return nil
 }

@@ -36,12 +36,12 @@ func PrintWindowList(mapping map[int]core.WindowInfo) {
 	fmt.Println("---------------------------------------------------------")
 }
 
-func PrintTask(task Task) {
-	fmt.Printf("Task Type: %s\n", task.TaskType)
+func PrintButton(button Button) {
+	fmt.Printf("Button Type: %s\n", button.ButtonType)
 
-	switch task.TaskType {
-	case string(TaskTypeShowProgramWindow):
-		props, err := GetTaskProperties[core.ShowProgramWindowProperties](task)
+	switch button.ButtonType {
+	case string(ButtonTypeShowProgramWindow):
+		props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
 			return
@@ -53,8 +53,8 @@ func PrintTask(task Task) {
 		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
 		fmt.Printf("  Exe Path: %s\n", props.ExePath)
 
-	case string(TaskTypeShowAnyWindow):
-		props, err := GetTaskProperties[core.ShowAnyWindowProperties](task)
+	case string(ButtonTypeShowAnyWindow):
+		props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
 			return
@@ -146,18 +146,18 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 
 			for _, buttonID := range buttonIDs {
 				buttonIDStr := strconv.Itoa(buttonID)
-				task := buttonMap[buttonIDStr]
-				fmt.Fprintf(&sb, "    Btn %2d: [%-20s] ", buttonID, task.TaskType)
+				button := buttonMap[buttonIDStr]
+				fmt.Fprintf(&sb, "    Btn %2d: [%-20s] ", buttonID, button.ButtonType)
 
-				taskSpecificDetails := ""
-				switch TaskType(task.TaskType) {
-				case TaskTypeShowAnyWindow:
-					props, err := GetTaskProperties[core.ShowAnyWindowProperties](task)
+				buttonSpecificDetails := ""
+				switch ButtonType(button.ButtonType) {
+				case ButtonTypeShowAnyWindow:
+					props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
-						taskSpecificDetails = "<Error reading props>"
+						buttonSpecificDetails = "<Error reading props>"
 					} else {
-						taskSpecificDetails = formatProperties(
+						buttonSpecificDetails = formatProperties(
 							// Use shortenString for text fields
 							fmt.Sprintf("Upper: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
@@ -167,13 +167,13 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
-				case TaskTypeShowProgramWindow:
-					props, err := GetTaskProperties[core.ShowProgramWindowProperties](task)
+				case ButtonTypeShowProgramWindow:
+					props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
-						taskSpecificDetails = "<Error reading props>"
+						buttonSpecificDetails = "<Error reading props>"
 					} else {
-						taskSpecificDetails = formatProperties(
+						buttonSpecificDetails = formatProperties(
 							// Use shortenString for text fields
 							fmt.Sprintf("Upper: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
@@ -183,13 +183,13 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
-				case TaskTypeCallFunction:
-					props, err := GetTaskProperties[core.CallFunctionProperties](task)
+				case ButtonTypeCallFunction:
+					props, err := GetButtonProperties[core.CallFunctionProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
-						taskSpecificDetails = "<Error reading props>"
+						buttonSpecificDetails = "<Error reading props>"
 					} else {
-						taskSpecificDetails = formatProperties(
+						buttonSpecificDetails = formatProperties(
 							// Use shortenString for text fields
 							fmt.Sprintf("Upper: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
@@ -197,13 +197,13 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
 						)
 					}
-				case TaskTypeLaunchProgram:
-					props, err := GetTaskProperties[core.LaunchProgramProperties](task)
+				case ButtonTypeLaunchProgram:
+					props, err := GetButtonProperties[core.LaunchProgramProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
-						taskSpecificDetails = "<Error reading props>"
+						buttonSpecificDetails = "<Error reading props>"
 					} else {
-						taskSpecificDetails = formatProperties(
+						buttonSpecificDetails = formatProperties(
 							// Use shortenString for text fields
 							fmt.Sprintf("Upper: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
@@ -212,14 +212,14 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", shortenPath(props.ExePath, maxPathDisplayLength, shorten))),
 						)
 					}
-				case TaskTypeDisabled:
-					taskSpecificDetails = "(Disabled)"
+				case ButtonTypeDisabled:
+					buttonSpecificDetails = "(Disabled)"
 				default:
-					taskSpecificDetails = fmt.Sprintf("(Unknown Task Type: %s)", task.TaskType)
+					buttonSpecificDetails = fmt.Sprintf("(Unknown Button Type: %s)", button.ButtonType)
 				}
 
-				if taskSpecificDetails != "" {
-					sb.WriteString(taskSpecificDetails)
+				if buttonSpecificDetails != "" {
+					sb.WriteString(buttonSpecificDetails)
 				}
 				sb.WriteString("\n")
 			} // End Button Loop

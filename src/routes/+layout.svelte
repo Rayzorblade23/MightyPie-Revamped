@@ -17,7 +17,7 @@
     import type {ConfigData} from '$lib/components/piebutton/piebuttonTypes.ts';
     import {
         parseNestedRawConfig,
-        updateProfilesConfiguration
+        updateProfileConfiguration
     } from '$lib/components/piebutton/piebuttonConfig.svelte.ts';
 
     let {children} = $props();
@@ -80,7 +80,7 @@
 
         try {
             const newParsedConfig = parseNestedRawConfig(configData);
-            updateProfilesConfiguration(newParsedConfig);
+            updateProfileConfiguration(newParsedConfig);
         } catch (applyError) {
             console.error(
                 '[+layout.svelte] Failed to apply parsed button manager configuration:',

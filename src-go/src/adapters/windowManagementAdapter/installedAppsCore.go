@@ -50,7 +50,7 @@ var (
 
 	systemApps = map[string]string{
 		"explorer.exe": "Windows Explorer",
-		"taskmgr.exe":  "Task Manager",
+		"taskmgr.exe":  "Button Manager",
 		"cmd.exe":      "Command Prompt",
 	}
 )

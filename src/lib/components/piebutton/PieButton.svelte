@@ -1,5 +1,6 @@
-﻿<script lang="ts">
-    import {getTaskProperties, getTaskType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+﻿<!--PieButton.svelte-->
+<script lang="ts">
+    import {getButtonProperties, getButtonType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
@@ -24,8 +25,8 @@
         mouseState: MouseState
     } = $props();
 
-    const taskType = $derived(getTaskType(0, pageID, buttonID));
-    const properties = $derived(getTaskProperties(0, pageID, buttonID));
+    const taskType = $derived(getButtonType(0, pageID, buttonID));
+    const properties = $derived(getButtonProperties(0, pageID, buttonID));
 
     const buttonTextUpper = $derived(properties?.button_text_upper ?? `Button ${buttonID + 1}`);
     const buttonTextLower = $derived(properties?.button_text_lower ?? "");
@@ -44,7 +45,7 @@
         }
 
         if (mouseState.leftUp && !prevLeftUp && wasLeftDown && mouseState.hovered) {
-            console.log(`Left click on Button ${buttonID}: Task type is ${taskType}`);
+            console.log(`Left click on Button ${buttonID}: Button type is ${taskType}`);
             publishButtonClick("left_up");
             wasLeftDown = false;
         }
@@ -57,7 +58,7 @@
         }
 
         if (mouseState.middleUp && !prevMiddleUp && wasMiddleDown && mouseState.hovered) {
-            console.log(`Middle click on Button ${buttonID}: Task type is ${taskType}`);
+            console.log(`Middle click on Button ${buttonID}: Button type is ${taskType}`);
             publishButtonClick("middle_up");
             wasMiddleDown = false;
         }
@@ -70,7 +71,7 @@
         }
 
         if (mouseState.rightUp && !prevRightUp && wasRightDown && mouseState.hovered) {
-            console.log(`Right click on Button ${buttonID}: Task type is ${taskType}`);
+            console.log(`Right click on Button ${buttonID}: Button type is ${taskType}`);
             publishButtonClick("right_up");
             wasRightDown = false;
         }
@@ -81,9 +82,9 @@
         if (!properties || !taskType) return;
 
         const message: IPieButtonExecuteMessage = {
-            menu_index: pageID,
+            page_index: pageID,
             button_index: buttonID,
-            task_type: taskType,
+            button_type: taskType,
             properties: properties,
             click_type: clickType
         };

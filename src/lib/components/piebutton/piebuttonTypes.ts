@@ -1,12 +1,12 @@
 ﻿export interface IPieButtonExecuteMessage {
-    menu_index: number;
+    page_index: number;
     button_index: number;
-    task_type: TaskType;
+    button_type: ButtonType;
     properties: any;
     click_type: string;
 }
 
-export enum TaskType {
+export enum ButtonType {
     ShowProgramWindow = 'show_program_window',
     ShowAnyWindow = 'show_any_window',
     CallFunction = 'call_function',
@@ -14,7 +14,7 @@ export enum TaskType {
     Disabled = 'disabled',
 }
 
-// Task Interfaces
+// Button Interfaces
 export interface ShowAnyWindowProperties {
     button_text_upper: string; // window title
     button_text_lower: string; // app name
@@ -45,27 +45,27 @@ export interface CallFunctionProperties {
     icon_path?: string;
 }
 
-export type Task =
-    | { task_type: TaskType.ShowProgramWindow; properties: ShowProgramWindowProperties }
-    | { task_type: TaskType.ShowAnyWindow; properties: ShowAnyWindowProperties }
-    | { task_type: TaskType.CallFunction; properties: CallFunctionProperties }
-    | { task_type: TaskType.LaunchProgram; properties: LaunchProgramProperties }
-    | { task_type: TaskType.Disabled };
+export type Button =
+    | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
+    | { button_type: ButtonType.ShowAnyWindow; properties: ShowAnyWindowProperties }
+    | { button_type: ButtonType.CallFunction; properties: CallFunctionProperties }
+    | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
+    | { button_type: ButtonType.Disabled };
 
 
-// Represents the raw JSON structure: { "profileId": { "menuId": { "buttonId": TaskData, ... }, ... }, ... }
-export type ConfigData = Record<string, Record<string, Record<string, TaskData>>>;
+// Represents the raw JSON structure: { "profileId": { "menuId": { "buttonId": ButtonData, ... }, ... }, ... }
+export type ConfigData = Record<string, Record<string, Record<string, ButtonData>>>;
 
-export type TaskData = {
-    task_type: string;
+export type ButtonData = {
+    button_type: string;
     properties?: Record<string, any>; // Properties are optional only for 'disabled' type technically
 };
 
-// Button Index -> Typed Task object
-export type ButtonMap = Map<number, Task>;
+// Button Index -> Typed Button object
+export type PageConfiguration = Map<number, Button>;
 
-// Menu Index -> ButtonMap
-export type PageConfiguration = Map<number, ButtonMap>;
-
-// Profile Index -> PageConfiguration
+// Menu Index -> Page / PageConfiguration
 export type MenuConfiguration = Map<number, PageConfiguration>;
+
+// Profile Index -> MenuConfiguration
+export type ProfileConfiguration = Map<number, MenuConfiguration>;

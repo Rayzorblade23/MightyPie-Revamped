@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+﻿<!-- PieMenu.svelte -->
+<script lang="ts">
     import {onDestroy, onMount} from 'svelte';
     import {fly} from 'svelte/transition';
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";

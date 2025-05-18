@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> ButtonMap)
+	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> PageConfiguration)
 	buttonConfig ConfigData
 	windowsList  core.WindowsUpdate // May not be strictly needed globally if only used in NATS callback scope
 	mu           sync.RWMutex

@@ -85,7 +85,7 @@ func (a *PieButtonExecutionAdapter) handlePieButtonExecuteMessage(msg *nats.Msg)
 	}
 
 	if err := a.executeCommand(&message); err != nil {
-		log.Printf("Failed to execute command for button %d (Type: %s): %v", message.ButtonIndex, message.TaskType, err)
+		log.Printf("Failed to execute command for button %d (Type: %s): %v", message.ButtonIndex, message.ButtonType, err)
 		// Optionally, publish an error response back via NATS
 	}
 }
@@ -144,25 +144,25 @@ func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
 
 // --- Command Execution Logic ---
 
-// executeCommand dispatches the command based on the TaskType.
+// executeCommand dispatches the command based on the ButtonType.
 func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecute_Message) error {
-	log.Printf("Executing command for button %d: TaskType=%s", executionInfo.ButtonIndex, executionInfo.TaskType)
+	log.Printf("Executing command for button %d: ButtonType=%s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 
-	switch executionInfo.TaskType {
-	case TaskTypeShowProgramWindow:
+	switch executionInfo.ButtonType {
+	case ButtonTypeShowProgramWindow:
 		return a.handleShowProgramWindow(executionInfo)
-	case TaskTypeShowAnyWindow:
+	case ButtonTypeShowAnyWindow:
 		return a.handleShowAnyWindow(executionInfo)
-	case TaskTypeCallFunction:
+	case ButtonTypeCallFunction:
 		return a.handleCallFunction(executionInfo)
-	case TaskTypeLaunchProgram:
-		log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.TaskType)
+	case ButtonTypeLaunchProgram:
+		log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 		return a.handleLaunchProgram(executionInfo)
-	case TaskTypeDisabled:
+	case ButtonTypeDisabled:
 		log.Printf("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
 		return nil // Nothing to do for disabled buttons
 	default:
-		return fmt.Errorf("unknown task type: %s", executionInfo.TaskType)
+		return fmt.Errorf("unknown button type: %s", executionInfo.ButtonType)
 	}
 }
 

@@ -37,7 +37,7 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 	maps.Copy(availableWindows, windows)
 	processedButtons := make(map[string]bool)
 
-	// 4. === Phase 1: Process Existing Handles and Non-Window Tasks ===
+	// 4. === Phase 1: Process Existing Handles and Non-Window Buttons ===
 	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1: Process existing state...") // Removed DEBUG
 	for menuID, menuConfig := range updatedConfig {
 		if menuConfig == nil {
@@ -49,9 +49,9 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			}
 
 			showProgramButtons, showAnyButtons, _, _ :=
-				a.separateTasksByType(buttonMap)
+				a.separateButtonsByType(buttonMap)
 
-			// Process tasks
+			// Process buttons
 			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, buttonMap)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, buttonMap)
@@ -111,31 +111,31 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 	return updatedConfig, nil
 }
 
-// separateTasksByType (Assuming no DEBUG logs were present)
-func (a *ButtonManagerAdapter) separateTasksByType(buttonMap PageConfig) (
-	showProgram map[string]*Task,
-	showAny map[string]*Task,
-	launchProgram map[string]*Task,
-	functionCall map[string]*Task) {
+// separateButtonsByType (Assuming no DEBUG logs were present)
+func (a *ButtonManagerAdapter) separateButtonsByType(buttonMap PageConfig) (
+	showProgram map[string]*Button,
+	showAny map[string]*Button,
+	launchProgram map[string]*Button,
+	functionCall map[string]*Button) {
 
-	showProgram = make(map[string]*Task)
-	showAny = make(map[string]*Task)
-	launchProgram = make(map[string]*Task)
-	functionCall = make(map[string]*Task)
+	showProgram = make(map[string]*Button)
+	showAny = make(map[string]*Button)
+	launchProgram = make(map[string]*Button)
+	functionCall = make(map[string]*Button)
 
 	for btnID := range buttonMap {
-		// Create a pointer to the task *in the map* to allow modification by callers
-		taskPtr := buttonMap[btnID] // Get pointer to map value directly
+		// Create a pointer to the button *in the map* to allow modification by callers
+		buttonPtr := buttonMap[btnID] // Get pointer to map value directly
 
-		switch TaskType(taskPtr.TaskType) { // Check type via pointer
-		case TaskTypeShowProgramWindow:
-			showProgram[btnID] = &taskPtr // Store pointer
-		case TaskTypeShowAnyWindow:
-			showAny[btnID] = &taskPtr // Store pointer
-		case TaskTypeLaunchProgram:
-			launchProgram[btnID] = &taskPtr // Store pointer
-		case TaskTypeCallFunction:
-			functionCall[btnID] = &taskPtr // Store pointer
+		switch ButtonType(buttonPtr.ButtonType) { // Check type via pointer
+		case ButtonTypeShowProgramWindow:
+			showProgram[btnID] = &buttonPtr // Store pointer
+		case ButtonTypeShowAnyWindow:
+			showAny[btnID] = &buttonPtr // Store pointer
+		case ButtonTypeLaunchProgram:
+			launchProgram[btnID] = &buttonPtr // Store pointer
+		case ButtonTypeCallFunction:
+			functionCall[btnID] = &buttonPtr // Store pointer
 		}
 	}
 	return
@@ -154,17 +154,17 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 			if buttonMap == nil {
 				continue
 			}
-			for btnID, task := range buttonMap {
-				taskCopy := task
-				originalTaskBeforeClear := task
+			for btnID, button := range buttonMap {
+				buttonCopy := button
+				originalButtonBeforeClear := button
 
-				err := clearButtonWindowProperties(&taskCopy) // Try to clear the copy
+				err := clearButtonWindowProperties(&buttonCopy) // Try to clear the copy
 				if err != nil {
-					log.Printf("ERROR: Failed to clear properties for task (P:%s M:%s B:%s) on empty window list: %v", menuID, pageID, btnID, err)
+					log.Printf("ERROR: Failed to clear properties for button (P:%s M:%s B:%s) on empty window list: %v", menuID, pageID, btnID, err)
 					// Continue? Or return error? Continue seems reasonable.
 				} else {
-					if !reflect.DeepEqual(originalTaskBeforeClear, taskCopy) {
-						buttonMap[btnID] = taskCopy // Update the actual map
+					if !reflect.DeepEqual(originalButtonBeforeClear, buttonCopy) {
+						buttonMap[btnID] = buttonCopy // Update the actual map
 						anyChangeMade = true
 					}
 				}

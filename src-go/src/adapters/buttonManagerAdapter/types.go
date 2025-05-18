@@ -6,27 +6,27 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
-type TaskType string
+type ButtonType string
 
 const (
-	TaskTypeShowProgramWindow TaskType = "show_program_window"
-	TaskTypeShowAnyWindow     TaskType = "show_any_window"
-	TaskTypeCallFunction      TaskType = "call_function"
-	TaskTypeLaunchProgram     TaskType = "launch_program"
-	TaskTypeDisabled          TaskType = "disabled"
+	ButtonTypeShowProgramWindow ButtonType = "show_program_window"
+	ButtonTypeShowAnyWindow     ButtonType = "show_any_window"
+	ButtonTypeCallFunction      ButtonType = "call_function"
+	ButtonTypeLaunchProgram     ButtonType = "launch_program"
+	ButtonTypeDisabled          ButtonType = "disabled"
 )
 
 // Use -1 consistently for null/invalid handle
 const InvalidHandle = -1
 
-// Task represents a single task configuration
-type Task struct {
-	TaskType   string          `json:"task_type"`
+// Button represents a single button configuration
+type Button struct {
+	ButtonType string          `json:"button_type"`
 	Properties json.RawMessage `json:"properties"`
 }
 
-// PageID (string, e.g., "0", "1") -> Tasks
-type PageConfig map[string]Task
+// PageID (string, e.g., "0", "1") -> Buttons
+type PageConfig map[string]Button
 
 // MenuID (string, e.g., "0", "1") -> PageConfigs
 // This represents the configuration for all Pages within a single Menu.

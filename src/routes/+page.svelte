@@ -1,4 +1,4 @@
-<!-- +page.svelte -->
+<!-- +page.svelte (Main Page for Pie Menu -->
 <script lang="ts">
     // Import subscribeToSubject AND the getter for connection status
     import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
