@@ -20,8 +20,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	installedAppsInfo = FetchExecutableApplicationMap()
 	ProcessIcons()
 
-	b, _ := json.MarshalIndent(installedAppsInfo, "", "  ")
-	fmt.Println(string(b))
+	// b, _ := json.MarshalIndent(installedAppsInfo, "", "  ")
+	// fmt.Println(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
@@ -36,15 +36,16 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 	a.publishinstalledAppsInfo(installedAppsInfo)
 
+	shortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	requestSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO")
+	
 	// NATS Subscription for shortcut pressed events
-	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
-	natsAdapter.SubscribeToSubject(subject, func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var message shortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			logger.Printf("Failed to decode command on subject '%s': %v\n", subject, err)
+			logger.Printf("Failed to decode command on subject '%s': %v\n", shortcutSubject, err)
 			return
 		}
-		logger.Printf("Shortcut pressed: %d (X:%d, Y:%d)\n", message.ShortcutPressed, message.MouseX, message.MouseY)
 
 		// // Get current windows using the refactored function and print them
 		// // Pass win.HWND(0) as we don't need to exclude a specific window here.
@@ -53,10 +54,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 		// PrintWindowList(currentWindows) // Use the helper function from manager.go
 		// logger.Println("---------------------------------------------")
 
-		// // TODO: Add logic here to handle the shortcut press based on the current window list
-		// // e.g., find window under mouse, send command, etc.
 	})
-	logger.Printf("Subscribed to NATS subject: %s\n", subject)
+
+	// Subscribe to requests for installed apps info
+	natsAdapter.SubscribeToSubject(requestSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		a.publishinstalledAppsInfo(installedAppsInfo)
+	})
 
 	return a
 }
@@ -83,7 +86,6 @@ func (a *WindowManagementAdapter) Run() error {
 	logger.Println("Window watcher started.")
 
 	go a.monitorWindows()
-	logger.Println("Window monitoring goroutine started.")
 
 	// Wait for stop signal
 	<-a.stopChan
@@ -117,7 +119,6 @@ func (a *WindowManagementAdapter) Stop() {
 
 // monitorWindows runs in a goroutine, listens for change signals, and updates the window list.
 func (a *WindowManagementAdapter) monitorWindows() {
-	logger.Println("[Monitor] Starting monitor loop.")
 	previousWindows := a.winManager.GetOpenWindowsInfo()
 
 	var lastUpdateTime time.Time

@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import {onMount} from "svelte";
     import {browser} from "$app/environment";
     import "../app.css";
@@ -11,83 +11,99 @@
         useNatsSubscription,
     } from "$lib/natsAdapter.svelte.ts";
     import {
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE,
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_BASECONFIG,
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_UPDATE,
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
+        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
+        PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO
     } from '$env/static/public';
-    import type {ConfigData} from '$lib/components/piebutton/piebuttonTypes.ts';
+    import type {ConfigData} from '$lib/data/piebuttonTypes.ts';
     import {
-        parseNestedRawConfig,
-        updateProfileConfiguration
-    } from '$lib/components/piebutton/piebuttonConfig.svelte.ts';
+        parseButtonConfig,
+        updateBaseMenuConfiguration,
+        updateMenuConfiguration
+    } from '$lib/data/configHandler.svelte.ts';
+    import {parseInstalledAppsInfo, updateInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
+    import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
 
     let {children} = $props();
     let displayStatus = $state('Idle');
-    let initialUpdateRequestSent = $state(false);
 
+    let initialRequestsSent = $state(false);
 
-    // Effect to monitor connection status
+    function sendInitialRequests() {
+        if (!initialRequestsSent) {
+            console.log("NATS connected, sending initial requests for buttonManager and windowManager.");
+            try {
+                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_UPDATE, {});
+                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_BASECONFIG, {});
+                publishMessage<{}>(PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO, {});
+                publishMessage<{}>(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE, {});
+                initialRequestsSent = true;
+            } catch (error) {
+                console.error("[+layout.svelte] Failed to publish initial requests:", error);
+            }
+        }
+    }
+
+    function resetRequestFlag() {
+        console.log("NATS disconnected/not connected, resetting initial request flag.");
+        initialRequestsSent = false;
+    }
+
     $effect(() => {
         const currentStatus = getConnectionStatus();
         displayStatus = currentStatus;
-        console.log("NATS connection status:", displayStatus); // Log the actual value/object
+        console.log("NATS connection status:", displayStatus);
 
-        // Corrected comparison (assuming 'connected' is the right string literal):
-        if (currentStatus === 'connected' && !initialUpdateRequestSent) {
-            console.log('NATS connected, sending initial button manager update request.');
-            try {
-                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE, {});
-                initialUpdateRequestSent = true;
-            } catch (error) {
-                console.error('[+layout.svelte] Failed to publish initial button manager update request:', error);
-            }
-        }
-
-        // Resetting the flag (using the same correct status literal)
-        if (currentStatus !== 'connected' && initialUpdateRequestSent) {
-            console.log('NATS disconnected/not connected, resetting initial update request flag.');
-            initialUpdateRequestSent = false;
+        if (currentStatus === "connected") {
+            sendInitialRequests();
+        } else {
+            resetRequestFlag();
         }
     });
 
-    const handleButtonUpdateMessage = async (message: string) => {
-        let parsedJsonPayload: any;
+    const handleButtonUpdateMessage = (message: string) => {
+        handleJsonMessage<ConfigData>(
+            message,
+            (configData) => {
+                const newParsedConfig = parseButtonConfig(configData);
+                updateMenuConfiguration(newParsedConfig);
+            },
+            '+layout.svelte: Button Update'
+        );
+    };
 
+    const handleBaseConfigUpdateMessage = (message: string) => {
+        handleJsonMessage<ConfigData>(
+            message,
+            (configData) => {
+                const newParsedConfig = parseButtonConfig(configData);
+                updateBaseMenuConfiguration(newParsedConfig);
+            },
+            '+layout.svelte: Base Config Update'
+        );
+    };
+
+    const handleInstalledAppsMessage = (message: string) => {
         try {
-            parsedJsonPayload = JSON.parse(message);
-        } catch (parseError) {
-            console.error(
-                '[+layout.svelte] Failed to parse incoming button manager update JSON:',
-                parseError,
-                'Raw message:',
-                message
-            );
-            return;
+            const installedAppsInfo = parseInstalledAppsInfo(message);
+            console.log("Received installed apps list:", installedAppsInfo);
+            updateInstalledAppsInfo(installedAppsInfo);
+        } catch (error) {
+            console.error("[+layout.svelte] Failed to process installed apps message:", error);
         }
+    };
 
-        // Handle cases where the payload is explicitly "null" from the wire.
-        if (parsedJsonPayload === null) {
-            console.error(
-                '[+layout.svelte] Received null as button manager update configuration. Raw message:',
-                message
-            );
-            return;
-        }
-
-        // Assuming parsedJsonPayload is valid ConfigData at this point.
-        // For enhanced safety, consider runtime validation (e.g., with Zod or a type guard)
-        // if the data source is not fully trusted or the ConfigData structure is complex.
-        const configData: ConfigData = parsedJsonPayload as ConfigData;
-
+    const handleShortcutLabelsUpdateMessage = (msg: string) => {
         try {
-            const newParsedConfig = parseNestedRawConfig(configData);
-            updateProfileConfiguration(newParsedConfig);
-        } catch (applyError) {
-            console.error(
-                '[+layout.svelte] Failed to apply parsed button manager configuration:',
-                applyError,
-                'Parsed data:',
-                configData
-            );
+            const newLabels = parseShortcutLabelsMessage(msg);
+            updateShortcutLabels(newLabels);
+        } catch (error) {
+            console.error("[+layout.svelte] Failed to process shortcut labels message:", error);
         }
     };
 
@@ -96,13 +112,54 @@
         handleButtonUpdateMessage
     );
 
+    const subscription_button_baseconfig = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
+        handleBaseConfigUpdateMessage
+    );
+
+    const subscription_installed_apps = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
+        handleInstalledAppsMessage
+    );
+
+    const subscription_shortcutsetter_update = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
+        handleShortcutLabelsUpdateMessage
+    );
+
+    $effect(() => {
+        if (subscription_button_baseconfig.error) {
+            console.error(
+                "[+layout.svelte] Error with base configuration subscription:",
+                subscription_button_baseconfig.error
+            );
+        }
+    });
+
     $effect(() => {
         if (subscription_button_update.error) {
             console.error(
                 "[+layout.svelte] Error with button configuration subscription:",
                 subscription_button_update.error
             );
-            // Consider implementing user-facing error reporting here if appropriate
+        }
+    });
+
+    $effect(() => {
+        if (subscription_installed_apps.error) {
+            console.error(
+                "[+layout.svelte] Error with installed apps subscription:",
+                subscription_installed_apps.error
+            );
+        }
+    });
+
+    $effect(() => {
+        if (subscription_shortcutsetter_update.error) {
+            console.error(
+                '[+layout.svelte] Error with shortcut labels subscription:',
+                subscription_shortcutsetter_update.error
+            );
         }
     });
 
@@ -127,6 +184,31 @@
         };
     });
 
+    function handleJsonMessage<T>(
+        message: string,
+        onSuccess: (parsedData: T) => void,
+        context: string
+    ): void {
+        let parsedJsonPayload: T;
+
+        try {
+            parsedJsonPayload = JSON.parse(message);
+        } catch (parseError) {
+            console.error(`[${context}] Failed to parse JSON:`, parseError, 'Raw message:', message);
+            return;
+        }
+
+        if (parsedJsonPayload === null) {
+            console.error(`[${context}] Received null payload. Raw message:`, message);
+            return;
+        }
+
+        try {
+            onSuccess(parsedJsonPayload);
+        } catch (applyError) {
+            console.error(`[${context}] Failed to process parsed data:`, applyError, 'Parsed data:', parsedJsonPayload);
+        }
+    }
 </script>
 
 

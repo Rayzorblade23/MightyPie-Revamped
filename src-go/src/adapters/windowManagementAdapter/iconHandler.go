@@ -37,14 +37,13 @@ var (
 // getIconStorageDir finds or creates the directory for storing icons.
 func getIconStorageDir() (string, error) {
 	iconDirOnce.Do(func() {
-		// Use the provided getRootDir function
-		rootDir, err := getRootDir()
+		staticDir, err := core.GetStaticDir()
 		if err != nil {
 			iconDirErr = fmt.Errorf("failed to determine project root using getRootDir: %w", err)
 			return
 		}
 
-		dir := filepath.Join(rootDir, appDataIconSubdir)
+		dir := filepath.Join(staticDir, appDataIconSubdir)
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
 			iconDirErr = fmt.Errorf("failed to create icon directory '%s': %w", dir, err)
@@ -53,28 +52,6 @@ func getIconStorageDir() (string, error) {
 		iconDirPath = dir
 	})
 	return iconDirPath, iconDirErr
-}
-
-// getRootDir returns the project root directory. (User's original version was kept as it was stated to be correct for their setup)
-func getRootDir() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-	dir := wd
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return filepath.Dir(dir), nil
-		}
-		if filepath.Base(dir) == "src-go" {
-			return filepath.Dir(filepath.Dir(dir)), nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("could not find project root directory from %s", wd)
-		}
-		dir = parent
-	}
 }
 
 // Updated to include space replacement

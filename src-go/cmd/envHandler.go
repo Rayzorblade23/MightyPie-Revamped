@@ -13,7 +13,6 @@ var envVars map[string]string
 
 
 func init() {
-	println("Loading environment variables...")
 	envVars = make(map[string]string)
 
 	// Get the current file's directory

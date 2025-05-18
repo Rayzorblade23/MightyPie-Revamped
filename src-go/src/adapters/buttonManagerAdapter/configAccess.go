@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
 // GetButtonConfig (Cleaned)
@@ -38,24 +40,91 @@ func GetButtonConfig() ConfigData {
 	return copiedConfig
 }
 
-// ReadButtonConfig (No DEBUG logs originally)
 func ReadButtonConfig() (ConfigData, error) {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	configPath := filepath.Join(localAppData, "MightyPieRevamped", "buttonConfig.json")
+    localAppData := os.Getenv("LOCALAPPDATA")
+    if localAppData == "" {
+        return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
+    }
+    configPath := filepath.Join(localAppData, "MightyPieRevamped", "buttonConfig.json")
 
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file '%s': %w", configPath, err)
-	}
+    data, err := os.ReadFile(configPath)
+    if err != nil {
+        if os.IsNotExist(err) {
+            log.Printf("WARN: Config file not found, creating default config at '%s'", configPath)
+            defaultConfig := NewDefaultConfig()
+            if err := WriteButtonConfig(defaultConfig); err != nil {
+                return nil, fmt.Errorf("failed to write default config: %w", err)
+            }
+            return defaultConfig, nil
+        }
+        return nil, fmt.Errorf("failed to read config file '%s': %w", configPath, err)
+    }
 
-	var config ConfigData
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file '%s': %w", configPath, err)
-	}
-	return config, nil
+    var config ConfigData
+    if err := json.Unmarshal(data, &config); err != nil {
+        return nil, fmt.Errorf("failed to parse config file '%s': %w", configPath, err)
+    }
+    return config, nil
+}
+
+func WriteButtonConfig(config ConfigData) error {
+    localAppData := os.Getenv("LOCALAPPDATA")
+    if localAppData == "" {
+        return fmt.Errorf("LOCALAPPDATA environment variable not set")
+    }
+    configPath := filepath.Join(localAppData, "MightyPieRevamped", "buttonConfig.json")
+
+    data, err := json.MarshalIndent(config, "", "  ")
+    if err != nil {
+        return fmt.Errorf("failed to marshal config: %w", err)
+    }
+
+    if err := os.WriteFile(configPath, data, 0644); err != nil {
+        return fmt.Errorf("failed to write config file '%s': %w", configPath, err)
+    }
+    return nil
+}
+
+func NewDefaultConfig() ConfigData {
+    const (
+        numMenus  = 2
+        numPages  = 3
+        numButtons = 8
+    )
+    config := make(ConfigData)
+    for menuIdx := range numMenus {
+        menuID := fmt.Sprintf("%d", menuIdx)
+        menuConfig := make(MenuConfig)
+        for pageIdx := range numPages {
+            pageID := fmt.Sprintf("%d", pageIdx)
+            pageConfig := make(PageConfig)
+            for btnIdx := range numButtons {
+                btnID := fmt.Sprintf("%d", btnIdx)
+                button := Button{
+                    ButtonType: string(ButtonTypeShowAnyWindow),
+                    Properties: mustMarshalProperties(core.ShowAnyWindowProperties{
+                        ButtonTextUpper: "",
+                        ButtonTextLower: "",
+                        IconPath:        "",
+                        WindowHandle:    InvalidHandle,
+                    }),
+                }
+                pageConfig[btnID] = button
+            }
+            menuConfig[pageID] = pageConfig
+        }
+        config[menuID] = menuConfig
+    }
+    return config
+}
+
+// mustMarshalProperties marshals properties or panics (for use in default config creation).
+func mustMarshalProperties(v any) json.RawMessage {
+    data, err := json.Marshal(v)
+    if err != nil {
+        panic(fmt.Sprintf("failed to marshal default button properties: %v", err))
+    }
+    return data
 }
 
 // deepCopyConfig (Cleaned)

@@ -401,9 +401,9 @@ func processStartMenuEntry(name, appid string, packageLocations map[string]strin
 	}
 
 	if primaryExePath == "" {
-		if strings.Contains(appid, "!") {
-			fmt.Printf("Rejected UWP app - No exe path found: %s (AppID: %s)\n", name, appid)
-		}
+		// if strings.Contains(appid, "!") {
+		// 	fmt.Printf("Rejected UWP app - No exe path found: %s (AppID: %s)\n", name, appid)
+		// }
 		return nil
 	}
 

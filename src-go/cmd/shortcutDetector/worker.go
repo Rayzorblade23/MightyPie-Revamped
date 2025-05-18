@@ -13,8 +13,8 @@ func main() {
 
 	println("ShortcutDetectionAdapter: NATS connection established")
 
-    // Create and start the keyboard hook
-	shortcutDetectionAdapter := shortcutDetectionAdapter.New(natsAdapter)
+	shortcutDetectionAdapter.New(natsAdapter)
 
-	shortcutDetectionAdapter.Run()
+	select {}
+	// Block forever so the process doesn't exit
 }

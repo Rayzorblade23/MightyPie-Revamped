@@ -61,27 +61,24 @@ func (a *NatsAdapter) PublishMessage(subject string, message interface{}) {
     }
 }
 
-func (a *NatsAdapter) SubscribeToSubject(subject string, handleMessage func(*nats.Msg)) {
+func (a *NatsAdapter) SubscribeToSubject(subject string, subscriberName string, handleMessage func(*nats.Msg)) {
     if a.Connection == nil || a.Connection.IsClosed() {
-        log.Printf("Cannot subscribe: Not connected to NATS. Retrying in 1s...")
+        log.Printf("[%s] Cannot subscribe: Not connected to NATS. Retrying in 1s...", subscriberName)
         time.Sleep(1 * time.Second)
-        a.SubscribeToSubject(subject, handleMessage)
+        a.SubscribeToSubject(subject, subscriberName, handleMessage)
         return
     }
 
     sub, err := a.Connection.Subscribe(subject, func(msg *nats.Msg) {
-        log.Printf("Received message on '%s'", msg.Subject)
+        log.Printf("[%s] Received message on '%s'", subscriberName, msg.Subject)
         handleMessage(msg)
     })
 
     if err != nil {
-        log.Printf("Failed to subscribe to topic '%s': %v", subject, err)
+        log.Printf("[%s] Failed to subscribe to topic '%s': %v", subscriberName, subject, err)
         return
     }
 
-    log.Printf("Subscribed to topic: %s", subject)
-
-    // Optional: keep sub alive or handle lifecycle explicitly
-    // Add cleanup/Unsubscribe logic as needed
+    log.Printf("[%s] Subscribed to topic: %s", subscriberName, subject)
     _ = sub
 }

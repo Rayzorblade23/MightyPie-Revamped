@@ -1,4 +1,6 @@
-﻿export interface IPieButtonExecuteMessage {
+﻿// piebuttonTypes.ts
+
+export interface IPieButtonExecuteMessage {
     page_index: number;
     button_index: number;
     button_type: ButtonType;
@@ -20,7 +22,6 @@ export interface ShowAnyWindowProperties {
     button_text_lower: string; // app name
     icon_path: string;
     window_handle: number;
-    exe_path: string;
 }
 
 export interface ShowProgramWindowProperties {
@@ -28,7 +29,6 @@ export interface ShowProgramWindowProperties {
     button_text_lower: string; // app name
     icon_path: string;
     window_handle: number;
-    exe_path: string;
 }
 
 
@@ -36,7 +36,6 @@ export interface LaunchProgramProperties {
     button_text_upper: string; // app name
     button_text_lower: string; // " - Launch - "
     icon_path: string;
-    exe_path: string;
 }
 
 export interface CallFunctionProperties {
@@ -52,8 +51,13 @@ export type Button =
     | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
     | { button_type: ButtonType.Disabled };
 
+export type ButtonPropertiesUnion =
+    | ShowProgramWindowProperties
+    | ShowAnyWindowProperties
+    | CallFunctionProperties
+    | LaunchProgramProperties;
 
-// Represents the raw JSON structure: { "profileId": { "menuId": { "buttonId": ButtonData, ... }, ... }, ... }
+// Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }
 export type ConfigData = Record<string, Record<string, Record<string, ButtonData>>>;
 
 export type ButtonData = {
@@ -61,11 +65,20 @@ export type ButtonData = {
     properties?: Record<string, any>; // Properties are optional only for 'disabled' type technically
 };
 
-// Button Index -> Typed Button object
-export type PageConfiguration = Map<number, Button>;
+/**
+ * Represents the buttons on a single page.
+ * Key: Button Index, Value: Button object.
+ */
+export type ButtonsOnPageMap = Map<number, Button>;
 
-// Menu Index -> Page / PageConfiguration
-export type MenuConfiguration = Map<number, PageConfiguration>;
+/**
+ * Represents the pages within a single menu.
+ * Key: Page Index, Value: Map of buttons on that page.
+ */
+export type PagesInMenuMap = Map<number, ButtonsOnPageMap>;
 
-// Profile Index -> MenuConfiguration
-export type ProfileConfiguration = Map<number, MenuConfiguration>;
+/**
+ * Represents the overall configuration for all menus.
+ * Key: Menu Index, Value: Map of pages in that menu.
+ */
+export type MenuConfiguration = Map<number, PagesInMenuMap>;

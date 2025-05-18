@@ -16,7 +16,6 @@ type WindowsUpdate map[int]WindowInfo
 type WindowInfo struct {
 	Title    string `json:"Title"`
 	ExeName  string `json:"ExeName"`
-	ExePath  string `json:"ExePath"`
 	AppName  string `json:"AppName"`
 	Instance int    `json:"Instance"`
 	IconPath string `json:"IconPath"`
@@ -33,7 +32,6 @@ type ShowAnyWindowProperties struct {
 	ButtonTextLower string `json:"button_text_lower"` // AppName
 	IconPath        string `json:"icon_path"`
 	WindowHandle    int    `json:"window_handle"`
-	ExePath         string `json:"exe_path"`
 }
 
 type ShowProgramWindowProperties struct {
@@ -41,14 +39,12 @@ type ShowProgramWindowProperties struct {
 	ButtonTextLower string `json:"button_text_lower"` // AppName
 	IconPath        string `json:"icon_path"`
 	WindowHandle    int    `json:"window_handle"`
-	ExePath         string `json:"exe_path"`
 }
 
 type LaunchProgramProperties struct {
 	ButtonTextUpper string `json:"button_text_upper"` // AppName
 	ButtonTextLower string `json:"button_text_lower"` // " - Launch - "
 	IconPath        string `json:"icon_path"`
-	ExePath         string `json:"exe_path"`
 }
 
 type CallFunctionProperties struct {

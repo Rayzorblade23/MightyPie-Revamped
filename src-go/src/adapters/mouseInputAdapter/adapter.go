@@ -8,6 +8,7 @@ import (
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
 
@@ -24,7 +25,10 @@ type MouseInputAdapter struct {
 }
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
-	natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), func(msg *nats.Msg) {
+	a := &MouseInputAdapter{
+		natsAdapter: natsAdapter,
+	}
+	natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), core.GetTypeName(a), func(msg *nats.Msg) {
 
 		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {

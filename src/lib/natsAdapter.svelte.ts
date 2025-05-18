@@ -1,5 +1,6 @@
 ﻿import {connect, type ConnectionOptions, Events, type NatsConnection, StringCodec, type Subscription} from 'nats.ws';
-import {getPrivateEnvVar} from '$lib/env'; // Ensure this path is correct for your project
+
+import {getPrivateEnvVar} from "$lib/generalUtil.ts"; // Ensure this path is correct for your project
 
 // --- Constants ---
 const NATS_LOG_PREFIX = '[NATS]';

@@ -77,7 +77,6 @@ func cleanWindowTitles(mapping WindowMapping, entry WindowMapping, appName strin
 		mapping[hwnd] = core.WindowInfo{
 			Title:    cleanTitle,
 			ExeName:  info.ExeName,
-			ExePath:  info.ExePath,
 			AppName:  info.AppName,
 			IconPath: info.IconPath,
 			Instance: 0,
@@ -222,8 +221,9 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 		// Process not found in installedAppsInfo by its ExePath or basename.
 		// It might be an app not in our list, or a transient system process.
 		// Icon path remains empty if not associated with an entry in installedAppsInfo.
-		log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
-			exePathFromProcess, exeNameFromProcess, identifiedAppName)
+		// TODO: Maybe save this not-found app to not process it again every time
+		// log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
+		// 	exePathFromProcess, exeNameFromProcess, identifiedAppName)
 		// Optional: if you still want an icon for a completely unknown app, you could call GetIconPathForExe here:
 		// genericIconPath, errIcon := GetIconPathForExe(exePathFromProcess)
 		// if errIcon == nil { appIconPath = genericIconPath }
@@ -233,7 +233,6 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	result[hwnd] = core.WindowInfo{
 		Title:    windowTitle,
 		ExeName:  exeNameFromProcess, // Basename from the actual running process
-		ExePath:  exePathFromProcess, // Full path from the actual running process
 		AppName:  identifiedAppName,  // Name identified from installedAppsInfo (map key)
 		Instance: 0,                  // Instance logic is not part of this snippet
 		IconPath: appIconPath,        // IconPath from installedAppsInfo.AppInfo

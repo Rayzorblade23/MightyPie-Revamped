@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 	"unsafe"
 
@@ -117,7 +116,6 @@ func (w *WindowWatcher) Start() error {
 	w.isRunning = true
 	w.mutex.Unlock() // Unlock before launching goroutine
 
-	fmt.Println("[WATCHER START] Launching hook and message loop goroutine...")
 	go w.hookAndMessageLoop() // Launch the combined function
 
 	return nil
@@ -128,11 +126,8 @@ func (w *WindowWatcher) hookAndMessageLoop() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	fmt.Println("[HOOK LOOP] Goroutine started, thread locked.")
-
 	// Set the hook WITHIN this goroutine
 	hookCallbackPtr := winEventProcCallback
-	fmt.Printf("[HOOK LOOP] Attempting SetWinEventHook with callback: %v\n", hookCallbackPtr)
 
 hook, _, err := procSetWinEventHook.Call(
     uintptr(EVENT_OBJECT_SHOW),       // Start of event range
@@ -147,8 +142,6 @@ hook, _, err := procSetWinEventHook.Call(
 	}
 
 	if hook == 0 || (hookErrString != "" && !strings.Contains(hookErrString, "operation completed successfully")) {
-		lastErr := syscall.GetLastError()
-		fmt.Printf("[HOOK LOOP] !!!!! SetWinEventHook FAILED! Hook=0x%X, Error='%s', LastError=%d !!!!!\n", hook, hookErrString, lastErr)
 		w.mutex.Lock()
 		w.isRunning = false
 		
@@ -165,17 +158,14 @@ hook, _, err := procSetWinEventHook.Call(
 	w.mutex.Lock()
 	w.eventHook = HWINEVENTHOOK(hook)
 	w.mutex.Unlock()
-	fmt.Printf("[HOOK LOOP] SetWinEventHook SUCCESSFUL. Hook Handle: %X\n", hook)
 
 	// Message Loop
 	var loopThreadId uint32 = 0
 	retTID, _, _ := procGetCurrentThreadId.Call()
 	loopThreadId = uint32(retTID)
-	fmt.Printf("[HOOK LOOP] Message loop starting on Thread ID: %d (0x%X)\n", loopThreadId, loopThreadId)
 
 	go func(tid uint32) {
 		<-w.stopChan
-		fmt.Printf("[HOOK LOOP] Stop signal received for Thread ID: %d\n", tid)
 		if tid != 0 {
 			ret, _, postErr := procPostThreadMessageW.Call(uintptr(tid), uintptr(WM_QUIT), 0, 0)
 			if ret == 0 {
@@ -223,16 +213,11 @@ hook, _, err := procSetWinEventHook.Call(
 	w.mutex.Unlock()
 
 	if currentHook != 0 {
-		fmt.Printf("[HOOK LOOP] Unhooking event hook: %X\n", currentHook)
 		ret, _, unhookErr := procUnhookWinEvent.Call(uintptr(currentHook))
 		if ret == 0 {
 			fmt.Printf("[HOOK LOOP] !!!!! UnhookWinEvent FAILED: Error=%v !!!!!\n", unhookErr)
-		} else {
-			fmt.Println("[HOOK LOOP] UnhookWinEvent successful.")
-		}
+		} 
 	}
-
-	fmt.Println("[HOOK LOOP] Goroutine finished.")
 }
 
 // Stop signals the hookAndMessageLoop goroutine to exit

@@ -10,7 +10,7 @@ import (
 
 // --- Constants ---
 const (
-	appDataIconSubdir     = "static/appIcons" // Relative to project root
+	appDataIconSubdir     = "appIcons" // Relative to project root
 	webIconPathPrefix     = "/appIcons"       // URL path prefix for serving icons
 	defaultIconSize       = 32
 	iconHashLength        = 8

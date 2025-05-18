@@ -1,7 +1,7 @@
 ﻿<!--PieButton.svelte-->
 <script lang="ts">
-    import {getButtonProperties, getButtonType,} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
-    import type {IPieButtonExecuteMessage} from "$lib/components/piebutton/piebuttonTypes.ts";
+    import {getButtonProperties, getButtonType,} from "$lib/data/configHandler.svelte.ts";
+    import type {IPieButtonExecuteMessage} from "$lib/data/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
 
@@ -15,7 +15,8 @@
         middleUp: boolean;
     }
 
-    let {pageID, buttonID, x, y, width, height, mouseState}: {
+    let {menuID, pageID, buttonID, x, y, width, height, mouseState}: {
+        menuID: number,
         pageID: number,
         buttonID: number,
         x: number,
@@ -25,8 +26,8 @@
         mouseState: MouseState
     } = $props();
 
-    const taskType = $derived(getButtonType(0, pageID, buttonID));
-    const properties = $derived(getButtonProperties(0, pageID, buttonID));
+    const taskType = $derived(getButtonType(menuID, pageID, buttonID));
+    const properties = $derived(getButtonProperties(menuID, pageID, buttonID));
 
     const buttonTextUpper = $derived(properties?.button_text_upper ?? `Button ${buttonID + 1}`);
     const buttonTextLower = $derived(properties?.button_text_lower ?? "");

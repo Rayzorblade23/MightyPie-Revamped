@@ -27,7 +27,6 @@ func PrintWindowList(mapping map[int]core.WindowInfo) {
 		fmt.Printf("Window Handle: %d\n", hwnd)
 		fmt.Printf("  Title: %s\n", info.Title)
 		fmt.Printf("  ExeName: %s\n", info.ExeName)
-		fmt.Printf("  ExePath: %s\n", info.ExePath)
 		fmt.Printf("  AppName: %s\n", info.AppName)
 		fmt.Printf("  Instance: %d\n", info.Instance)
 		fmt.Printf("  IconPath: %s\n", info.IconPath)
@@ -51,7 +50,6 @@ func PrintButton(button Button) {
 		fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
 		fmt.Printf("  Icon Path: %s\n", props.IconPath)
 		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
-		fmt.Printf("  Exe Path: %s\n", props.ExePath)
 
 	case string(ButtonTypeShowAnyWindow):
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
@@ -64,7 +62,6 @@ func PrintButton(button Button) {
 		fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
 		fmt.Printf("  Icon Path: %s\n", props.IconPath)
 		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
-		fmt.Printf("  Exe Path: %s\n", props.ExePath)
 
 		// ... add other cases as needed
 	}
@@ -88,7 +85,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 	sb.WriteString("\n======================= Mighty Pie Configuration =======================\n")
 
 	if len(config) == 0 {
-		sb.WriteString("  (No profiles configured or configuration is nil)\n")
+		sb.WriteString("  (No Menus configured or configuration is nil)\n")
 		sb.WriteString("======================================================================\n")
 		fmt.Print(sb.String())
 		return
@@ -109,7 +106,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 		fmt.Fprintf(&sb, "Menu: %s\n", menuID)
 
 		if len(menuConfig) == 0 {
-			sb.WriteString("  (No Pages configured for this profile)\n")
+			sb.WriteString("  (No Pages configured for this menu)\n")
 			continue
 		}
 
@@ -124,17 +121,17 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 			if j > 0 {
 				sb.WriteString("  ---\n")
 			}
-			buttonMap := menuConfig[pageID]
+			pageConfig := menuConfig[pageID]
 			fmt.Fprintf(&sb, "  Page: %s\n", pageID)
 
-			if len(buttonMap) == 0 {
+			if len(pageConfig) == 0 {
 				sb.WriteString("    (No buttons configured for this menu)\n")
 				continue
 			}
 
 			// --- Iterate Buttons ---
-			buttonIDs := make([]int, 0, len(buttonMap))
-			for idStr := range buttonMap {
+			buttonIDs := make([]int, 0, len(pageConfig))
+			for idStr := range pageConfig {
 				id, err := strconv.Atoi(idStr)
 				if err != nil {
 					log.Printf("WARN: Invalid button ID format '%s' in P:%s M:%s", idStr, menuID, pageID)
@@ -146,7 +143,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 
 			for _, buttonID := range buttonIDs {
 				buttonIDStr := strconv.Itoa(buttonID)
-				button := buttonMap[buttonIDStr]
+				button := pageConfig[buttonIDStr]
 				fmt.Fprintf(&sb, "    Btn %2d: [%-20s] ", buttonID, button.ButtonType)
 
 				buttonSpecificDetails := ""
@@ -163,7 +160,6 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
 							// Use shortenPath for path fields
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
-							condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", shortenPath(props.ExePath, maxPathDisplayLength, shorten))),
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
@@ -179,7 +175,6 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
 							// Use shortenPath for path fields
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
-							condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", shortenPath(props.ExePath, maxPathDisplayLength, shorten))),
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
@@ -209,7 +204,6 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
 							// Use shortenPath for path fields
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
-							condStr(props.ExePath != "", fmt.Sprintf("Exe: '%s'", shortenPath(props.ExePath, maxPathDisplayLength, shorten))),
 						)
 					}
 				case ButtonTypeDisabled:

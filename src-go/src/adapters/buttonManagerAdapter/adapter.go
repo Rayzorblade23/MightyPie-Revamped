@@ -14,9 +14,10 @@ import (
 
 var (
 	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> PageConfiguration)
-	buttonConfig ConfigData
-	windowsList  core.WindowsUpdate // May not be strictly needed globally if only used in NATS callback scope
-	mu           sync.RWMutex
+	buttonConfig     ConfigData
+	baseButtonConfig ConfigData
+	windowsList      core.WindowsUpdate // May not be strictly needed globally if only used in NATS callback scope
+	mu               sync.RWMutex
 )
 
 type ButtonManagerAdapter struct {
@@ -40,15 +41,59 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 	mu.Lock()
 	buttonConfig = config
+	baseButtonConfig = config
 	mu.Unlock()
 	log.Println("INFO: Initial button configuration loaded.")
 	// Removed: PrintConfig(config) // Removed debug print on startup
 
 	buttonUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
 	windowUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUESTUPDATE")
+	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_UPDATE")
+	requestBaseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_BASECONFIG")
+	baseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG")
+	receiveNewBaseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
 
-	a.natsAdapter.SubscribeToSubject(requestUpdateSubject, func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(requestBaseConfigSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		log.Printf("INFO: Raw config request on '%s'.", msg.Subject)
+		mu.RLock()
+		rawCopy := baseButtonConfig
+		mu.RUnlock()
+		a.natsAdapter.PublishMessage(baseConfigSubject, rawCopy)
+	})
+
+	a.natsAdapter.SubscribeToSubject(receiveNewBaseConfigSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		log.Printf("INFO: Raw config coming in on '%s'.", msg.Subject)
+	
+		var newConfig ConfigData
+		if err := json.Unmarshal(msg.Data, &newConfig); err != nil {
+			log.Printf("ERROR: Failed to unmarshal config: %v", err)
+			return
+		}
+	
+		if err := WriteButtonConfig(newConfig); err != nil {
+			log.Printf("ERROR: Failed to write config: %v", err)
+			return
+		}
+	
+		// Read it back in to update in-memory state
+		loadedConfig, err := ReadButtonConfig()
+		if err != nil {
+			log.Printf("ERROR: Failed to reload config after write: %v", err)
+			return
+		}
+	
+		mu.Lock()
+		buttonConfig = loadedConfig
+		baseButtonConfig = loadedConfig
+		mu.Unlock()
+	
+		log.Println("INFO: Config written and reloaded from disk.")
+		// PrintConfig(buttonConfig, false)
+		
+		a.natsAdapter.PublishMessage(buttonUpdateSubject, loadedConfig)
+	})
+
+	a.natsAdapter.SubscribeToSubject(requestUpdateSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		log.Printf("INFO: Config request on '%s'.", msg.Subject)
 
 		currentConfigSnapshot := GetButtonConfig()
@@ -62,7 +107,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	})
 
 	// Subscribe to window updates for subsequent changes
-	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var currentWindows core.WindowsUpdate
 		if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
 			log.Printf("ERROR: Failed to decode window update message: %v", err)
@@ -94,12 +139,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			log.Println("INFO: Button configuration updated (due to window event) and will be published.")
 			// Publish the updated configuration object
 			a.natsAdapter.PublishMessage(buttonUpdateSubject, updatedConfig)
-			PrintConfig(updatedConfig, true)
+			// PrintConfig(updatedConfig, true)
 		}
 		// No log needed if no changes occurred (avoids log spam)
 	})
-
-	log.Printf("INFO: ButtonManagerAdapter subscribed to window updates on '%s'", windowUpdateSubject)
 	return a
 }
 

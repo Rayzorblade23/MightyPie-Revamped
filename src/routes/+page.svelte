@@ -6,11 +6,12 @@
     import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
-    import {hasPageForMenu} from "$lib/components/piebutton/piebuttonConfig.svelte.ts";
+    import {hasPageForMenu} from "$lib/data/configHandler.svelte.ts";
     import {getCurrentWindow} from "@tauri-apps/api/window";
     import {onMount} from "svelte";
 
     // --- Core State ---
+    // Temporarily force PieMenu to be visible for debugging
     let isPieMenuVisible = $state(false);
     let pageID = $state(0);
     let menuID = $state(0);
@@ -46,8 +47,9 @@
         try {
             const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
-            if (shortcutDetectedMsg.shortcutPressed === 1) {
-                console.log("[NATS] Shortcut (1): Show/Cycle.");
+            if (shortcutDetectedMsg.shortcutPressed >= 0) {
+                console.log("[NATS] Shortcut (" + shortcutDetectedMsg.shortcutPressed + "): Show/Cycle.");
+                menuID = shortcutDetectedMsg.shortcutPressed;
                 let newPageID: number;
 
                 // Simplified logic: if window is visible AND pie menu is visible, then cycle
@@ -146,6 +148,6 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenu pageID={pageID}/>
+        <PieMenu menuID={menuID} pageID={pageID}/>
     </div>
 </main>

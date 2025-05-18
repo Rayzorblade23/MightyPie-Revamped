@@ -43,18 +43,18 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 		if menuConfig == nil {
 			continue
 		}
-		for pageID, buttonMap := range menuConfig {
-			if buttonMap == nil {
+		for pageID, pageConfig := range menuConfig {
+			if pageConfig == nil {
 				continue
 			}
 
 			showProgramButtons, showAnyButtons, _, _ :=
-				a.separateButtonsByType(buttonMap)
+				a.separateButtonsByType(pageConfig)
 
 			// Process buttons
-			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, buttonMap)
+			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, pageConfig)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
-			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, buttonMap)
+			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, pageConfig)
 		}
 	}
 	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
@@ -112,7 +112,7 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 }
 
 // separateButtonsByType (Assuming no DEBUG logs were present)
-func (a *ButtonManagerAdapter) separateButtonsByType(buttonMap PageConfig) (
+func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 	showProgram map[string]*Button,
 	showAny map[string]*Button,
 	launchProgram map[string]*Button,
@@ -123,9 +123,9 @@ func (a *ButtonManagerAdapter) separateButtonsByType(buttonMap PageConfig) (
 	launchProgram = make(map[string]*Button)
 	functionCall = make(map[string]*Button)
 
-	for btnID := range buttonMap {
+	for btnID := range pageConfig {
 		// Create a pointer to the button *in the map* to allow modification by callers
-		buttonPtr := buttonMap[btnID] // Get pointer to map value directly
+		buttonPtr := pageConfig[btnID] // Get pointer to map value directly
 
 		switch ButtonType(buttonPtr.ButtonType) { // Check type via pointer
 		case ButtonTypeShowProgramWindow:
@@ -150,11 +150,11 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 		if menuConfig == nil {
 			continue
 		}
-		for pageID, buttonMap := range menuConfig {
-			if buttonMap == nil {
+		for pageID, pageConfig := range menuConfig {
+			if pageConfig == nil {
 				continue
 			}
-			for btnID, button := range buttonMap {
+			for btnID, button := range pageConfig {
 				buttonCopy := button
 				originalButtonBeforeClear := button
 
@@ -164,7 +164,7 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 					// Continue? Or return error? Continue seems reasonable.
 				} else {
 					if !reflect.DeepEqual(originalButtonBeforeClear, buttonCopy) {
-						buttonMap[btnID] = buttonCopy // Update the actual map
+						pageConfig[btnID] = buttonCopy // Update the actual map
 						anyChangeMade = true
 					}
 				}

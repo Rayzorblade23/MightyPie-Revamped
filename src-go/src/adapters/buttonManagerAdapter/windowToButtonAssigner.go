@@ -20,7 +20,7 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 	showProgramButtons map[string]*Button,
 	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
-	buttonMap PageConfig,
+	pageConfig PageConfig,
 ) {
 	// log.Printf("DEBUG: processExistingShowProgramHandles - Starting for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, buttonPtr := range showProgramButtons {
@@ -39,7 +39,7 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		buttonModified := false
 		if props.WindowHandle > 0 {
 			if winInfo, exists := availableWindows[props.WindowHandle]; exists {
-				if winInfo.ExePath == props.ExePath {
+				if winInfo.AppName == props.ButtonTextLower {
 					// log.Printf("DEBUG: [%s] Found valid existing handle %d for %s.", buttonKey, props.WindowHandle, props.ExePath) // Removed DEBUG
 					originalButton := buttonCopy
 					if err := updateButtonWithWindowInfo(&buttonCopy, winInfo, props.WindowHandle); err != nil {
@@ -75,8 +75,8 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		}
 
 		if buttonModified {
-			// log.Printf("DEBUG: [%s] ShowProgram Button modified, updating buttonMap.", buttonKey) // Removed DEBUG
-			buttonMap[btnID] = buttonCopy
+			// log.Printf("DEBUG: [%s] ShowProgram Button modified, updating pageConfig.", buttonKey) // Removed DEBUG
+			pageConfig[btnID] = buttonCopy
 		}
 	}
 }
@@ -87,7 +87,7 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 	showAnyButtons map[string]*Button,
 	availableWindows core.WindowsUpdate,
 	processedButtons map[string]bool,
-	buttonMap PageConfig,
+	pageConfig PageConfig,
 ) {
 	// log.Printf("DEBUG: processExistingShowAnyHandles - Starting Step D logic for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, buttonPtr := range showAnyButtons {
@@ -132,8 +132,8 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 		}
 
 		if buttonModified {
-			// log.Printf("DEBUG: [%s] ShowAny Button modified, updating buttonMap.", buttonKey) // Removed DEBUG
-			buttonMap[btnID] = buttonCopy
+			// log.Printf("DEBUG: [%s] ShowAny Button modified, updating pageConfig.", buttonKey) // Removed DEBUG
+			pageConfig[btnID] = buttonCopy
 		}
 	}
 }
@@ -172,7 +172,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 					continue
 				}
 
-				if props.WindowHandle == InvalidHandle && props.ExePath != "" {
+				if props.WindowHandle == InvalidHandle {
 					foundHandle := -1
 					var foundWinInfo core.WindowInfo
 					for handle, winInfo := range availableWindows {
@@ -396,7 +396,6 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 		props.WindowHandle = newHandle
 		props.ButtonTextUpper = winInfo.Title
 		props.ButtonTextLower = winInfo.AppName
-		props.ExePath = winInfo.ExePath // Update ExePath for ShowAny
 		if winInfo.IconPath != "" {
 			props.IconPath = winInfo.IconPath
 		}
@@ -415,7 +414,6 @@ func clearButtonWindowProperties(button *Button) error {
 		}
 
 		// Preserve existing properties from buttonConfig
-		exePath := props.ExePath
 		buttonLower := props.ButtonTextLower
 		iconPath := props.IconPath
 
@@ -424,7 +422,6 @@ func clearButtonWindowProperties(button *Button) error {
 		props.ButtonTextUpper = ""         // Clear window title
 
 		// Ensure we keep program identity
-		props.ExePath = exePath             // Keep the program path
 		props.ButtonTextLower = buttonLower // Keep app name
 		props.IconPath = iconPath           // Keep icon from buttonConfig
 
@@ -441,7 +438,6 @@ func clearButtonWindowProperties(button *Button) error {
 		props.ButtonTextUpper = ""
 		props.ButtonTextLower = ""
 		props.IconPath = ""
-		props.ExePath = ""
 
 		return SetButtonProperties(button, props)
 	}

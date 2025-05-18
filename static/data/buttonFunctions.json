@@ -1,0 +1,12 @@
+{
+  "Maximize": {
+    "function_name": "maximizeWindow",
+    "icon_path": "/tabler_icons/window-maximize.svg",
+    "description": "Maximizes the window below the cursor."
+  },
+  "Minimize": {
+    "function_name": "minimizeWindow",
+    "icon_path": "/tabler_icons/window-minimize.svg",
+    "description": "Minimizes the window below the cursor."
+  }
+}

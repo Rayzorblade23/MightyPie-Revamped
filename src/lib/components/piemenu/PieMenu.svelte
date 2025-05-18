@@ -16,15 +16,22 @@
         mouseEvents
     } from "$lib/components/piemenu/piemenuTypes.ts";
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
-    import {PUBLIC_NATSSUBJECT_PIEMENU_CLICK, PUBLIC_NATSSUBJECT_PIEMENU_OPENED} from "$env/static/public";
+    import {
+        PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
+        PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
+        PUBLIC_PIEBUTTON_HEIGHT as BUTTON_HEIGHT,
+        PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
+        PUBLIC_PIEMENU_RADIUS as RADIUS
+    } from "$env/static/public";
     import {getCurrentWindow} from "@tauri-apps/api/window";
 
+
     const numButtons = 8;
-    const radius = 150;
-    const buttonWidth = 9.3
-    const buttonHeight = 2.3
+    const radius = Number(RADIUS);
+    const buttonWidth = Number(BUTTON_WIDTH);
+    const buttonHeight = Number(BUTTON_HEIGHT);
     const width = 600;
-    const height = 500;
+    const height = 380;
     const deadzoneRadius = 18;
 
     let activeSlice = $state(-1);
@@ -34,7 +41,7 @@
     let indicator = $state("");
     let indicatorRotation = $state(0);
 
-    let {pageID}: { pageID: number } = $props();
+    let {menuID, pageID}: { menuID: number; pageID: number } = $props();
 
     const handleButtonClickMessage = async (message: string) => {
         try {
@@ -59,7 +66,7 @@
                 console.log(`Middle click in Slice: ${activeSlice}!`);
                 if (activeSlice === -1) {
                     publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
-                    console.log("Deadzone clicked! Open settings.");
+                    console.log("Deadzone clicked! Open piemenuConfig.");
                     await goto('/specialMenu');
                     return;
                 }
@@ -141,6 +148,7 @@
             }}
         >
             <PieButton
+                    menuID={menuID}
                     pageID={pageID}
                     buttonID={i}
                     x={0}
@@ -168,5 +176,6 @@
         align-items: center;
         backdrop-filter: brightness(50%);
         position: relative;
+        overflow: hidden;
     }
 </style>
