@@ -1,4 +1,4 @@
-﻿<!-- PieMenu.svelte -->
+<!-- PieMenu.svelte -->
 <script lang="ts">
     import {onDestroy, onMount} from 'svelte';
     import {fly} from 'svelte/transition';
@@ -18,13 +18,15 @@
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
-        PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
+        PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
         PUBLIC_PIEBUTTON_HEIGHT as BUTTON_HEIGHT,
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
         PUBLIC_PIEMENU_RADIUS as RADIUS
     } from "$env/static/public";
     import {getCurrentWindow} from "@tauri-apps/api/window";
-
+    import { getButtonType, getButtonProperties } from "$lib/data/configHandler.svelte.ts";
+    import { PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE } from "$env/static/public";
+    import type { IPieButtonExecuteMessage } from "$lib/data/piebuttonTypes.ts";
 
     const numButtons = 8;
     const radius = Number(RADIUS);
@@ -82,9 +84,35 @@
     );
 
     $effect(() => {
-        console.log("subscription_button_click Status:", subscription_button_click.status); // e.g., 'subscribing', 'subscribed', 'failed'
+        console.log("subscription_button_click Status:", subscription_button_click.status);
         if (subscription_button_click.error) {
             console.error("subscription_button_click Error:", subscription_button_click.error);
+        }
+    });
+
+    const handleShortcutReleasedMessage = async (message: string) => {
+        console.log('[NATS] Shortcut released message received:', message);
+        if (activeSlice !== -1) {
+            currentMouseEvent = mouseEvents.left_down;
+            // Wait for the DOM/reactivity to process the state change
+            setTimeout(() => {
+                currentMouseEvent = mouseEvents.left_up;
+                // Optionally close the menu here
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, { piemenuOpened: false });
+                getCurrentWindow().hide();
+            }, 0);
+        }
+    };
+
+    const subscription_shortcut_released = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
+        handleShortcutReleasedMessage
+    );
+
+    $effect(() => {
+        console.log("subscription_shortcut_released Status:", subscription_shortcut_released.status);
+        if (subscription_shortcut_released.error) {
+            console.error("subscription_shortcut_released Error:", subscription_shortcut_released.error);
         }
     });
 
