@@ -3,11 +3,12 @@
     // Import subscribeToSubject AND the getter for connection status
     import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
-    import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
     import {hasPageForMenu} from "$lib/data/configHandler.svelte.ts";
-    import {getCurrentWindow} from "@tauri-apps/api/window";
+    import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
+    import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
+    import {PUBLIC_PIEMENU_SIZE_X, PUBLIC_PIEMENU_SIZE_Y} from "$env/static/public";
     import {onMount} from "svelte";
 
     // --- Core State ---
@@ -15,8 +16,8 @@
     let isPieMenuVisible = $state(false);
     let pageID = $state(0);
     let menuID = $state(0);
-    let monitorScaleFactor = $state(1);
     let isNatsReady = $state(false);
+    let monitorScaleFactor = $state(1);
 
     async function handlePieMenuVisible(newPageID?: number) {
         if (newPageID !== undefined) {
@@ -133,6 +134,8 @@
     });
 
     onMount(async () => {
+        const currentWindow = getCurrentWindow();
+        await currentWindow.setSize(new LogicalSize(Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y)));
         console.log("[onMount] Forcing initial hidden state.");
         await getCurrentWindow().hide();
         await handlePieMenuHidden();
@@ -144,7 +147,7 @@
     <div
             aria-labelledby="piemenu-title"
             aria-modal="true"
-            class="absolute bg-black/20 border-0 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
+            class="absolute border-0 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>

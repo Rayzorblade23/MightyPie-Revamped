@@ -1,1 +1,69 @@
-﻿@import 'tailwindcss';
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --color-accent-anywin: #5a14b7;
+    --color-accent-programwin: #fa9fa4;
+    --color-accent-launch: #f37fc0;
+    --color-accent-function: #71b8ed;
+
+    --color-foreground-base: #D8DEE9;
+    --color-background-base: #1d1b16;
+    --color-text-base: #EEEEEE;
+
+    --color-button-hover-bg: #5f3c8e;
+    --color-button-pressed-left-bg: #5a14b7;
+    --color-button-pressed-middle-bg: #f37fc0;
+    --color-button-pressed-right-bg: #1d1b16;
+}
+
+.horizontal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9; /* thumb, track for light */
+}
+
+.horizontal-scrollbar::-webkit-scrollbar {
+    height: 8px;
+}
+
+.horizontal-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 6px;
+}
+
+.horizontal-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+
+html.dark .horizontal-scrollbar {
+    scrollbar-color: #475569 #1e293b; /* thumb, track for dark */
+}
+
+html.dark .horizontal-scrollbar::-webkit-scrollbar-thumb {
+    background: #475569 !important;
+}
+
+html.dark .horizontal-scrollbar::-webkit-scrollbar-track {
+    background: #1e293b !important;
+}
+
+/* PieButton interactive states (moved from PieButton.svelte for Svelte/IDE compatibility) */
+button.hovered:not(.select-none),
+button.active-btn:not(.select-none) {
+    background-color: var(--color-button-hover-bg);
+    color: white !important;
+}
+button.pressed-left:not(.select-none) {
+    background-color: var(--color-button-pressed-left-bg);
+    color: white !important;
+}
+button.pressed-middle:not(.select-none) {
+    background-color: var(--color-button-pressed-middle-bg);
+    color: white !important;
+}
+button.pressed-right:not(.select-none) {
+    background-color: var(--color-button-pressed-right-bg);
+    color: white !important;
+}

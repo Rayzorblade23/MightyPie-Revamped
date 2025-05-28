@@ -1,4 +1,4 @@
-﻿<!-- src/lib/components/piemenuConfig/ButtonInfoDisplay.svelte -->
+<!-- src/lib/components/piemenuConfig/ButtonInfoDisplay.svelte -->
 <script lang="ts">
     import {type Button, ButtonType} from "$lib/data/piebuttonTypes.ts";
     import {getMenuConfiguration} from "$lib/data/configHandler.svelte.ts";
@@ -41,7 +41,7 @@
         [ButtonType.ShowAnyWindow]: "Show Any Window",
         [ButtonType.CallFunction]: "Call Function",
         [ButtonType.LaunchProgram]: "Launch Program",
-        [ButtonType.Disabled]: "Disabled (Empty Slot)",
+        [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
 
@@ -107,10 +107,12 @@
     }
 
     function getFilteredProperties(button: Button | undefined) {
-        // ... (full implementation including crucial filter logic, as before)
-        if (!button || button.button_type === ButtonType.Disabled || !button.properties) {
-            const relevantKeysForType = (button && button.button_type !== ButtonType.Disabled) ? getDropdownFields(button.button_type) : [];
-            return {props: {}, relevantKeys: relevantKeysForType};
+        if (!button || button.button_type === ButtonType.Disabled) {
+            let relevantKeysForType: string[] = [];
+            if (button && (button as Button).button_type !== ButtonType.Disabled) {
+                relevantKeysForType = getDropdownFields((button as Button).button_type);
+            }
+            return {props: button?.properties || {}, relevantKeys: relevantKeysForType};
         }
         const relevantKeys = getDropdownFields(button.button_type);
         if (relevantKeys.length === 0) {
@@ -190,14 +192,16 @@
     {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getMenuConfiguration().get(menuID)?.get(pageID)?.has(buttonID)}
     {@const friendlyButtonTypeName = getFriendlyButtonTypeName(button.button_type)}
 
-    <div class="p-4 border rounded-md shadow-sm bg-gray-50 text-gray-800">
-        <h2 class="text-lg font-semibold mb-3 text-gray-900">Button Details</h2>
+    <div class="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 w-full min-w-0">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Button Details</h2>
+            <p class="text-right">Slot: {slotIndex + 1} <span
+                    class="text-gray-600 dark:text-gray-400">(Page: {pageID + 1})</span></p>
+        </div>
         <div class="text-sm space-y-2">
-            <p><strong>Slot:</strong> {slotIndex + 1} <span class="text-gray-600">(Config ID: {buttonID})</span></p>
-
             {#if isTrulyEmptySlot && button.button_type === ButtonType.Disabled}
-                <p class="text-yellow-700 font-medium"><strong>Status:</strong> Empty Slot</p>
-                <p class="text-gray-600 mb-2">Select a type below to configure this button.</p>
+                <p class="text-yellow-700 dark:text-yellow-400 font-medium"><strong>Status:</strong> Empty Slot</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-2">Select a type below to configure this button.</p>
             {/if}
 
             <ButtonTypeSelector
@@ -239,12 +243,12 @@
                                 {friendlyButtonTypeName}
                         />
                     {:else if !hasSpecializedUI}
-                        <p class="text-gray-600 mt-2">
+                        <p class="text-gray-600 dark:text-gray-400 mt-2">
                             {friendlyButtonTypeName} has no other specific properties to configure here.
                         </p>
                     {/if}
                 {:else if button.button_type !== ButtonType.Disabled}
-                    <p class="text-gray-600 mt-2">
+                    <p class="text-gray-600 dark:text-gray-400 mt-2">
                         No properties are defined for this button (type: <span
                             class="font-medium">{friendlyButtonTypeName}</span>).
                     </p>
@@ -254,7 +258,7 @@
     </div>
 {:else}
     <div class="p-4 text-center">
-        <p class="text-gray-500">
+        <p class="text-gray-500 dark:text-gray-400">
             Select a button from a pie menu preview to see its details.
         </p>
     </div>

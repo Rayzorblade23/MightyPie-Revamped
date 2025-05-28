@@ -1,6 +1,7 @@
 <!-- SettingsPieButton.svelte -->
 <script lang="ts">
-    import {type ButtonType} from '$lib/data/piebuttonTypes.ts';
+    import { ButtonType } from '$lib/data/piebuttonTypes.ts';
+    import { composePieButtonClasses, fetchSvgIcon } from '../piebutton/pieButtonUtils';
 
     // Helper type for properties (can be moved to piebuttonTypes.ts if used elsewhere)
     type ButtonPropertiesUnion =
@@ -19,7 +20,8 @@
         properties,
         buttonTextUpper = '',
         buttonTextLower = '',
-        onclick
+        onclick,
+        active = false
     } = $props<{
         // Layout Props
         x: number;
@@ -33,28 +35,31 @@
         buttonTextUpper?: string;
         buttonTextLower?: string;
         onclick?: (event: MouseEvent) => void;
+        active?: boolean;
     }>();
 
     let svgPromise = $state<Promise<string> | undefined>(undefined);
 
     $effect(() => {
         if (properties?.icon_path?.endsWith('.svg')) {
-            // console.log(`Fetching SVG: ${properties.icon_path} for button ${buttonTextUpper}`);
-            svgPromise = fetch(properties.icon_path)
-                .then(r => {
-                    if (!r.ok) throw new Error(`Failed to fetch SVG: ${r.status} ${r.statusText}`);
-                    return r.text();
-                })
-                .then(text => text.replace(/<svg /, '<svg class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1" '))
-                .catch(err => {
-                    console.error(`Error fetching/processing SVG ${properties.icon_path}:`, err);
-                    return `<svg class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1" viewBox="0 0 24 24"><path fill="red" d="M12 2 L2 22 L22 22 Z M11 10 L13 10 L13 16 L11 16 Z M11 18 L13 18 L13 20 L11 20 Z"></path></svg>`; // Error SVG
-                });
+            svgPromise = fetchSvgIcon(properties.icon_path);
         } else {
-            svgPromise = undefined; // Reset if not an SVG or no icon_path
+            svgPromise = undefined;
         }
     });
 
+    let hovered = $state(false);
+    let pressedLeft = $state(false);
+
+    function handleMouseEnter() { hovered = true; }
+    function handleMouseLeave() { hovered = false; pressedLeft = false; }
+    function handleMouseDown(e: MouseEvent) { if (e.button === 0) pressedLeft = true; }
+    function handleMouseUp(e: MouseEvent) { if (e.button === 0) pressedLeft = false; }
+
+    const finalButtonClasses = () => {
+        const isDisabled = taskType === ButtonType.Disabled;
+        return composePieButtonClasses({ isDisabled, taskType: taskType ?? "default", allowSelectWhenDisabled: true });
+    };
 </script>
 
 <!-- The outer div handles absolute positioning using x, y passed as props -->
@@ -62,40 +67,53 @@
 <div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
     <button
         type="button"
-        class="bg-amber-400 flex items-center p-0.5 min-w-0 rounded-md shadow-md"
+        class={finalButtonClasses()}
+        class:hovered={hovered}
+        class:pressed-left={pressedLeft}
+        class:active-btn={active}
         style="width: {width}rem; height: {height}rem;"
         onclick={onclick}
+        onmouseenter={handleMouseEnter}
+        onmouseleave={handleMouseLeave}
+        onmousedown={handleMouseDown}
+        onmouseup={handleMouseUp}
     >
         {#if properties?.icon_path}
             {#if properties.icon_path.endsWith('.svg')}
                 {#if svgPromise}
                     {#await svgPromise}
-                        <div class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 animate-pulse bg-gray-300 rounded"></div>
-                        <!-- Placeholder -->
+                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5" style="aspect-ratio: 1/1;">
+                            ⌛ <!-- Loading indicator -->
+                        </div>
                     {:then svgContent}
-                        {@html svgContent}
+                        <span class="h-full flex-shrink-0 flex items-center justify-center p-0.5" style="aspect-ratio: 1/1;">{@html svgContent}</span>
                     {:catch error}
-                        <div class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 text-red-500" title={error?.message || 'Error loading SVG'}>⚠️</div>
-                        <!-- Error icon -->
+                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500" style="aspect-ratio: 1/1;" title={error?.message || 'Error loading SVG'}>
+                            ⚠️ <!-- Error icon -->
+                        </div>
                     {/await}
                 {/if}
             {:else}
-                <img src={properties.icon_path} alt="icon"
-                     class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 object-contain"/>
+                <img src={properties.icon_path} alt="button icon" class="h-full flex-shrink-0 object-contain p-1" style="aspect-ratio: 1/1;" />
             {/if}
-        {:else if taskType === 'empty'}
-            <span class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 flex items-center justify-center text-lg">➕</span>
-        {:else if taskType === 'disabled'}
-            <span class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 flex items-center justify-center text-lg">🚫</span>
-        {:else}
-            <span class="h-[1.75rem] w-[1.75rem] flex-shrink-0 mr-1 flex items-center justify-center text-lg">🔲</span>
         {/if}
 
-        <span class="flex flex-col flex-1 min-w-0">
+        <span class="flex flex-col flex-1 pl-1 min-w-0 items-start text-left">
             <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
             {#if buttonTextLower}
-                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-xs leading-tight">{buttonTextLower}</span>
+                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {buttonTextUpper ? 'text-xs' : 'text-sm'}">{buttonTextLower}</span>
             {/if}
         </span>
     </button>
 </div>
+
+<style>
+    button {
+        transition: background 0.15s, border-color 0.15s;
+    }
+    /* Make .active-btn trigger the same styles as :hover */
+    button.active-btn,
+    button.hovered {
+        /* No explicit color/background here; rely on existing hover styles (e.g. Tailwind or parent styles) */
+    }
+</style>

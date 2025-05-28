@@ -1,4 +1,4 @@
-﻿// piebuttonTypes.ts
+// piebuttonTypes.ts
 
 export interface IPieButtonExecuteMessage {
     page_index: number;
@@ -44,18 +44,25 @@ export interface CallFunctionProperties {
     icon_path?: string;
 }
 
+export interface DisabledProperties {
+    button_text_upper: string; // always empty string
+    button_text_lower: string; // always empty string
+    icon_path?: string; // always empty string
+}
+
 export type Button =
     | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
     | { button_type: ButtonType.ShowAnyWindow; properties: ShowAnyWindowProperties }
     | { button_type: ButtonType.CallFunction; properties: CallFunctionProperties }
     | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
-    | { button_type: ButtonType.Disabled };
+    | { button_type: ButtonType.Disabled; properties: DisabledProperties };
 
 export type ButtonPropertiesUnion =
     | ShowProgramWindowProperties
     | ShowAnyWindowProperties
     | CallFunctionProperties
-    | LaunchProgramProperties;
+    | LaunchProgramProperties
+    | DisabledProperties;
 
 // Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }
 export type ConfigData = Record<string, Record<string, Record<string, ButtonData>>>;

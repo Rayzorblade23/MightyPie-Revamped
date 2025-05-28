@@ -1,4 +1,4 @@
-﻿<!-- src/lib/components/piemenuConfig/ProgramButtonConfig.svelte -->
+<!-- src/lib/components/piemenuConfig/ProgramButtonConfig.svelte -->
 <script lang="ts">
     import {
         type Button,
@@ -58,8 +58,10 @@
     }
 </script>
 
-<ApplicationSelector
+<div class="w-full min-w-0">
+    <ApplicationSelector
         {selectedAppName}
         {installedAppsMap}
         onSelect={handleAppSelect}
-/>
+    />
+</div>

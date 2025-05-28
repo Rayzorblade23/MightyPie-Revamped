@@ -1,4 +1,17 @@
 <script lang="ts">
+    import {
+        getBaseMenuConfiguration,
+        parseButtonConfig,
+        updateBaseMenuConfiguration,
+        updateMenuConfiguration
+    } from '$lib/data/configHandler.svelte.ts';
+    import {
+        getInstalledAppsInfo,
+        parseInstalledAppsInfo,
+        updateInstalledAppsInfo
+    } from '$lib/data/installedAppsInfoManager.svelte.ts';
+    import {validateAndSyncConfig} from '$lib/data/configValidation.svelte.ts';
+
     import {onMount} from "svelte";
     import {browser} from "$app/environment";
     import "../app.css";
@@ -21,13 +34,17 @@
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO
     } from '$env/static/public';
     import type {ConfigData} from '$lib/data/piebuttonTypes.ts';
-    import {
-        parseButtonConfig,
-        updateBaseMenuConfiguration,
-        updateMenuConfiguration
-    } from '$lib/data/configHandler.svelte.ts';
-    import {parseInstalledAppsInfo, updateInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
+
+    let validationHasRun = false;
+    $effect(() => {
+        const baseMenuConfiguration = getBaseMenuConfiguration();
+        const apps = getInstalledAppsInfo();
+        if (!validationHasRun && baseMenuConfiguration.size > 0 && apps.size > 0) {
+            validateAndSyncConfig();
+            validationHasRun = true;
+        }
+    });
 
     let {children} = $props();
     let displayStatus = $state('Idle');

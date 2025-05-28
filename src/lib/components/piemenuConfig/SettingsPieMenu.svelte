@@ -1,4 +1,4 @@
-﻿<!-- src/lib/components/piemenuConfig/SettingsPieMenu.svelte -->
+<!-- src/lib/components/piemenuConfig/SettingsPieMenu.svelte -->
 <script lang="ts">
     import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts'; // Assuming you add this to your types file
     import {ButtonType} from '$lib/data/piebuttonTypes.ts';
@@ -8,6 +8,7 @@
     import SettingsPieButton from "$lib/components/piemenuConfig/SettingsPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/elements/RemovePageButton.svelte";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
+    import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
 
     // --- Component Props (using $props) ---
     let {
@@ -16,6 +17,7 @@
         buttonsOnPage,
         onButtonClick,
         onRemovePage,
+        activeSlotIndex = -1,
     } = $props<{
         menuID: number;
         pageID: number;
@@ -28,6 +30,7 @@
             button: Button
         }) => void;
         onRemovePage: (pageID: number) => void;
+        activeSlotIndex?: number;
     }>();
 
     // --- Layout Constants ---
@@ -44,13 +47,25 @@
     // --- State for calculated button center positions (offsets from container center) ---
     let internalSlotXYOffsets = $state<{ x: number; y: number }[]>([]);
 
-    onMount(() => {
+    // --- Indicator State ---
+    let indicator = $state("");
+    // Offset so that Button 0 is at -67.5deg (if 8 buttons, 360/8 = 45, so 0 is at -67.5)
+    const INDICATOR_START_ANGLE = -67.5;
+    const INDICATOR_STEP_ANGLE = 45;
+    let indicatorRotation = $state(0);
+    $effect(() => {
+        if (activeSlotIndex >= 0 && activeSlotIndex < numLayoutSlots) {
+            indicatorRotation = INDICATOR_START_ANGLE + (activeSlotIndex * INDICATOR_STEP_ANGLE);
+        } else {
+            indicatorRotation = 0;
+        }
+    });
+
+
+    onMount(async () => {
         let newPositions: { x: number; y: number }[] = [];
-
         for (let i = 0; i < numLayoutSlots; i++) {
-
             const {offsetX, offsetY} = calculatePieButtonOffsets(i, buttonWidthRem, buttonHeightRem);
-
             const {x, y} = calculatePieButtonPosition(
                 i,
                 numLayoutSlots,
@@ -63,6 +78,7 @@
             newPositions.push({x: x, y: y});
         }
         internalSlotXYOffsets = newPositions;
+        indicator = await loadAndProcessIndicatorSVG();
     });
 
     const NUM_SLOTS_ITERATION = numLayoutSlots;
@@ -92,25 +108,20 @@
         let buttonTextUpper = '';
         let buttonTextLower = '';
 
-        if (currentButton.button_type !== ButtonType.Disabled && 'properties' in currentButton && currentButton.properties) {
-            const props = currentButton.properties;
-            if ('button_text_upper' in props && typeof props.button_text_upper === 'string') {
-                buttonTextUpper = props.button_text_upper;
-            }
-            if ('button_text_lower' in props && typeof props.button_text_lower === 'string') {
-                buttonTextLower = props.button_text_lower;
-            }
+        // Always safe to access properties for all button types
+        const props = currentButton.properties;
+        if (props && 'button_text_upper' in props && typeof props.button_text_upper === 'string') {
+            buttonTextUpper = props.button_text_upper;
+        }
+        if (props && 'button_text_lower' in props && typeof props.button_text_lower === 'string') {
+            buttonTextLower = props.button_text_lower;
         }
 
         if (currentButton.button_type === ButtonType.Disabled) {
-            buttonTextUpper = buttonTextUpper || `Slot ${slotIndex + 1}`;
-            buttonTextLower = buttonTextLower || 'Disabled';
+            buttonTextUpper = buttonTextUpper || "Disabled";
+            buttonTextLower = buttonTextLower || "";
         } else if (currentButton.button_type === ButtonType.CallFunction) {
-            if ('properties' in currentButton && currentButton.properties) {
-                buttonTextUpper = buttonTextUpper || (currentButton.properties as import('$lib/data/piebuttonTypes.ts').CallFunctionProperties).button_text_upper || 'Function';
-            } else {
-                buttonTextUpper = buttonTextUpper || 'Function';
-            }
+            buttonTextUpper = buttonTextUpper || (props as import('$lib/data/piebuttonTypes.ts').CallFunctionProperties).button_text_upper || 'Function';
         } else if (currentButton.button_type === ButtonType.ShowAnyWindow) {
             buttonTextUpper = 'Show Any';
         } else if (currentButton.button_type === ButtonType.ShowProgramWindow) {
@@ -120,9 +131,7 @@
         return {
             actualButton: currentButton,
             taskType: currentButton.button_type,
-            properties: (currentButton.button_type !== ButtonType.Disabled && 'properties' in currentButton && currentButton.properties)
-                ? currentButton.properties as ButtonPropertiesUnion
-                : undefined,
+            properties: props as ButtonPropertiesUnion,
             buttonTextUpper,
             buttonTextLower,
         };
@@ -132,7 +141,14 @@
         const buttonFromConfig = buttonsOnPage.get(slotIndex);
         const buttonForDispatch: Button = buttonFromConfig
             ? buttonFromConfig
-            : {button_type: ButtonType.Disabled}; // Default to disabled if somehow not found
+            : {
+                button_type: ButtonType.Disabled,
+                properties: {
+                    button_text_upper: "",
+                    button_text_lower: "",
+                    icon_path: "",
+                }
+            }; // Default to disabled if somehow not found
 
         onButtonClick({
             menuID: menuID,
@@ -183,6 +199,19 @@
     }
 </script>
 
+<style>
+    .indicator-animated {
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: transform, opacity;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .indicator-visible {
+        opacity: 0.9;
+        pointer-events: none;
+    }
+</style>
+
 <!-- Main container for the Pie Menu visualization -->
 <div
         class="pie-menu-settings-view relative"
@@ -193,6 +222,14 @@
     {#if internalSlotXYOffsets.length === 0 && NUM_SLOTS_ITERATION > 0}
         <p class="text-gray-500 text-xs">Calculating positions...</p>
     {/if}
+    <!-- SVG Indicator: Only visible if this menu has the active button -->
+    <div
+      class="absolute left-1/2 top-1/2 z-0 indicator-animated"
+      class:indicator-visible={indicator && activeSlotIndex >= 0 && internalSlotXYOffsets[activeSlotIndex]}
+      style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);"
+    >
+        <img alt="indicator" height="300" width="300" src={indicator} style="display: block; width: 300px; height: 300px;" />
+    </div>
     {#each Array(NUM_SLOTS_ITERATION) as _, slotIndex (slotIndex)}
         {@const displayInfo = getButtonDisplayInfo(slotIndex)}
         {@const positionOffset = internalSlotXYOffsets[slotIndex]}
@@ -207,12 +244,18 @@
                     buttonTextUpper={displayInfo.buttonTextUpper}
                     buttonTextLower={displayInfo.buttonTextLower}
                     onclick={() => handleSlotClick(slotIndex)}
+                    active={slotIndex === activeSlotIndex}
             />
         {/if}
     {/each}
 
-    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span class="text-sm font-medium text-gray-700 bg-white/70 px-2 py-0.5 rounded-md shadow">Page {pageID + 1}</span>
+    <div class="absolute left-3 top-3 z-10 pointer-events-none">
+        <span
+            class="text-sm font-medium px-3 py-1 rounded-md shadow bg-slate-300 text-gray-700 dark:bg-slate-600 dark:text-gray-100"
+            style="display:inline-block;"
+        >
+            Page {pageID + 1}
+        </span>
     </div>
 </div>
 

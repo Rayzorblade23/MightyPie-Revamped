@@ -18,15 +18,13 @@
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
-        PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
+        PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
+        PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
         PUBLIC_PIEBUTTON_HEIGHT as BUTTON_HEIGHT,
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
         PUBLIC_PIEMENU_RADIUS as RADIUS
     } from "$env/static/public";
     import {getCurrentWindow} from "@tauri-apps/api/window";
-    import { getButtonType, getButtonProperties } from "$lib/data/configHandler.svelte.ts";
-    import { PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE } from "$env/static/public";
-    import type { IPieButtonExecuteMessage } from "$lib/data/piebuttonTypes.ts";
 
     const numButtons = 8;
     const radius = Number(RADIUS);
@@ -98,7 +96,7 @@
             setTimeout(() => {
                 currentMouseEvent = mouseEvents.left_up;
                 // Optionally close the menu here
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, { piemenuOpened: false });
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
                 getCurrentWindow().hide();
             }, 0);
         }

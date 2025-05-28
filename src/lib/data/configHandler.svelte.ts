@@ -204,37 +204,37 @@ function convertToButton(
         case ButtonType.ShowAnyWindow:
             if (!properties) {
                 console.warn(createLogMessage("Properties missing"));
-                return {button_type: ButtonType.Disabled};
+                return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as ShowAnyWindowProperties};
 
         case ButtonType.ShowProgramWindow:
             if (!properties) {
                 console.warn(createLogMessage("Properties missing"));
-                return {button_type: ButtonType.Disabled};
+                return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as ShowProgramWindowProperties};
 
         case ButtonType.LaunchProgram:
             if (!properties) {
                 console.warn(createLogMessage("Properties missing"));
-                return {button_type: ButtonType.Disabled};
+                return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as LaunchProgramProperties};
 
         case ButtonType.CallFunction:
             if (!properties) {
                 console.warn(createLogMessage("Properties object missing"));
-                return {button_type: ButtonType.Disabled};
+                return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as CallFunctionProperties};
 
         case ButtonType.Disabled:
-            return {button_type: ButtonType.Disabled};
+            return getDefaultButton(ButtonType.Disabled);
 
         default:
             console.warn(createLogMessage("Unknown or missing button type"));
-            return {button_type: ButtonType.Disabled};
+            return getDefaultButton(ButtonType.Disabled);
     }
 }
 
@@ -258,12 +258,10 @@ export function publishBaseMenuConfiguration(menuConfig: MenuConfiguration): voi
 
             buttonsOnPage.forEach((button, buttonId) => {
                 const buttonKey = buttonId.toString();
-                if (button.button_type !== ButtonType.Disabled) {
-                    configData[menuKey][pageKey][buttonKey] = {
-                        button_type: button.button_type,
-                        properties: button.properties,
-                    };
-                }
+                configData[menuKey][pageKey][buttonKey] = {
+                    button_type: button.button_type,
+                    properties: button.properties,
+                };
             });
         });
     });

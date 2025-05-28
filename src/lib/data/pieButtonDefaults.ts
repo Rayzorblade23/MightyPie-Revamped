@@ -1,9 +1,10 @@
-﻿// piebuttonDefaults.ts
+// piebuttonDefaults.ts
 
 import {
     type Button,
     ButtonType,
     type CallFunctionProperties,
+    type DisabledProperties,
     type LaunchProgramProperties,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
@@ -50,7 +51,11 @@ const BUTTON_PROPERTIES_MAP = {
     },
     [ButtonType.Disabled]: {
         button_type: ButtonType.Disabled,
-        properties: undefined,
+        properties: {
+            button_text_upper: "",
+            button_text_lower: "",
+            icon_path: "",
+        } as DisabledProperties,
         dropdownFields: [] // No dropdowns for disabled buttons
     }
 } as const;
