@@ -1,5 +1,5 @@
-﻿import {convertRemToPixels} from "$lib/generalUtil.ts";
-import {getMousePosition} from "$lib/mouseFunctions.ts";
+import {convertRemToPixels} from "$lib/generalUtil.ts";
+import {getMousePosition, setMousePosition} from "$lib/mouseFunctions.ts";
 import {
     getCurrentWindow,
     LogicalPosition,
@@ -249,7 +249,13 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
     await window.setPosition(new LogicalPosition(logicalX, logicalY));
 
     let newSize = new LogicalSize(innerSize.width / windowScaleFactor, innerSize.height / windowScaleFactor);
-
     await window.setSize(newSize);
+
+    const finalOuterPos = await window.outerPosition();
+    const finalOuterSize = await window.outerSize();
+    const centerX = Math.round(finalOuterPos.x + finalOuterSize.width / 2);
+    const centerY = Math.round(finalOuterPos.y + finalOuterSize.height / 2);
+    await setMousePosition(centerX, centerY);
+
     return newScaleFactor;
 }

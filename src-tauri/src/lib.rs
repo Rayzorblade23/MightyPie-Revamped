@@ -1,4 +1,4 @@
-use enigo::{Enigo, Mouse, Settings};
+use enigo::{Enigo, Settings, Mouse, Coordinate};
 use std::env;
 use tauri::command;
 use tauri::Manager;
@@ -18,6 +18,24 @@ pub struct MousePos {
 fn get_mouse_pos() -> (i32, i32) {
     let enigo = Enigo::new(&Settings::default());
     enigo.unwrap().location().unwrap()
+}
+
+#[command]
+fn set_mouse_pos(x: i32, y: i32) {
+    let mut enigo = Enigo::new(&Settings::default())
+        .expect("Failed to initialize Enigo for set_mouse_pos");
+
+    // The ONLY change needed is here: Absolute -> Abs
+    match enigo.move_mouse(x, y, Coordinate::Abs) {
+        Ok(_) => {
+            // Successfully moved the mouse.
+            // e.g., println!("Mouse moved to ({}, {}) absolutely", x, y);
+        }
+        Err(e) => {
+            // Failed to move the mouse. Log the error.
+            eprintln!("Failed to move mouse to ({}, {}) absolutely: {:?}", x, y, e);
+        }
+    }
 }
 
 use dotenvy::from_filename;
@@ -62,7 +80,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_mouse_pos,
-            get_private_env_var
+            get_private_env_var,
+            set_mouse_pos,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
