@@ -1,10 +1,11 @@
+// Production-Ready: Minimal Comments, Refactored hookProc, Debug hardcoding commented
 package shortcutDetectionAdapter
 
 import (
 	"encoding/json"
 	"fmt"
 	"syscall"
-
+	"time"
 	"unsafe"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
@@ -13,174 +14,172 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type ShortcutDetectionAdapter struct {
-    natsAdapter  *natsAdapter.NatsAdapter
-    keyboardHook *KeyboardHook
-    hook         syscall.Handle
-    shortcuts    map[string]ShortcutEntry // index as string -> ShortcutEntry
-    pressedState map[string]bool
+const (
+	vkLSHIFT          = 0xA0
+	vkRSHIFT          = 0xA1
+	vkLCONTROL        = 0xA2
+	vkRCONTROL        = 0xA3
+	vkLALT            = 0xA4
+	vkRALT            = 0xA5
+	keyPressedMask    = 0x8000
+	keyAutorepeatFlag = 0x40000000
+)
+
+var mapSpecificEventModifierToGeneric = map[int]int{
+	vkLSHIFT: core.VK_SHIFT, vkRSHIFT: core.VK_SHIFT,
+	vkLCONTROL: core.VK_CONTROL, vkRCONTROL: core.VK_CONTROL,
+	vkLALT: core.VK_ALT, vkRALT: core.VK_ALT,
 }
 
-type ShortcutEntry struct {
-	Codes []int  `json:"codes"`
-	Label string `json:"label"`
+type ShortcutDetectionAdapter struct {
+	natsAdapter  *natsAdapter.NatsAdapter
+	keyboardHook *KeyboardHook
+	hook         syscall.Handle
+	shortcuts    map[string]core.ShortcutEntry
+	pressedState map[string]bool
 }
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
-    shortcutDetectionAdapter := &ShortcutDetectionAdapter{
-        natsAdapter:  natsAdapter,
-        shortcuts:    make(map[string]ShortcutEntry),
-        pressedState: make(map[string]bool),
-    }
+	adapter := &ShortcutDetectionAdapter{
+		natsAdapter:  natsAdapter,
+		shortcuts:    make(map[string]core.ShortcutEntry),
+		pressedState: make(map[string]bool),
+	}
 
-	// Request the initial set of shortcuts
 	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE")
-	natsAdapter.PublishMessage(requestUpdateSubject, nil)
+	adapter.natsAdapter.PublishMessage(requestUpdateSubject, nil)
 
-	// Subscribe to shortcut updates from the setter adapter
 	setterUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
-	natsAdapter.SubscribeToSubject(setterUpdateSubject, core.GetTypeName(shortcutDetectionAdapter), func(msg *nats.Msg) {
-		var shortcuts map[string]ShortcutEntry
-		if err := json.Unmarshal(msg.Data, &shortcuts); err != nil {
-			fmt.Printf("Failed to decode shortcuts update: %v\n", err)
+	adapter.natsAdapter.SubscribeToSubject(setterUpdateSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
+		var receivedShortcuts map[string]core.ShortcutEntry
+		if err := json.Unmarshal(natsMessage.Data, &receivedShortcuts); err != nil {
+			fmt.Printf("Error: Failed to decode shortcuts update from NATS: %v\n", err)
 			return
 		}
-		shortcutDetectionAdapter.shortcuts = shortcuts
-		fmt.Printf("Updated shortcuts: %+v\n", shortcuts)
-		shortcutDetectionAdapter.updateKeyboardHook()
+		adapter.shortcuts = receivedShortcuts
+		newPressedState := make(map[string]bool)
+		for shortcutKey := range adapter.shortcuts {
+			newPressedState[shortcutKey] = false
+		}
+		adapter.pressedState = newPressedState
+		adapter.updateKeyboardHook()
 	})
 
-	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	// Goroutine for initial/default hook setup after a delay.
+	// NATS updates will supersede these defaults.
+	go func(currentAdapter *ShortcutDetectionAdapter) {
+		time.Sleep(1500 * time.Millisecond)
+		// This block is for setting default/debug shortcuts if NATS doesn't provide them quickly.
+		// For pure NATS-driven setup, this 'if' block can be removed entirely.
+		// /*
+		// if len(currentAdapter.shortcuts) == 0 { // Only if NATS hasn't populated shortcuts yet
+		// 	currentAdapter.shortcuts = map[string]core.ShortcutEntry{
+		// 		"0": {Codes: []int{core.VK_SHIFT, core.VK_CONTROL, core.KeyMap["D"]}, Label: "Default: Shift+Ctrl+D"},
+		// 		// Example: "1": {Codes: []int{core.VK_ALT, core.KeyMap["S"]}, Label: "Default: Alt+S"},
+		// 	}
+		// 	currentAdapter.pressedState = make(map[string]bool)
+		// 	for k := range currentAdapter.shortcuts {
+		// 		currentAdapter.pressedState[k] = false
+		// 	}
+		// 	currentAdapter.updateKeyboardHook()
+		// }
+		// */
+	}(adapter)
 
-	natsAdapter.SubscribeToSubject(subject, core.GetTypeName(shortcutDetectionAdapter), func(msg *nats.Msg) {
+	pressedEventSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
+		var eventData shortcutPressed_Message
+		if err := json.Unmarshal(natsMessage.Data, &eventData); err != nil {
+			fmt.Printf("Error (NATS Listener): Failed to decode pressed event: %v\n", err)
+		}
+		// Optional: fmt.Printf("Info (NATS Listener): Shortcut pressed event observed: %+v\n", eventData)
+	})
+	return adapter
+}
 
-		var message shortcutPressed_Message
-		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			println("Failed to decode message: %v", err)
+func (adapter *ShortcutDetectionAdapter) updateKeyboardHook() {
+	if adapter.hook != 0 {
+		if core.UnhookWindowsHookEx != nil {
+			core.UnhookWindowsHookEx.Call(uintptr(adapter.hook))
+		}
+		adapter.hook = 0
+		adapter.keyboardHook = nil
+	}
+	if len(adapter.shortcuts) == 0 {
+		return
+	}
+
+	adapter.keyboardHook = NewKeyboardHookForShortcuts(adapter.shortcuts, func(shortcutKeyIndex string, shortcutVKCodes []int, isPressedEvent bool) bool {
+		shortcutIndexInt := 0
+		fmt.Sscanf(shortcutKeyIndex, "%d", &shortcutIndexInt) // Assuming index is always numeric string.
+		previousState := adapter.pressedState[shortcutKeyIndex]
+		if isPressedEvent && !previousState {
+			adapter.publishMessage(shortcutIndexInt, true)
+			adapter.pressedState[shortcutKeyIndex] = true
+		} else if !isPressedEvent && previousState {
+			adapter.publishMessage(shortcutIndexInt, false)
+			adapter.pressedState[shortcutKeyIndex] = false
+		}
+		return true
+	})
+
+	hookProcCallback := syscall.NewCallback(adapter.hookProc)
+	if core.SetWindowsHookEx == nil {
+		fmt.Println("CRITICAL Error: core.SetWindowsHookEx is nil!")
+		return
+	}
+
+	hookHandle, _, errOriginal := core.SetWindowsHookEx.Call(uintptr(core.WH_KEYBOARD_LL), hookProcCallback, 0, 0)
+	adapter.hook = syscall.Handle(hookHandle)
+
+	if adapter.hook == 0 {
+		fmt.Printf("Error: Failed to set keyboard hook: %v (GetLastError: %v)\n", errOriginal, syscall.GetLastError())
+		return
+	}
+
+	go func() {
+		var msg core.MSG
+		if core.GetMessage == nil {
+			fmt.Println("CRITICAL Error: GetMessage nil in msg loop!")
 			return
 		}
-
-		fmt.Printf("[ShortcutDetector] Shortcut pressed: %+v\n", message)
-
-	})
-
-	return shortcutDetectionAdapter
+		for {
+			core.GetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+		}
+	}()
 }
 
-func (a *ShortcutDetectionAdapter) updateKeyboardHook() {
-    // Stop and unhook previous hook if needed
-    if a.keyboardHook != nil && a.hook != 0 {
-        core.UnhookWindowsHookEx.Call(uintptr(a.hook))
-        a.hook = 0
-        a.keyboardHook = nil
-    }
-    // Create a new KeyboardHook that checks all shortcuts
-a.keyboardHook = NewKeyboardHookForShortcuts(a.shortcuts, func(index string, codes []int, pressed bool) bool {
-    idxInt := 0
-    fmt.Sscanf(index, "%d", &idxInt)
+// hookProc is the callback for Windows keyboard events.
+func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
+	if nCode == 0 && adapter.keyboardHook != nil && adapter.keyboardHook.shortcuts != nil {
+		keyboardHookStruct := (*core.KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
+		eventVKCode := int(keyboardHookStruct.VKCode)
+		eventFlags := keyboardHookStruct.Flags // Store flags for use in helpers
 
-    // Only publish on state change
-    prev := a.pressedState[index]
-	if pressed && !prev {
-		a.publishMessage(idxInt, codes, true)
-		a.pressedState[index] = true
-	} else if !pressed && prev {
-		a.publishMessage(idxInt, codes, false)
-		a.pressedState[index] = false
-	}
-    return true
-})
+		isKeyDownEvent := wParam == core.WM_KEYDOWN || wParam == core.WM_SYSKEYDOWN
+		isKeyUpEvent := wParam == core.WM_KEYUP || wParam == core.WM_SYSKEYUP
 
-    // Set the new hook
-    hookProc := syscall.NewCallback(a.hookProc)
-    ret, _, err := core.SetWindowsHookEx.Call(
-        uintptr(core.WH_KEYBOARD_LL),
-        hookProc,
-        0,
-        0,
-    )
-    a.hook = syscall.Handle(ret)
-    if a.hook == 0 {
-        fmt.Printf("Failed to set keyboard hook: %v\n", err)
-        return
-    }
-
-    // Start the message loop in a goroutine
-    go func() {
-        var msg core.MSG
-        for {
-            core.GetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-        }
-    }()
-}
-
-
-
-// New function to support multiple shortcuts
-func NewKeyboardHookForShortcuts(shortcuts map[string]ShortcutEntry, callback func(index string, codes []int, pressed bool) bool) *KeyboardHook {
-	return &KeyboardHook{
-		multiCallback: callback,
-		shortcuts:     shortcuts,
-	}
-}
-
-type KeyboardHook struct {
-    multiCallback func(index string, codes []int, pressed bool) bool
-    shortcuts     map[string]ShortcutEntry
-}
-
-func getMousePosition() (int, int, error) {
-	user32 := syscall.NewLazyDLL("user32.dll")
-	getCursorPos := user32.NewProc("GetCursorPos")
-
-	var pt core.POINT
-	ret, _, err := getCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
-	if ret == 0 {
-		return 0, 0, err
-	}
-	return int(pt.X), int(pt.Y), nil
-}
-
-// In hookProc, check all shortcuts
-func (a *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
-    if nCode == 0 && a.keyboardHook != nil && a.keyboardHook.shortcuts != nil {
-        kbd := (*core.KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
-        var pressed bool
-        if wParam == core.WM_KEYDOWN || wParam == core.WM_SYSKEYDOWN {
-            pressed = true
-        } else if wParam == core.WM_KEYUP || wParam == core.WM_SYSKEYUP {
-            pressed = false
-        } else {
-            ret, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
-            return uintptr(ret)
-        }
-        for idx, entry := range a.keyboardHook.shortcuts {
-            if len(entry.Codes) < 2 {
-                continue
-            }
-            mainKey := entry.Codes[len(entry.Codes)-1]
-            modifiers := entry.Codes[:len(entry.Codes)-1]
-            if int(kbd.VKCode) == mainKey && checkModifiers(modifiers) {
-                if a.keyboardHook.multiCallback != nil {
-                    a.keyboardHook.multiCallback(idx, entry.Codes, pressed)
-                }
-                return 1
-            }
-        }
-    }
-    ret, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
-    return uintptr(ret)
-}
-
-func checkModifiers(modifiers []int) bool {
-	getKeyState := core.User32.NewProc("GetKeyState")
-	for _, mod := range modifiers {
-		state, _, _ := getKeyState.Call(uintptr(mod))
-		if (state & 0x8000) == 0 {
-			return false
+		if isKeyDownEvent {
+			// Filter auto-repeat events (where previous key state was also down).
+			if (eventFlags & keyAutorepeatFlag) != 0 {
+				if core.CallNextHookEx != nil {
+					r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+					return r1
+				}
+				return 0
+			}
+			if adapter.handleKeyDown(eventVKCode) { // Pass only eventVKCode
+				return 1 // Event consumed
+			}
+		} else if isKeyUpEvent {
+			adapter.handleKeyUp(eventVKCode) // Pass only eventVKCode
 		}
 	}
-	return true
+	if core.CallNextHookEx != nil {
+		r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+		return r1
+	}
+	return 0
 }
 
 type shortcutPressed_Message struct {
@@ -189,31 +188,28 @@ type shortcutPressed_Message struct {
 	MouseY          int `json:"mouseY"`
 }
 
-func (a *ShortcutDetectionAdapter) publishMessage(shortcutPressed int, codes []int, pressed bool) {
-    x, y, err := getMousePosition()
-    if err != nil {
-        fmt.Printf("Failed to get mouse position: %v\n", err)
-        x, y = 0, 0
-    }
-
-    // Find the label from the shortcuts map
-    label := ""
-    indexStr := fmt.Sprintf("%d", shortcutPressed)
-    if entry, ok := a.shortcuts[indexStr]; ok {
-        label = entry.Label
-    }
-
-    msg := shortcutPressed_Message{
-        ShortcutPressed: shortcutPressed,
-        MouseX:          x,
-        MouseY:          y,
-    }
-
-    if pressed {
-        fmt.Printf("Publishing PRESSED for shortcut %d (%s) at (%d, %d)\n", shortcutPressed, label, x, y)
-        a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED"), msg)
-    } else {
-        fmt.Printf("Publishing RELEASED for shortcut %d (%s) at (%d, %d)\n", shortcutPressed, label, x, y)
-        a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED"), msg)
-    }
+func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, isPressedEvent bool) {
+	xPos, yPos, errMouse := core.GetMousePosition()
+	if errMouse != nil {
+		fmt.Printf("Error: Failed to get mouse position: %v\n", errMouse)
+		xPos, yPos = 0, 0
+	}
+	shortcutLabel := ""
+	stringifiedIndex := fmt.Sprintf("%d", shortcutIndexInt)
+	if shortcutDetails, found := adapter.shortcuts[stringifiedIndex]; found {
+		shortcutLabel = shortcutDetails.Label
+	}
+	outgoingMessage := shortcutPressed_Message{ShortcutPressed: shortcutIndexInt, MouseX: xPos, MouseY: yPos}
+	actionString := "RELEASED"
+	if isPressedEvent {
+		actionString = "PRESSED"
+	}
+	natsSubject := ""
+	if isPressedEvent {
+		natsSubject = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	} else {
+		natsSubject = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
+	}
+	fmt.Printf("Publishing %s for shortcut %d (%s) at (%d, %d)\n", actionString, shortcutIndexInt, shortcutLabel, xPos, yPos)
+	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 }

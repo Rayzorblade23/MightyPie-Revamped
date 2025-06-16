@@ -6,12 +6,7 @@ type ShortcutIndexMessage struct {
 	Index int `json:"index"`
 }
 
-type ShortcutEntry struct {
-	Codes []int  `json:"codes"`
-	Label string `json:"label"`
-}
-
-type ShortcutMap map[string]ShortcutEntry
+type ShortcutMap map[string]core.ShortcutEntry
 
 // IsValidShortcut checks if a shortcut is valid (at least one modifier and a main key).
 func IsValidShortcut(shortcut []int) bool {

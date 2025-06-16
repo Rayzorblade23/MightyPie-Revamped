@@ -1,6 +1,9 @@
 package core
 
-import "syscall"
+import (
+	"syscall"
+	"unsafe"
+)
 
 func FindKeyByValue(value int) string {
 	for key, val := range KeyMap {
@@ -27,6 +30,15 @@ func IsModifier(key int) bool {
 		return true
 	}
 	return false
+}
+
+func GetMousePosition() (int, int, error) {
+	var pt POINT
+	retValue, _, errSyscall := GetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	if retValue == 0 {
+		return 0, 0, errSyscall
+	}
+	return int(pt.X), int(pt.Y), nil
 }
 
 type POINT struct {
@@ -58,6 +70,11 @@ const (
 	WM_SYSKEYUP    = 0x0105
 )
 
+type ShortcutEntry struct {
+	Codes []int  `json:"codes"`
+	Label string `json:"label"`
+}
+
 type KBDLLHOOKSTRUCT struct {
 	VKCode    uint32
 	ScanCode  uint32
@@ -70,9 +87,17 @@ var (
 	User32              = syscall.NewLazyDLL("user32.dll")
 	SetWindowsHookEx    = User32.NewProc("SetWindowsHookExW")
 	CallNextHookEx      = User32.NewProc("CallNextHookEx")
-	GetMessage          = User32.NewProc("GetMessageW")
 	UnhookWindowsHookEx = User32.NewProc("UnhookWindowsHookEx")
 	PostQuitMessage     = User32.NewProc("PostQuitMessage")
+
+	// Keyboard/Mouse state - ADD THESE
+	GetKeyState        = User32.NewProc("GetKeyState")
+	GetCursorPos       = User32.NewProc("GetCursorPos")
+
+	// Message loop - ADD/MODIFY THESE
+	GetMessage          = User32.NewProc("GetMessageW")
+	TranslateMessage   = User32.NewProc("TranslateMessage")
+	DispatchMessage    = User32.NewProc("DispatchMessageW")
 )
 
 var KeyMap = map[string]int{

@@ -33,7 +33,7 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
     label := ShortcutCodesToString(shortcut)
 
     // Save/overwrite the shortcut
-    entry := ShortcutEntry{
+    entry := core.ShortcutEntry{
         Codes: shortcut,
         Label: label,
     }
