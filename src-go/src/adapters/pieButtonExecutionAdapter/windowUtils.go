@@ -7,6 +7,7 @@ import (
 	"unsafe"
 )
 
+// --- Windows API constants and helpers ---
 var (
 	user32 = syscall.NewLazyDLL("user32.dll")
 
@@ -18,23 +19,71 @@ var (
 	getWindowTextW      = user32.NewProc("GetWindowTextW")
 	getForegroundWindow = user32.NewProc("GetForegroundWindow")
 	switchToThisWindow  = user32.NewProc("SwitchToThisWindow")
+	getWindowPlacement  = user32.NewProc("GetWindowPlacement")
+)
+
+const (
+	SWP_NOACTIVATE = 0x0010
+	SW_MAXIMIZE    = 3
+	SW_MINIMIZE    = 6
+	SW_RESTORE     = 9
 )
 
 type RECT struct {
 	Left, Top, Right, Bottom int32
 }
 
-const (
-	SWP_NOACTIVATE = 0x0010
-)
-
-const (
-	SW_MAXIMIZE = 3
-	SW_MINIMIZE = 6
-	SW_RESTORE  = 9 // Activates and displays the window. If minimized/maximized, restores to original size/pos.
-)
+type windowPlacement struct {
+	Length           uint32
+	Flags            uint32
+	ShowCmd          uint32
+	PtMinPosition    [2]int32
+	PtMaxPosition    [2]int32
+	RcNormalPosition RECT
+}
 
 type WindowHandle uintptr
+
+// --- Window manipulation methods ---
+
+func (hwnd WindowHandle) Maximize() error {
+	_, _, err := setForegroundWindow.Call(uintptr(hwnd))
+	if err != nil && err.Error() != "The operation completed successfully." {
+		return fmt.Errorf("failed to set foreground window: %v", err)
+	}
+	_, _, err = showWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
+	if err != nil && err.Error() != "The operation completed successfully." {
+		return fmt.Errorf("failed to maximize window: %v", err)
+	}
+	return nil
+}
+
+func (hwnd WindowHandle) Minimize() error {
+	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_MINIMIZE))
+	if err != nil && err.Error() != "The operation completed successfully." {
+		return fmt.Errorf("failed to minimize window: %v", err)
+	}
+	return nil
+}
+
+func (hwnd WindowHandle) Restore() error {
+	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
+	if err != nil && err.Error() != "The operation completed successfully." {
+		return fmt.Errorf("failed to restore window: %v", err)
+	}
+	return nil
+}
+
+// Returns true if the window is maximized, false otherwise
+func (hwnd WindowHandle) IsMaximized() (bool, error) {
+	var placement windowPlacement
+	placement.Length = uint32(unsafe.Sizeof(placement))
+	ret, _, err := getWindowPlacement.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&placement)))
+	if ret == 0 {
+		return false, fmt.Errorf("GetWindowPlacement failed: %w", err)
+	}
+	return placement.ShowCmd == SW_MAXIMIZE, nil
+}
 
 func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, error) {
 	a.mu.RLock()
@@ -143,25 +192,4 @@ func GetWindowClassName(hwnd uintptr) string {
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(len(buf)))
 	return syscall.UTF16ToString(buf)
-}
-
-func (hwnd WindowHandle) Maximize() error {
-	_, _, err := setForegroundWindow.Call(uintptr(hwnd))
-	if err != nil && err.Error() != "The operation completed successfully." {
-		return fmt.Errorf("failed to set foreground window: %v", err)
-	}
-
-	_, _, err = showWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
-	if err != nil && err.Error() != "The operation completed successfully." {
-		return fmt.Errorf("failed to maximize window: %v", err)
-	}
-	return nil
-}
-
-func (hwnd WindowHandle) Minimize() error {
-	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_MINIMIZE))
-	if err != nil && err.Error() != "The operation completed successfully." {
-		return fmt.Errorf("failed to minimize window: %v", err)
-	}
-	return nil
 }

@@ -31,17 +31,24 @@ func LaunchApp(appNameKey string, appInfo core.AppInfo) error {
 	return nil
 }
 
-// MaximizeWindow - Original method implementation
+// MaximizeWindow
 func (a *PieButtonExecutionAdapter) MaximizeWindow(x, y int) error {
 	hwnd, err := a.GetWindowAtPoint(x, y)
 	if err != nil {
 		return err
 	}
 
+	isMax, err := hwnd.IsMaximized()
+	if err != nil {
+		return err
+	}
+	if isMax {
+		return hwnd.Restore()
+	}
 	return hwnd.Maximize()
 }
 
-// MinimizeWindow - Original method implementation
+// MinimizeWindow
 func (a *PieButtonExecutionAdapter) MinimizeWindow(x, y int) error {
 	// NOTE: Relies on a.GetWindowAtPoint and an assumed Minimize method
 	hwnd, err := a.GetWindowAtPoint(x, y)
@@ -52,7 +59,7 @@ func (a *PieButtonExecutionAdapter) MinimizeWindow(x, y int) error {
 	return hwnd.Minimize()
 }
 
-// CloseWindow - Original standalone function implementation
+// CloseWindow
 func CloseWindow() error {
 	fmt.Println("Closing window")
 	return nil
