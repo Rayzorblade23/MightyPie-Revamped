@@ -61,9 +61,15 @@ func ReadButtonConfig() (ConfigData, error) {
     }
 
     var config ConfigData
-    if err := json.Unmarshal(data, &config); err != nil {
-        return nil, fmt.Errorf("failed to parse config file '%s': %w", configPath, err)
+    if len(data) == 0 || json.Unmarshal(data, &config) != nil || len(config) == 0 {
+        log.Printf("WARN: Config file is empty, invalid, or contains an empty config. Creating default config at '%s'", configPath)
+        defaultConfig := NewDefaultConfig()
+        if err := WriteButtonConfig(defaultConfig); err != nil {
+            return nil, fmt.Errorf("failed to write default config: %w", err)
+        }
+        return defaultConfig, nil
     }
+
     return config, nil
 }
 

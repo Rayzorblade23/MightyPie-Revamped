@@ -12,3 +12,5 @@ vite.config.ts.timestamp-*
 .vscode/
 /static/appIcons/
 /.env.local
+
+natsdata/

@@ -20,18 +20,13 @@
         connectToNats,
         disconnectFromNats,
         getConnectionStatus,
-        publishMessage,
-        useNatsSubscription,
+        manageJetStreamConsumer
     } from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_BASECONFIG,
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_UPDATE,
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
-        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
-        PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO
+        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO
     } from '$env/static/public';
     import type {ConfigData} from '$lib/data/piebuttonTypes.ts';
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
@@ -49,38 +44,9 @@
     let {children} = $props();
     let displayStatus = $state('Idle');
 
-    let initialRequestsSent = $state(false);
-
-    function sendInitialRequests() {
-        if (!initialRequestsSent) {
-            console.log("NATS connected, sending initial requests for buttonManager and windowManager.");
-            try {
-                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_UPDATE, {});
-                publishMessage<{}>(PUBLIC_NATSSUBJECT_BUTTONMANAGER_REQUEST_BASECONFIG, {});
-                publishMessage<{}>(PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO, {});
-                publishMessage<{}>(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE, {});
-                initialRequestsSent = true;
-            } catch (error) {
-                console.error("[+layout.svelte] Failed to publish initial requests:", error);
-            }
-        }
-    }
-
-    function resetRequestFlag() {
-        console.log("NATS disconnected/not connected, resetting initial request flag.");
-        initialRequestsSent = false;
-    }
-
     $effect(() => {
-        const currentStatus = getConnectionStatus();
-        displayStatus = currentStatus;
+        displayStatus = getConnectionStatus();
         console.log("NATS connection status:", displayStatus);
-
-        if (currentStatus === "connected") {
-            sendInitialRequests();
-        } else {
-            resetRequestFlag();
-        }
     });
 
     const handleButtonUpdateMessage = (message: string) => {
@@ -95,6 +61,7 @@
     };
 
     const handleBaseConfigUpdateMessage = (message: string) => {
+        console.log("Received base config update message:", message);
         handleJsonMessage<ConfigData>(
             message,
             (configData) => {
@@ -124,60 +91,56 @@
         }
     };
 
-    const subscription_button_update = useNatsSubscription(
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
-        handleButtonUpdateMessage
-    );
-
-    const subscription_button_baseconfig = useNatsSubscription(
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
-        handleBaseConfigUpdateMessage
-    );
-
-    const subscription_installed_apps = useNatsSubscription(
-        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
-        handleInstalledAppsMessage
-    );
-
-    const subscription_shortcutsetter_update = useNatsSubscription(
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
-        handleShortcutLabelsUpdateMessage
-    );
-
     $effect(() => {
-        if (subscription_button_baseconfig.error) {
-            console.error(
-                "[+layout.svelte] Error with base configuration subscription:",
-                subscription_button_baseconfig.error
-            );
+        let stopButtonUpdate: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopButtonUpdate = await manageJetStreamConsumer(
+                    PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
+                    handleButtonUpdateMessage
+                );
+            })();
         }
+        return () => stopButtonUpdate?.();
     });
 
     $effect(() => {
-        if (subscription_button_update.error) {
-            console.error(
-                "[+layout.svelte] Error with button configuration subscription:",
-                subscription_button_update.error
-            );
+        let stopBaseConfig: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopBaseConfig = await manageJetStreamConsumer(
+                    PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
+                    handleBaseConfigUpdateMessage
+                );
+            })();
         }
+        return () => stopBaseConfig?.();
     });
 
     $effect(() => {
-        if (subscription_installed_apps.error) {
-            console.error(
-                "[+layout.svelte] Error with installed apps subscription:",
-                subscription_installed_apps.error
-            );
+        let stopInstalledApps: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopInstalledApps = await manageJetStreamConsumer(
+                    PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
+                    handleInstalledAppsMessage
+                );
+            })();
         }
+        return () => stopInstalledApps?.();
     });
 
     $effect(() => {
-        if (subscription_shortcutsetter_update.error) {
-            console.error(
-                '[+layout.svelte] Error with shortcut labels subscription:',
-                subscription_shortcutsetter_update.error
-            );
+        let stopShortcutLabels: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopShortcutLabels = await manageJetStreamConsumer(
+                    PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
+                    handleShortcutLabelsUpdateMessage
+                );
+            })();
         }
+        return () => stopShortcutLabels?.();
     });
 
     onMount(() => {

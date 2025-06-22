@@ -24,7 +24,7 @@
         PUBLIC_CONFIG_SIZE_X,
         PUBLIC_CONFIG_SIZE_Y,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_RECORD
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE
     } from "$env/static/public";
     import {getShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
 
@@ -298,7 +298,7 @@
     /** Publish a shortcut setter update for the selected menu. */
     function handlePublishShortcutSetterUpdate() {
         if (selectedMenuID !== undefined) {
-            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_RECORD, {index: selectedMenuID});
+            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE, {index: selectedMenuID});
             console.log("Published shortcut setter update for menu index:", selectedMenuID);
             isShortcutDialogOpen = true;
         }

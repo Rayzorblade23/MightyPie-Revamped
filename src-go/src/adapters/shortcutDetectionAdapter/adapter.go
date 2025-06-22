@@ -32,38 +32,53 @@ var mapSpecificEventModifierToGeneric = map[int]int{
 }
 
 type ShortcutDetectionAdapter struct {
-	natsAdapter  *natsAdapter.NatsAdapter
-	keyboardHook *KeyboardHook
-	hook         syscall.Handle
-	shortcuts    map[string]core.ShortcutEntry
-	pressedState map[string]bool
+	natsAdapter    *natsAdapter.NatsAdapter
+	keyboardHook   *KeyboardHook
+	hook           syscall.Handle
+	shortcuts      map[string]core.ShortcutEntry
+	pressedState   map[string]bool
+	updateHookChan chan struct{}
 }
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	adapter := &ShortcutDetectionAdapter{
-		natsAdapter:  natsAdapter,
-		shortcuts:    make(map[string]core.ShortcutEntry),
-		pressedState: make(map[string]bool),
+		natsAdapter:    natsAdapter,
+		shortcuts:      make(map[string]core.ShortcutEntry),
+		pressedState:   make(map[string]bool),
+		updateHookChan: make(chan struct{}, 1),
 	}
 
-	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE")
-	adapter.natsAdapter.PublishMessage(requestUpdateSubject, nil)
+	go func() {
+		for range adapter.updateHookChan {
+			adapter.updateKeyboardHook()
+		}
+	}()
 
 	setterUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
-	adapter.natsAdapter.SubscribeToSubject(setterUpdateSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
+	err := adapter.natsAdapter.SubscribeJetStreamPull(setterUpdateSubject, "", func(natsMessage *nats.Msg) {
 		var receivedShortcuts map[string]core.ShortcutEntry
 		if err := json.Unmarshal(natsMessage.Data, &receivedShortcuts); err != nil {
-			fmt.Printf("Error: Failed to decode shortcuts update from NATS: %v\n", err)
+			fmt.Printf("Error: Failed to decode shortcuts update from JetStream: %v\n", err)
 			return
 		}
+
+		fmt.Printf("Info: Received shortcuts update from JetStream: %+v\n", receivedShortcuts)
+
 		adapter.shortcuts = receivedShortcuts
 		newPressedState := make(map[string]bool)
 		for shortcutKey := range adapter.shortcuts {
 			newPressedState[shortcutKey] = false
 		}
 		adapter.pressedState = newPressedState
-		adapter.updateKeyboardHook()
+		select {
+		case adapter.updateHookChan <- struct{}{}:
+		default:
+		}
 	})
+
+	if err != nil {
+		fmt.Printf("Error: Failed to subscribe to JetStream subject: %v\n", err)
+	}
 
 	// Goroutine for initial/default hook setup after a delay.
 	// NATS updates will supersede these defaults.
@@ -98,6 +113,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 }
 
 func (adapter *ShortcutDetectionAdapter) updateKeyboardHook() {
+
 	if adapter.hook != 0 {
 		if core.UnhookWindowsHookEx != nil {
 			core.UnhookWindowsHookEx.Call(uintptr(adapter.hook))

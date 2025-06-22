@@ -15,6 +15,8 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+var subjectInstalledAppsInfo = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
+
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	installedAppsInfo = FetchExecutableApplicationMap()
@@ -34,11 +36,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 		windowWatcher: windowWatcher,
 	}
 
-	a.publishinstalledAppsInfo(installedAppsInfo)
-
 	shortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
-	requestSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_REQUEST_INSTALLEDAPPSINFO")
-	
+
+	a.publishInstalledAppsInfo(installedAppsInfo)
+
 	// NATS Subscription for shortcut pressed events
 	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var message shortcutPressed_Message
@@ -56,17 +57,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 	})
 
-	// Subscribe to requests for installed apps info
-	natsAdapter.SubscribeToSubject(requestSubject, core.GetTypeName(a), func(msg *nats.Msg) {
-		a.publishinstalledAppsInfo(installedAppsInfo)
-	})
-
 	return a
 }
 
-// publishinstalledAppsInfo sends the current discovered apps list to the NATS subject
-func (a *WindowManagementAdapter) publishinstalledAppsInfo(apps map[string]core.AppInfo) {
-	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO"), apps)
+// publishInstalledAppsInfo sends the current discovered apps list to the NATS subject
+func (a *WindowManagementAdapter) publishInstalledAppsInfo(apps map[string]core.AppInfo) {
+	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, apps)
 }
 
 // Run starts the adapter, including the initial window scan and monitoring loop

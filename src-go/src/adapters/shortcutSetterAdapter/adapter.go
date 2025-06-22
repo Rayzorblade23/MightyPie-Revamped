@@ -23,22 +23,21 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		natsAdapter: natsAdapter,
 	}
 
-	// Load and print existing shortcuts
-	shortcuts, err := LoadShortcuts()
-    if err != nil {
-        fmt.Println("Failed to load shortcuts for initial update:", err)
-    } else {
-        natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE"), shortcuts)
-    }
-
-	requestRecordSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_RECORD")
-	requestUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_REQUEST_UPDATE")
+	captureShortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE")
 	updateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	abortSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT")
 
+	// Load and print existing shortcuts
+	shortcuts, err := LoadShortcuts()
+	if err != nil {
+		fmt.Println("Failed to load shortcuts for initial update:", err)
+	} else {
+		natsAdapter.PublishMessage(updateSubject, shortcuts)
+	}
+
 	// Subscribe to requests to record a new shortcut at a given index.
 	// When a message is received, begin listening for a shortcut to assign to that index.
-	natsAdapter.SubscribeToSubject(requestRecordSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(captureShortcutSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
 		var payload ShortcutIndexMessage
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
 			fmt.Printf("Failed to decode index: %v\n", err)
@@ -46,20 +45,6 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		}
 		fmt.Printf("[ShortcutSetter] Shortcut pressed index: %d\n", payload.Index)
 		shortcutSetterAdapter.ListenForShortcutAtIndex(payload.Index)
-	})
-
-	// Subscribe to requests for the current list of shortcuts.
-	// When a message is received, publish the current shortcuts to the update subject.
-	natsAdapter.SubscribeToSubject(requestUpdateSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
-		fmt.Println("Received update request message, sending current shortcuts.")
-
-		shortcuts, err := LoadShortcuts()
-		if err != nil {
-			fmt.Println("Failed to load shortcuts for update:", err)
-			return
-		}
-
-		natsAdapter.PublishMessage(updateSubject, shortcuts)
 	})
 
 	// Subscribe to abort messages to stop shortcut detection.

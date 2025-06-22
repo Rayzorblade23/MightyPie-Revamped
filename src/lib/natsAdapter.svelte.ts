@@ -1,4 +1,13 @@
-﻿import {connect, type ConnectionOptions, Events, type NatsConnection, StringCodec, type Subscription} from 'nats.ws';
+import {
+    AckPolicy,
+    connect,
+    type ConnectionOptions,
+    DeliverPolicy,
+    Events,
+    type NatsConnection,
+    StringCodec,
+    type Subscription
+} from 'nats.ws';
 
 import {getPrivateEnvVar} from "$lib/generalUtil.ts"; // Ensure this path is correct for your project
 
@@ -337,6 +346,82 @@ export async function subscribeToSubject(
         // Note: We throw here because the *attempt* failed, unlike the "not connected" case where we didn't even attempt.
     }
     // 5. Removed the internal subscription_button_click closure monitoring IIFE for simplicity.
+}
+
+/**
+ * Starts a persistent JetStream consumer for a given stream/consumer, calling the given handler for each message.
+ * Handles both history and live updates. Returns a cancel function.
+ * @param stream - JetStream stream name (e.g. 'MIGHTYPIE_EVENTS')
+ * @param consumer - Durable consumer name
+ * @param handler - Function to call for each decoded message
+ * @returns A function to cancel the consumer loop
+ */
+export async function startJetStreamConsumer(
+    stream: string,
+    consumer: string,
+    handler: (decodedMsg: string) => void | Promise<void>
+): Promise<() => void> {
+    if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
+    const js = natsConnection.jetstream();
+    const c = await js.consumers.get(stream, consumer);
+    let cancelled = false;
+    const consumeLoop = async () => {
+        for await (const m of await c.consume()) {
+            if (cancelled) break;
+            try {
+                handler(sc.decode(m.data));
+            } catch (e) {
+                console.error("[JetStreamConsumer] Handler error:", e);
+            }
+            m.ack();
+        }
+    };
+    await consumeLoop();
+    return () => {
+        cancelled = true;
+    };
+}
+
+/**
+ * Manages an ephemeral JetStream consumer for any stream/subject, always delivering the latest message.
+ * @param subject - Subject filter
+ * @param handler - Handler for the decoded latest message
+ * @returns Cleanup function
+ */
+export async function manageJetStreamConsumer(
+    subject: string,
+    handler: (msg: string) => void | Promise<void>
+) {
+    if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
+    const js = natsConnection.jetstream();
+    const jsm = await natsConnection.jetstreamManager();
+    const stream = "MIGHTYPIE_EVENTS";
+    // Always create ephemeral consumer with deliver_policy: 'last'
+    const consumerConfig = {
+        deliver_policy: DeliverPolicy.Last,
+        filter_subject: subject,
+        ack_policy: AckPolicy.Explicit,
+    };
+    const consumerInfo = await jsm.consumers.add(stream, consumerConfig);
+    const consumer = await js.consumers.get(stream, consumerInfo.name);
+    let cancelled = false;
+    const consumeLoop = async () => {
+        for await (const msg of await consumer.consume()) {
+            if (cancelled) break;
+            try {
+                await handler(sc.decode(msg.data));
+            } catch (e) {
+                console.error("[manageJetStreamConsumer] Handler error:", e);
+            }
+            msg.ack();
+        }
+    };
+    await consumeLoop();
+    // Cleanup function: cancel loop and delete ephemeral consumer
+    return async () => {
+        cancelled = true;
+        await jsm.consumers.delete(stream, consumerInfo.name);
+    };
 }
 
 /** Publishes a message to a NATS subject. */
