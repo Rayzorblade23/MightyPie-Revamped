@@ -1,7 +1,13 @@
 use enigo::{Enigo, Settings, Mouse, Coordinate};
 use std::env;
-use tauri::command;
-use tauri::Manager;
+use tauri::{
+    Manager,
+    command,
+    menu::{Menu, MenuItem},
+    tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
+    Emitter,
+};
+use dotenvy::from_filename;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[command]
@@ -38,8 +44,6 @@ fn set_mouse_pos(x: i32, y: i32) {
     }
 }
 
-use dotenvy::from_filename;
-
 #[command]
 fn get_private_env_var(key: String) -> Result<String, String> {
     // Load from .env.local if not already loaded
@@ -57,6 +61,57 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             window.set_always_on_top(true)?;
+
+            // Create menu items
+            let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let piemenuconfig_item = MenuItem::with_id(app, "piemenuconfig", "Pie Menu Config", true, None::<&str>)?;
+            let exit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&settings_item, &piemenuconfig_item, &exit_item])?;
+
+            // Tray icon setup using Tauri 2.x API, minimal example from docs
+            TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("Mighty Pie")
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_always_on_top(true);
+                            let _ = window.set_focus();
+                            let _ = window.emit("show-settings", ());
+                        }
+                    }
+                    "piemenuconfig" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_always_on_top(true);
+                            let _ = window.set_focus();
+                            let _ = window.emit("show-piemenuconfig", ());
+                        }
+                    }
+                    "exit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| match event {
+                    TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } => {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_always_on_top(true);
+                            let _ = window.set_focus();
+                            let _ = window.emit("show-specialMenu", ());
+                        }
+                    }
+                    _ => {}
+                })
+                .build(app)?;
             Ok(())
         })
         //         .plugin(tauri_plugin_log::Builder::new()

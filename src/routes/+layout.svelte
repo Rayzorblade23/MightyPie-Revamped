@@ -30,6 +30,8 @@
     } from '$env/static/public';
     import type {ConfigData} from '$lib/data/piebuttonTypes.ts';
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
+    import {goto} from '$app/navigation';
+    import {listen} from '@tauri-apps/api/event';
 
     let validationHasRun = false;
     $effect(() => {
@@ -161,6 +163,28 @@
             if (browser) {
                 disconnectFromNats();
             }
+        };
+    });
+
+    let unlistenSpecialMenu: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
+    let unlistenPieMenuConfig: (() => void) | undefined;
+
+    onMount(() => {
+        // Tauri tray event listeners
+        listen('show-specialMenu', () => goto('/specialMenu')).then(unlisten => {
+            unlistenSpecialMenu = unlisten;
+        });
+        listen('show-settings', () => goto('/settings')).then(unlisten => {
+            unlistenSettings = unlisten;
+        });
+        listen('show-piemenuconfig', () => goto('/piemenuConfig')).then(unlisten => {
+            unlistenPieMenuConfig = unlisten;
+        });
+        return () => {
+            if (unlistenSpecialMenu) unlistenSpecialMenu();
+            if (unlistenSettings) unlistenSettings();
+            if (unlistenPieMenuConfig) unlistenPieMenuConfig();
         };
     });
 
