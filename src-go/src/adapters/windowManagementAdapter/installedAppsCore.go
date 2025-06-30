@@ -36,7 +36,7 @@ var (
 		"configure", "report", "crash", "debug", "eula", "readme", "license", "help", "support",
 		"wizard", "register", "activate", "bootstrapper", "dotnet", "vcredist", "redist", "driver",
 		"service", "agent", "sync", "verifier", "manual", "documentation", "docs", "guide",
-		"keymap", "shortcuts", "website", "homepage", "link", "url", "example", "demo",
+		"keymap", "website", "homepage", "link", "url", "example", "demo",
 		"appvlp", "hxtsr", "searchhost", "createdump", "apphost", "dllhost", "migration",
 		"devhome", "gamebar", "hxcalendarappimm", "hxoutlook",
 	}
