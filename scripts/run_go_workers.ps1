@@ -42,20 +42,36 @@ if ($workerFiles.Count -eq 0) {
     exit 0
 }
 
+# Assuming your go.mod is at E:\Repos\MightyPie-Revamped\src-go
+$modRoot = "E:\Repos\MightyPie-Revamped\src-go"
+
 foreach ($file in $workerFiles) {
-    Write-Host "`nStarting: $($file.FullName)" -ForegroundColor Cyan
+    Write-Host "`nBuilding and starting: $($file.FullName)" -ForegroundColor Cyan
     
-    $process = Start-Process -FilePath "go" -ArgumentList "run worker.go" `
-        -WorkingDirectory $file.DirectoryName -NoNewWindow -PassThru
+    $exePath = Join-Path $file.DirectoryName "worker.exe"
+    
+    # Build from module root, specifying relative path to worker.go
+    $relativePath = Resolve-Path -Relative $file.FullName
+    
+    Push-Location $modRoot
+    & go build -o $exePath $relativePath
+    Pop-Location
 
-    $workerName = Split-Path $file.DirectoryName -Leaf
+    if (-not (Test-Path $exePath)) {
+        Write-Host "Build failed: $exePath does not exist. Skipping..." -ForegroundColor Red
+        continue
+    }
 
-    # Store process info
+    # Run the built executable
+    $process = Start-Process -FilePath $exePath -WorkingDirectory $file.DirectoryName -NoNewWindow -PassThru
+
     $script:workerProcesses += @{
         Process = $process
         File = $file.FullName
     }
 }
+
+
 
 try {
     Write-Host "`nPress Ctrl+C to terminate all workers..." -ForegroundColor Yellow

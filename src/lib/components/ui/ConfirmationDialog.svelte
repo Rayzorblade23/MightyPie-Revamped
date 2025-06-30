@@ -70,7 +70,7 @@
 
 {#if isOpen}
     <div
-            class="fixed inset-0 z-50 flex items-center justify-center"
+            class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto"
             style="background: rgba(0,0,0,0.5);"
             role="dialog"
             aria-modal="true"

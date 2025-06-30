@@ -26,6 +26,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	captureShortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE")
 	updateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	abortSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT")
+	deleteSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE")
 
 	// Load and print existing shortcuts
 	shortcuts, err := LoadShortcuts()
@@ -53,6 +54,19 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		fmt.Println("Received abort message, stopping shortcut detection.")
 		if shortcutSetterAdapter.keyboardHook != nil {
 			shortcutSetterAdapter.keyboardHook.Stop()
+		}
+	})
+
+	// Subscribe to delete shortcut messages
+	natsAdapter.SubscribeToSubject(deleteSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
+		var payload ShortcutIndexMessage
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			fmt.Printf("Failed to decode index for delete: %v\n", err)
+			return
+		}
+		fmt.Printf("[ShortcutSetter] Deleting shortcut at index: %d\n", payload.Index)
+		if err := shortcutSetterAdapter.DeleteShortcut(payload.Index); err != nil {
+			fmt.Printf("Failed to delete shortcut: %v\n", err)
 		}
 	})
 

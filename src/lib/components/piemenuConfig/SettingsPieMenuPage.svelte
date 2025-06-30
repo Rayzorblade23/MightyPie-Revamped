@@ -1,4 +1,4 @@
-<!-- src/lib/components/piemenuConfig/SettingsPieMenu.svelte -->
+<!-- src/lib/components/piemenuConfig/SettingsPieMenuPage.svelte -->
 <script lang="ts">
     import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts'; // Assuming you add this to your types file
     import {ButtonType} from '$lib/data/piebuttonTypes.ts';
@@ -18,6 +18,7 @@
         onButtonClick,
         onRemovePage,
         activeSlotIndex = -1,
+        isSelectedPage = false,
     } = $props<{
         menuID: number;
         pageID: number;
@@ -31,6 +32,7 @@
         }) => void;
         onRemovePage: (pageID: number) => void;
         activeSlotIndex?: number;
+        isSelectedPage?: boolean;
     }>();
 
     // --- Layout Constants ---
@@ -40,7 +42,7 @@
     const buttonWidthRem = Number(PUBLIC_PIEBUTTON_WIDTH);
     const buttonHeightRem = Number(PUBLIC_PIEBUTTON_HEIGHT);
 
-    // Container dimensions (in pixels) - for SettingsPieMenu visual boundary and position calculations
+    // Container dimensions (in pixels) - for SettingsPieMenuPage visual boundary and position calculations
     const containerWidthPx = 600;
     const containerHeightPx = 400;
 
@@ -214,7 +216,7 @@
 
 <!-- Main container for the Pie Menu visualization -->
 <div
-        class="pie-menu-settings-view relative"
+        class="pie-menu-settings-view relative bg-slate-700 dark:bg-gray-700"
         style="width: {containerWidthPx}px; height: {containerHeightPx}px"
 >
     <RemovePageButton onClick={handleRemoveThisPage} title="Remove this page"/>

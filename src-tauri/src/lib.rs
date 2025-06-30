@@ -1,13 +1,12 @@
-use enigo::{Enigo, Settings, Mouse, Coordinate};
+use dotenvy::from_filename;
+use enigo::{Coordinate, Enigo, Mouse, Settings};
 use std::env;
 use tauri::{
-    Manager,
     command,
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
-    Emitter,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager,
 };
-use dotenvy::from_filename;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[command]
@@ -28,8 +27,8 @@ fn get_mouse_pos() -> (i32, i32) {
 
 #[command]
 fn set_mouse_pos(x: i32, y: i32) {
-    let mut enigo = Enigo::new(&Settings::default())
-        .expect("Failed to initialize Enigo for set_mouse_pos");
+    let mut enigo =
+        Enigo::new(&Settings::default()).expect("Failed to initialize Enigo for set_mouse_pos");
 
     // The ONLY change needed is here: Absolute -> Abs
     match enigo.move_mouse(x, y, Coordinate::Abs) {
@@ -58,13 +57,15 @@ fn get_private_env_var(key: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             window.set_always_on_top(true)?;
 
             // Create menu items
             let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-            let piemenuconfig_item = MenuItem::with_id(app, "piemenuconfig", "Pie Menu Config", true, None::<&str>)?;
+            let piemenuconfig_item =
+                MenuItem::with_id(app, "piemenuconfig", "Pie Menu Config", true, None::<&str>)?;
             let exit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&settings_item, &piemenuconfig_item, &exit_item])?;
 
@@ -129,6 +130,7 @@ pub fn run() {
         //           })
         //           .build())
         .plugin(tauri_plugin_positioner::init())
+        .plugin(tauri_plugin_prevent_default::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())

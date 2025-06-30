@@ -20,7 +20,7 @@
 
 .horizontal-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9; /* thumb, track for light */
+    scrollbar-color: #f1f5f9 #cbd5e1; /* thumb, track for light */
 }
 
 .horizontal-scrollbar::-webkit-scrollbar {
@@ -55,14 +55,17 @@ button.active-btn:not(.select-none) {
     background-color: var(--color-button-hover-bg);
     color: white !important;
 }
+
 button.pressed-left:not(.select-none) {
     background-color: var(--color-button-pressed-left-bg);
     color: white !important;
 }
+
 button.pressed-middle:not(.select-none) {
     background-color: var(--color-button-pressed-middle-bg);
     color: white !important;
 }
+
 button.pressed-right:not(.select-none) {
     background-color: var(--color-button-pressed-right-bg);
     color: white !important;

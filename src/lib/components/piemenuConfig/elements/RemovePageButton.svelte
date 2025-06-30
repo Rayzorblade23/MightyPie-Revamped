@@ -3,7 +3,7 @@
     let {
         title = 'Remove this item',
         onClick,
-        buttonClass = 'absolute top-1 right-1 z-10 p-1 bg-rose-500 hover:bg-rose-700 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors',
+        buttonClass = 'absolute top-2 right-2 z-10 p-1 bg-rose-700 hover:bg-rose-500 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors',
         svgClass = 'w-4 h-4'
     } = $props<{
         title?: string;

@@ -35,6 +35,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	buttonUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
 	windowUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
 	baseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG")
+	saveConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
+	loadConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
 	receiveNewBaseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
 
 	config, err := ReadButtonConfig()
@@ -75,6 +77,21 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		// PrintConfig(buttonConfig, false)
 
 		a.natsAdapter.PublishMessage(baseConfigSubject, loadedConfig)
+		a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
+	})
+
+	a.natsAdapter.SubscribeToSubject(saveConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		// Assume BackupConfigToFile exists and takes the config as argument
+		var configToBackup ConfigData
+		if err := json.Unmarshal(msg.Data, &configToBackup); err != nil {
+			log.Printf("ERROR: Failed to unmarshal backup config: %v", err)
+			return
+		}
+		if err := BackupConfigToFile(configToBackup); err != nil {
+			log.Printf("ERROR: Failed to backup config to file: %v", err)
+			return
+		}
+		log.Println("INFO: Config backup successful.")
 	})
 
 	// Subscribe to window updates for subsequent changes
@@ -106,6 +123,40 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			// PrintConfig(processedConfig, true)
 		}
 	})
+
+	a.natsAdapter.SubscribeToSubject(loadConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		// msg.Data contains the path to the backup file as a string (may include quotes)
+		backupPath := string(msg.Data)
+		// Remove any leading/trailing quotes (single or double)
+		if len(backupPath) > 0 && (backupPath[0] == '"' || backupPath[0] == '\'') {
+			backupPath = backupPath[1:]
+		}
+		if len(backupPath) > 0 && (backupPath[len(backupPath)-1] == '"' || backupPath[len(backupPath)-1] == '\'') {
+			backupPath = backupPath[:len(backupPath)-1]
+		}
+		log.Printf("INFO: Loading config backup from '%s'...", backupPath)
+
+		// Load config from the backup file
+		backupConfig, err := LoadConfigFromFile(backupPath)
+		if err != nil {
+			log.Printf("ERROR: Failed to load config from backup: %v", err)
+			return
+		}
+
+		// Overwrite the current config file
+		if err := WriteButtonConfig(backupConfig); err != nil {
+			log.Printf("ERROR: Failed to overwrite buttonConfig.json: %v", err)
+			return
+		}
+
+		// Update in-memory config
+		updateButtonConfig(backupConfig)
+		log.Println("INFO: Config loaded from backup and set as current.")
+
+		// Publish the updated config
+		a.natsAdapter.PublishMessage(baseConfigSubject, backupConfig)
+	})
+
 	return a
 }
 

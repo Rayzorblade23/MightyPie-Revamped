@@ -42,6 +42,7 @@
     "core:tray:default",
     "shell:allow-open",
     "log:default",
+    "dialog:default",
     "fs:default",
     {
       "identifier": "fs:scope",
