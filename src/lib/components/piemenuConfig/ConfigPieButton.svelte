@@ -1,4 +1,4 @@
-<!-- SettingsPieButton.svelte -->
+<!-- ConfigPieButton.svelte -->
 <script lang="ts">
     import { ButtonType } from '$lib/data/piebuttonTypes.ts';
     import { composePieButtonClasses, fetchSvgIcon } from '../piebutton/pieButtonUtils';

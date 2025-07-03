@@ -201,6 +201,32 @@ export function clampWindowToBounds(
 }
 
 /**
+ * Ensures the current window is fully within the bounds of its monitor.
+ * If any part is outside, it clamps the position and moves the window.
+ */
+export async function ensureWindowWithinMonitorBounds(): Promise<void> {
+    const window = getCurrentWindow();
+    const winPos = await window.outerPosition();
+    const winSize = await window.outerSize();
+    // Find the monitor at the window's current position (top-left corner)
+    const monitor = await monitorFromPoint(winPos.x, winPos.y);
+    if (!monitor) {
+        console.log("Monitor not found for window position");
+        return;
+    }
+    const clamped = clampWindowToBounds(
+        winPos,
+        winSize,
+        monitor.size,
+        monitor.position
+    );
+    // Only move if needed
+    if (clamped.x !== winPos.x || clamped.y !== winPos.y) {
+        await window.setPosition(clamped);
+    }
+}
+
+/**
  * Centers the window at the current mouse position and handles monitor scale factors.
  * @param monitorScaleFactor - The current monitor's scale factor
  * @returns Promise containing the new monitor's scale factor
@@ -259,3 +285,4 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
 
     return newScaleFactor;
 }
+

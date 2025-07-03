@@ -45,16 +45,16 @@
     });
 </script>
 
-<div class="tabs flex items-center space-x-1 border-b border-gray-300 dark:border-gray-700 mb-4 bg-gray-100 dark:bg-gray-900 rounded-t-lg">
+<div class="tabs flex items-center space-x-1 pt-1 border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 rounded-t-lg">
     <div class="flex-1 overflow-x-auto whitespace-nowrap flex flex-nowrap items-center horizontal-scrollbar"
          bind:this={scrollDiv} use:horizontalScroll>
         {#each menuIndices as menuIndex (menuIndex)}
             <button
                     type="button"
-                    class="flex items-center gap-2 px-4 py-2 font-semibold text-base border-b-2 border-transparent bg-transparent transition-colors cursor-pointer focus:outline-none
+                    class="flex items-center gap-2 px-4 py-2 font-semibold text-base transition-colors cursor-pointer focus:outline-none
                 {currentSelectedMenuID === menuIndex
-                    ? 'text-rose-400 border-amber-400 dark:text-rose-400 dark:border-amber-400'
-                    : 'rounded-t-lg text-gray-700 dark:text-gray-300 hover:text-amber-400 hover:bg-gray-200 dark:hover:text-amber-400 dark:hover:bg-gray-800'}"
+                    ? 'rounded-t-lg text-rose-400  border-b-2 border-amber-400 bg-white dark:bg-gray-800'
+                    : 'rounded-t-lg  border-t-1 border-r-1 border-gray-300 dark:border-gray-700  bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-300 hover:text-amber-400 hover:bg-white hover:border-gray-300  dark:hover:bg-gray-800 dark:hover:border-gray-600 '}"
                     onclick={() => onSelectMenu(menuIndex)}
             >
                 <span>Menu {menuIndex + 1}</span>
@@ -70,7 +70,6 @@
                 />
             </button>
         {/each}
-        <div class="mx-2 h-6 border-l border-gray-300 dark:border-gray-700"></div>
         {#if !isOverflowing}
             <button
                     type="button"

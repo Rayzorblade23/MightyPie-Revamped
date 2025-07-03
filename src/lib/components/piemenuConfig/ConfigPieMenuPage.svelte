@@ -1,11 +1,11 @@
-<!-- src/lib/components/piemenuConfig/SettingsPieMenuPage.svelte -->
+<!-- src/lib/components/piemenuConfig/ConfigPieMenuPage.svelte -->
 <script lang="ts">
     import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts'; // Assuming you add this to your types file
     import {ButtonType} from '$lib/data/piebuttonTypes.ts';
     import {onMount} from 'svelte';
     import {PUBLIC_PIEBUTTON_HEIGHT, PUBLIC_PIEBUTTON_WIDTH, PUBLIC_PIEMENU_RADIUS} from "$env/static/public";
     import {calculatePieButtonOffsets, calculatePieButtonPosition} from "$lib/components/piemenu/piemenuUtils.ts";
-    import SettingsPieButton from "$lib/components/piemenuConfig/SettingsPieButton.svelte";
+    import ConfigPieButton from "$lib/components/piemenuConfig/ConfigPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/elements/RemovePageButton.svelte";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
     import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
@@ -18,7 +18,7 @@
         onButtonClick,
         onRemovePage,
         activeSlotIndex = -1,
-        isSelectedPage = false,
+        isQuickMenuFavorite = false, // Add new prop for quick menu favorite
     } = $props<{
         menuID: number;
         pageID: number;
@@ -32,7 +32,7 @@
         }) => void;
         onRemovePage: (pageID: number) => void;
         activeSlotIndex?: number;
-        isSelectedPage?: boolean;
+        isQuickMenuFavorite?: boolean;
     }>();
 
     // --- Layout Constants ---
@@ -42,7 +42,7 @@
     const buttonWidthRem = Number(PUBLIC_PIEBUTTON_WIDTH);
     const buttonHeightRem = Number(PUBLIC_PIEBUTTON_HEIGHT);
 
-    // Container dimensions (in pixels) - for SettingsPieMenuPage visual boundary and position calculations
+    // Container dimensions (in pixels) - for ConfigPieMenuPage visual boundary and position calculations
     const containerWidthPx = 600;
     const containerHeightPx = 400;
 
@@ -208,6 +208,7 @@
         opacity: 0;
         pointer-events: none;
     }
+
     .indicator-visible {
         opacity: 0.9;
         pointer-events: none;
@@ -216,7 +217,7 @@
 
 <!-- Main container for the Pie Menu visualization -->
 <div
-        class="pie-menu-settings-view relative bg-slate-700 dark:bg-gray-700"
+        class="pie-menu-settings-view relative bg-slate-300 dark:bg-gray-700"
         style="width: {containerWidthPx}px; height: {containerHeightPx}px"
 >
     <RemovePageButton onClick={handleRemoveThisPage} title="Remove this page"/>
@@ -226,17 +227,18 @@
     {/if}
     <!-- SVG Indicator: Only visible if this menu has the active button -->
     <div
-      class="absolute left-1/2 top-1/2 z-0 indicator-animated"
-      class:indicator-visible={indicator && activeSlotIndex >= 0 && internalSlotXYOffsets[activeSlotIndex]}
-      style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);"
+            class="absolute left-1/2 top-1/2 z-0 indicator-animated"
+            class:indicator-visible={indicator && activeSlotIndex >= 0 && internalSlotXYOffsets[activeSlotIndex]}
+            style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);"
     >
-        <img alt="indicator" height="300" width="300" src={indicator} style="display: block; width: 300px; height: 300px;" />
+        <img alt="indicator" height="300" src={indicator} style="display: block; width: 300px; height: 300px;"
+             width="300"/>
     </div>
     {#each Array(NUM_SLOTS_ITERATION) as _, slotIndex (slotIndex)}
         {@const displayInfo = getButtonDisplayInfo(slotIndex)}
         {@const positionOffset = internalSlotXYOffsets[slotIndex]}
         {#if positionOffset}
-            <SettingsPieButton
+            <ConfigPieButton
                     x={positionOffset.x}
                     y={positionOffset.y}
                     width={buttonWidthRem}
@@ -252,21 +254,27 @@
     {/each}
 
     <div class="absolute left-3 top-3 z-10 pointer-events-none">
-        <span
-            class="text-sm font-medium px-3 py-1 rounded-md shadow bg-slate-300 text-gray-700 dark:bg-slate-600 dark:text-gray-100"
-            style="display:inline-block;"
-        >
-            Page {pageID + 1}
-        </span>
+        <div class="flex items-center gap-2 mb-2">
+            <span
+                    class="text-sm font-medium px-3 py-1 rounded-md shadow bg-slate-100 text-gray-700 dark:bg-slate-600 dark:text-gray-100"
+                    style="display:inline-block;"
+            >
+                Page {pageID + 1}
+            </span>
+            {#if isQuickMenuFavorite}
+                <span style="vertical-align:middle;"><img src="/tabler_icons/star.svg" alt="star icon"
+                                                          class="inline w-5 h-5 align-text-bottom dark:invert"/></span>
+            {/if}
+        </div>
     </div>
 </div>
 
 <ConfirmationDialog
         bind:isOpen={showConfirmDialog}
-        title="Remove Page"
-        message="This page contains buttons that are not simple buttons. Are you sure you want to remove it?"
-        confirmText="Remove Page"
         cancelText="Cancel"
-        onConfirm={handleConfirm}
+        confirmText="Remove Page"
+        message="This page contains buttons that are not simple buttons. Are you sure you want to remove it?"
         onCancel={handleCancel}
+        onConfirm={handleConfirm}
+        title="Remove Page"
 />

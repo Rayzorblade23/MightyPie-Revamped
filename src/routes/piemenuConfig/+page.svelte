@@ -36,10 +36,11 @@
     import {getShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {getDefaultButton} from '$lib/data/pieButtonDefaults.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
+    import {getSettings} from "$lib/data/settingsHandler.svelte";
 
     // --- Component Imports ---
     import MenuTabs from "$lib/components/piemenuConfig/MenuTabs.svelte";
-    import SettingsPieMenuPage from "$lib/components/piemenuConfig/SettingsPieMenuPage.svelte";
+    import ConfigPieMenuPage from "$lib/components/piemenuConfig/ConfigPieMenuPage.svelte";
     import ButtonInfoDisplay from "$lib/components/piemenuConfig/ButtonInfoDisplay.svelte";
     import AddPageButton from "$lib/components/piemenuConfig/elements/AddPageButton.svelte";
     import ConfirmationDialog from "$lib/components/ui/ConfirmationDialog.svelte";
@@ -379,7 +380,9 @@
     }
 
     async function openFileDialog() {
-        const selected = await open({multiple: false});
+        const settings = getSettings();
+        const configPath = settings.configPath?.value;
+        const selected = await open({multiple: false, defaultPath: configPath});
         if (selected) {
             if (selected.includes('buttonConfig_BACKUP')) {
                 pushUndoState();
@@ -558,10 +561,48 @@
         publishBaseMenuConfiguration(newConfig);
     }
 
+    // --- Quick Menu Favorite Logic ---
+    const QUICK_MENU_FAVORITE_KEY = 'quickMenuFavorite';
+    let quickMenuFavoriteVersion = $state(0);
+
+    function getQuickMenuFavorite() {
+        try {
+            const raw = localStorage.getItem(QUICK_MENU_FAVORITE_KEY);
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    }
+
+    function setQuickMenuFavorite(menuID: number, pageID: number) {
+        localStorage.setItem(QUICK_MENU_FAVORITE_KEY, JSON.stringify({menuID, pageID}));
+        quickMenuFavoriteVersion++;
+    }
+
+    let isQuickMenuFavorite = $state(false);
+
+    $effect(() => {
+        if (selectedMenuID !== undefined && selectedButtonDetails && selectedButtonDetails.pageID !== undefined) {
+            const fav = getQuickMenuFavorite();
+            isQuickMenuFavorite = !!fav && fav.menuID === selectedMenuID && fav.pageID === selectedButtonDetails.pageID;
+        } else {
+            isQuickMenuFavorite = false;
+        }
+    });
+
+    function handleUseForQuickMenu() {
+        if (selectedMenuID !== undefined && selectedButtonDetails && selectedButtonDetails.pageID !== undefined) {
+            setQuickMenuFavorite(selectedMenuID, selectedButtonDetails.pageID);
+            isQuickMenuFavorite = true;
+        }
+    }
+
     // Reload the base menu configuration when it changes
     $effect(() => {
         baseMenuConfig = getBaseMenuConfiguration();
     });
+
 </script>
 
 <div class="w-full min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg border-b border-gray-200 dark:border-gray-700 h-8">
@@ -574,7 +615,7 @@
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
     <!-- --- Main Content --- -->
-    <div class="flex-1 w-full p-4 space-y-6">
+    <div class="flex-1 w-full p-4 space-y-0">
         {#if menuIndices.length > 0}
             <!-- --- UI: Menu Tabs --- -->
             <section>
@@ -597,47 +638,50 @@
                     <section class="pie-menus-section">
                         {#if sortedPagesForSelectedMenu.length > 0}
                             <div
-                                    class="flex space-x-4 overflow-x-auto py-3 px-3 horizontal-scrollbar rounded-lg  bg-slate-300 dark:bg-gray-800"
+                                    class="flex rounded-tr-lg rounded-b-lg space-x-4 overflow-x-auto py-3 px-3 horizontal-scrollbar  bg-white dark:bg-gray-800"
                                     bind:this={pagesContainer}
                                     use:horizontalScroll
                             >
                                 <div class="flex flex-row gap-x-6 pb-0">
-                                    {#each sortedPagesForSelectedMenu as [pageIDOfLoop, buttonsOnPage] (pageIDOfLoop)}
-                                        {@const currentMenuIDForCallback = selectedMenuID}
-                                        <button type="button"
-                                                class="page-container flex-shrink-0 rounded-lg shadow-sm bg-slate-800 overflow-hidden"
-                                                data-page-id={pageIDOfLoop}
-                                                class:border-slate-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                                class:dark\:border-slate-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                                class:border-1={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                                onclick={() => {
-                                                if (!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop) {
-                                                    selectedButtonDetails = {
-                                                        menuID: currentMenuIDForCallback,
-                                                        pageID: pageIDOfLoop,
-                                                        buttonID: 0,
-                                                        slotIndex: 0,
-                                                        button: buttonsOnPage.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow)
-                                                    };
-                                                }
-                                             }}
-                                                style="cursor:pointer"
-                                                aria-label={`Select page ${pageIDOfLoop + 1}`}
-                                        >
-                                            <SettingsPieMenuPage
-                                                    menuID={currentMenuIDForCallback}
-                                                    pageID={pageIDOfLoop}
-                                                    buttonsOnPage={buttonsOnPage}
-                                                    onButtonClick={handlePieButtonClick}
-                                                    onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
-                                                    activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
-                                                        ? selectedButtonDetails.slotIndex
-                                                        : -1
+                                    {#key quickMenuFavoriteVersion}
+                                        {#each sortedPagesForSelectedMenu as [pageIDOfLoop, buttonsOnPage] (pageIDOfLoop)}
+                                            {@const currentMenuIDForCallback = selectedMenuID}
+                                            <button type="button"
+                                                    class="page-container flex-shrink-0 rounded-lg shadow-sm bg-slate-800 overflow-hidden border-2"
+                                                    data-page-id={pageIDOfLoop}
+                                                    class:dark:border-slate-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                    class:dark:border-slate-700={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
+                                                    class:border-slate-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                    class:border-slate-300={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
+                                                    onclick={() => {
+                                                    if (!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop) {
+                                                        selectedButtonDetails = {
+                                                            menuID: currentMenuIDForCallback,
+                                                            pageID: pageIDOfLoop,
+                                                            buttonID: 0,
+                                                            slotIndex: 0,
+                                                            button: buttonsOnPage.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow)
+                                                        };
                                                     }
-                                                    isSelectedPage={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                            />
-                                        </button>
-                                    {/each}
+                                                 }}
+                                                    style="cursor:pointer"
+                                                    aria-label={`Select page ${pageIDOfLoop + 1}`}
+                                            >
+                                                <ConfigPieMenuPage
+                                                        menuID={currentMenuIDForCallback}
+                                                        pageID={pageIDOfLoop}
+                                                        buttonsOnPage={buttonsOnPage}
+                                                        onButtonClick={handlePieButtonClick}
+                                                        onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
+                                                        activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
+                                                            ? selectedButtonDetails.slotIndex
+                                                            : -1
+                                                        }
+                                                        isQuickMenuFavorite={(() => { const fav = getQuickMenuFavorite(); return !!fav && fav.menuID === currentMenuIDForCallback && fav.pageID === pageIDOfLoop; })()}
+                                                />
+                                            </button>
+                                        {/each}
+                                    {/key}
                                     <AddPageButton onClick={handleAddPage}/>
                                 </div>
                             </div>
@@ -679,11 +723,25 @@
                                     onChange={handleResetTypeChange}
                             />
                             <button
-                                    class="mt-4 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 transition"
+                                    class="mt-2 mb-2 px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
                                     onclick={handleResetPageToDefault}
                                     disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                             >
                                 Reset Page with Type
+                            </button>
+                            <button
+                                    aria-label="Use for Quick Menu"
+                                    class="mt-2 px-4 py-2 rounded border border-gray-300 text-gray-700 dark:text-white transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700 flex items-center w-full relative"
+                                    onclick={handleUseForQuickMenu}
+                                    disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                            >
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[1.25rem]">
+                                    <img src="/tabler_icons/star.svg" alt="star icon"
+                                         class="inline w-5 h-5 align-text-bottom dark:invert"/>
+                                </span>
+                                <span class="mx-auto w-full text-center block">
+                                    {#if isQuickMenuFavorite}Used for Quick Menu{:else}Use for Quick Menu{/if}
+                                </span>
                             </button>
                         </div>
                         <div class="flex flex-col items-stretch bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow px-4 py-3 min-w-[396px] max-w-[480px] self-start">
@@ -718,18 +776,18 @@
                             </div>
                         </div>
                         <div class="flex flex-col items-stretch bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow px-4 py-3 w-auto self-start">
-                            <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-100 mb-2 w-full text-left">
+                            <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-100 mb-3 w-full text-left">
                                 Config Backup
                             </h3>
-                            <div class="flex flex-col items-start gap-3 w-full">
+                            <div class="flex flex-col items-start gap-2 w-full">
                                 <button
-                                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none"
+                                        class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
                                         onclick={handleBackupWithConfirmation}
                                 >
                                     Create Backup
                                 </button>
                                 <button
-                                        class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none"
+                                        class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
                                         onclick={openFileDialog}
                                 >
                                     Load Backup
@@ -776,7 +834,7 @@
                 <p class="text-gray-500 dark:text-gray-400 mb-4">No menus found. Configuration might be loading or
                     empty.</p>
                 <button
-                        class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600"
+                        class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
                         onclick={() => goto('/')}
                         type="button"
                 >

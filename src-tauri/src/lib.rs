@@ -20,9 +20,9 @@ pub struct MousePos {
 }
 
 #[command]
-fn get_mouse_pos() -> (i32, i32) {
-    let enigo = Enigo::new(&Settings::default());
-    enigo.unwrap().location().unwrap()
+fn get_mouse_pos() -> Result<(i32, i32), String> {
+    let enigo = Enigo::new(&Settings::default()).map_err(|e| format!("Failed to initialize Enigo: {:?}", e))?;
+    enigo.location().map_err(|e| format!("Failed to get mouse location: {:?}", e))
 }
 
 #[command]
@@ -107,7 +107,7 @@ pub fn run() {
                             let _ = window.show();
                             let _ = window.set_always_on_top(true);
                             let _ = window.set_focus();
-                            let _ = window.emit("show-specialMenu", ());
+                            let _ = window.emit("show-quickMenu", ());
                         }
                     }
                     _ => {}

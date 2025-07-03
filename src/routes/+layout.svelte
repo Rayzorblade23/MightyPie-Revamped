@@ -25,6 +25,7 @@
     import {
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
+        PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO
     } from '$env/static/public';
@@ -32,6 +33,7 @@
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {goto} from '$app/navigation';
     import {listen} from '@tauri-apps/api/event';
+    import {type SettingsMap, updateSettings} from '$lib/data/settingsHandler.svelte.ts';
 
     let validationHasRun = false;
     $effect(() => {
@@ -93,6 +95,16 @@
         }
     };
 
+    const handleSettingsUpdateMessage = (message: string) => {
+        handleJsonMessage<SettingsMap>(
+            message,
+            (settingsData) => {
+                updateSettings(settingsData);
+            },
+            '+layout.svelte: Settings Update'
+        );
+    };
+
     $effect(() => {
         let stopButtonUpdate: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
@@ -145,6 +157,19 @@
         return () => stopShortcutLabels?.();
     });
 
+    $effect(() => {
+        let stopSettingsUpdate: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopSettingsUpdate = await manageJetStreamConsumer(
+                    PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
+                    handleSettingsUpdateMessage
+                );
+            })();
+        }
+        return () => stopSettingsUpdate?.();
+    });
+
     onMount(() => {
         if (browser) {
             const initializeConnection = async () => {
@@ -166,14 +191,14 @@
         };
     });
 
-    let unlistenSpecialMenu: (() => void) | undefined;
+    let unlistenQuickMenu: (() => void) | undefined;
     let unlistenSettings: (() => void) | undefined;
     let unlistenPieMenuConfig: (() => void) | undefined;
 
     onMount(() => {
         // Tauri tray event listeners
-        listen('show-specialMenu', () => goto('/specialMenu')).then(unlisten => {
-            unlistenSpecialMenu = unlisten;
+        listen('show-quickMenu', () => goto('/quickMenu')).then(unlisten => {
+            unlistenQuickMenu = unlisten;
         });
         listen('show-settings', () => goto('/settings')).then(unlisten => {
             unlistenSettings = unlisten;
@@ -182,7 +207,7 @@
             unlistenPieMenuConfig = unlisten;
         });
         return () => {
-            if (unlistenSpecialMenu) unlistenSpecialMenu();
+            if (unlistenQuickMenu) unlistenQuickMenu();
             if (unlistenSettings) unlistenSettings();
             if (unlistenPieMenuConfig) unlistenPieMenuConfig();
         };

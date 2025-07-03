@@ -67,7 +67,7 @@
                 if (activeSlice === -1) {
                     publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
                     console.log("Deadzone clicked! Open piemenuConfig.");
-                    await goto('/specialMenu');
+                    await goto('/quickMenu');
                     return;
                 }
             }
