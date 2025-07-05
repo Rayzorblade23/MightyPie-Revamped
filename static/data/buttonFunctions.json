@@ -1,12 +1,74 @@
 {
   "Maximize": {
-    "function_name": "maximizeWindow",
     "icon_path": "/tabler_icons/window-maximize.svg",
     "description": "Maximizes the window below the cursor."
   },
   "Minimize": {
-    "function_name": "minimizeWindow",
     "icon_path": "/tabler_icons/window-minimize.svg",
     "description": "Minimizes the window below the cursor."
+  },
+  "Forwards": {
+    "icon_path": "/tabler_icons/square-rounded-arrow-right.svg",
+    "description": "Navigate forwards (simulates Mouse Forwards)"
+  },
+  "Backwards": {
+    "icon_path": "/tabler_icons/square-rounded-arrow-left.svg",
+    "description": "Navigate backwards (simulates Mouse Backwards)"
+  },
+  "Close Window": {
+    "icon_path": "/tabler_icons/playstation-x.svg",
+    "description": "Closes the window below the cursor."
+  },
+  "Center Window": {
+    "icon_path": "/tabler_icons/focus-centered.svg",
+    "description": "Centers the window below the cursor."
+  },
+  "Restore Last Minimized": {
+    "icon_path": "/tabler_icons/replace.svg",
+    "description": "Restores the window that was last minimized."
+  },
+  "Copy": {
+    "icon_path": "/tabler_icons/copy.svg",
+    "description": "Copies the selected text. (Ctrl+C)"
+  },
+  "Paste": {
+    "icon_path": "/tabler_icons/clipboard.svg",
+    "description": "Pastes the clipboard content. (Ctrl+V)"
+  },
+  "Clipboard": {
+    "icon_path": "/tabler_icons/clipboard.svg",
+    "description": "Opens the clipboard."
+  },
+  "Fullscreen (F11)": {
+    "icon_path": "/tabler_icons/arrows-maximize.svg",
+    "description": "Toggles fullscreen. (Simulates pressing F11)"
+  },
+  "Mute": {
+    "icon_path": "/tabler_icons/volume-3.svg",
+    "description": "Mutes/unmutes the audio."
+  },
+  "Previous Track": {
+    "icon_path": "/tabler_icons/player-skip-back.svg",
+    "description": "Play the previous track."
+  },
+  "Next Track": {
+    "icon_path": "/tabler_icons/player-skip-forward.svg",
+    "description": "Plays the next track."
+  },
+  "Play/Pause": {
+    "icon_path": "/tabler_icons/player-play.svg",
+    "description": "Plays or pauses the current track."
+  },
+  "Most Recent Explorer Window": {
+    "icon_path": "/tabler_icons/folder.svg",
+    "description": "Shows the last focused Explorer Window."
+  },
+  "Show All Explorer Windows": {
+    "icon_path": "/tabler_icons/folders.svg",
+    "description": "Shows all open Explorer Windows."
+  },
+  "Restart Explorer": {
+    "icon_path": "/tabler_icons/restore.svg",
+    "description": "Restarts Explorer while keeping all open windows."
   }
 }

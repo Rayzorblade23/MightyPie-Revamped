@@ -3,7 +3,6 @@
     import SvgIcon from './SvgIcon.svelte';
 
     interface FunctionDefinition {
-        function_name: string; // Not used for display directly but part of the data
         icon_path: string;
         description?: string;
     }

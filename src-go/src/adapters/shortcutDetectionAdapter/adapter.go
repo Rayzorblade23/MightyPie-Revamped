@@ -172,18 +172,28 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 		eventVKCode := int(keyboardHookStruct.VKCode)
 		eventFlags := keyboardHookStruct.Flags // Store flags for use in helpers
 
+		// Always pass through injected events (from SendInput)
+		const LLKHF_INJECTED = 0x00000010
+		if (eventFlags & LLKHF_INJECTED) != 0 {
+			if core.CallNextHookEx != nil {
+				r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+				return r1
+			}
+			return 0
+		}
+
 		isKeyDownEvent := wParam == core.WM_KEYDOWN || wParam == core.WM_SYSKEYDOWN
 		isKeyUpEvent := wParam == core.WM_KEYUP || wParam == core.WM_SYSKEYUP
 
-		if isKeyDownEvent {
-			// Filter auto-repeat events (where previous key state was also down).
-			if (eventFlags & keyAutorepeatFlag) != 0 {
-				if core.CallNextHookEx != nil {
-					r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
-					return r1
-				}
-				return 0
+		// Filter auto-repeat events (where previous key state was also down).
+		if (eventFlags & keyAutorepeatFlag) != 0 {
+			if core.CallNextHookEx != nil {
+				r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+				return r1
 			}
+			return 0
+		}
+		if isKeyDownEvent {
 			if adapter.handleKeyDown(eventVKCode) { // Pass only eventVKCode
 				return 1 // Event consumed
 			}

@@ -23,13 +23,16 @@ var (
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.
 type PieButtonExecutionAdapter struct {
-	natsAdapter       *natsAdapter.NatsAdapter
-	lastMouseX        int
-	lastMouseY        int
-	mu                sync.RWMutex // Protects access to windowsList
-	windowsList       core.WindowsUpdate
-	installedAppsInfo map[string]core.AppInfo
-	functionHandlers  map[string]ButtonFunctionExecutor
+	natsAdapter         *natsAdapter.NatsAdapter
+	lastMouseX          int
+	lastMouseY          int
+	mu                  sync.RWMutex // Protects access to windowsList
+	windowsList         core.WindowsUpdate
+	installedAppsInfo   map[string]core.AppInfo
+	functionHandlers    map[string]ButtonFunctionExecutor
+	lastMinimizedWindow WindowHandle
+
+	lastExplorerWindowHWND WindowHandle // Stores the HWND of the last Explorer window brought to foreground
 }
 
 // --- Adapter Implementation ---
@@ -42,12 +45,32 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 		installedAppsInfo: make(map[string]core.AppInfo),
 	}
 
-	if err := loadButtonFunctionMetadata(); err != nil {
-		log.Fatalf("Could not load button functions: %v", err)
+	a.functionHandlers = map[string]ButtonFunctionExecutor{
+		"Maximize":               CoordinatesButtonFunctionExecutor{fn: a.MaximizeWindowUnderCursor},
+		"Minimize":               CoordinatesButtonFunctionExecutor{fn: a.MinimizeWindowUnderCursor},
+		"Close Window":           CoordinatesButtonFunctionExecutor{fn: a.CloseWindowUnderCursor},
+		"Center Window":          CoordinatesButtonFunctionExecutor{fn: a.CenterWindowUnderCursor},
+		"Restore Last Minimized": NoArgButtonFunctionExecutor{fn: a.RestoreLastMinimized},
+		"Forwards":               NoArgButtonFunctionExecutor{fn: a.ForwardsButtonClick},
+		"Backwards":              NoArgButtonFunctionExecutor{fn: a.BackwardsButtonClick},
+		"Copy":                   NoArgButtonFunctionExecutor{fn: a.Copy},
+		"Paste":                  NoArgButtonFunctionExecutor{fn: a.Paste},
+		"Clipboard":              NoArgButtonFunctionExecutor{fn: a.OpenClipboard},
+		"Fullscreen (F11)":       NoArgButtonFunctionExecutor{fn: a.Fullscreen_F11},
+		// Media
+		"Previous Track":               NoArgButtonFunctionExecutor{fn: a.MediaPrev},
+		"Next Track":                   NoArgButtonFunctionExecutor{fn: a.MediaNext},
+		"Play/Pause":                   NoArgButtonFunctionExecutor{fn: a.MediaPlayPause},
+		"Mute":                         NoArgButtonFunctionExecutor{fn: a.MediaToggleMute},
+		"Most Recent Explorer Window":  NoArgButtonFunctionExecutor{fn: a.BringLastExplorerWindowToForeground},
+		"Show All Explorer Windows":    NoArgButtonFunctionExecutor{fn: a.BringAllExplorerWindowsToForeground},
+		"Restart Explorer": NoArgButtonFunctionExecutor{fn: a.RestartAndRestoreExplorerWindows},
+		// Add more function handlers here as needed
 	}
 
-	a.functionHandlers = a.registerBuiltInButtonFunctionExecutors() // Initialize handlers
-	a.subscribeToEvents()                                           // Setup NATS subscriptions
+	ValidateFunctionHandlers(a.functionHandlers)
+
+	a.subscribeToEvents() // Setup NATS subscriptions
 
 	return a
 }

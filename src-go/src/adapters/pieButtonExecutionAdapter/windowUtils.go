@@ -5,14 +5,18 @@ import (
 	"log"
 	"syscall"
 	"unsafe"
+	"strings"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
+
 
 // --- Windows API constants and helpers ---
 var (
 	user32 = syscall.NewLazyDLL("user32.dll")
+	procMouseEvent = user32.NewProc("mouse_event")
 
 	showWindow          = user32.NewProc("ShowWindow")
-	getClassName        = user32.NewProc("GetClassNameW")
 	getWindowRect       = user32.NewProc("GetWindowRect")
 	setForegroundWindow = user32.NewProc("SetForegroundWindow")
 	enumWindows         = user32.NewProc("EnumWindows")
@@ -20,6 +24,7 @@ var (
 	getForegroundWindow = user32.NewProc("GetForegroundWindow")
 	switchToThisWindow  = user32.NewProc("SwitchToThisWindow")
 	getWindowPlacement  = user32.NewProc("GetWindowPlacement")
+	procGetClassNameW   = user32.NewProc("GetClassNameW")
 )
 
 const (
@@ -45,6 +50,35 @@ type windowPlacement struct {
 type WindowHandle uintptr
 
 // --- Window manipulation methods ---
+
+
+
+// isExplorerWindow returns true if the given HWND belongs to explorer.exe using the cached windowsList
+func isExplorerWindow(hwnd uintptr, windowsList map[int]core.WindowInfo) bool {
+	if hwnd == 0 {
+		return false
+	}
+	winInfo, ok := windowsList[int(hwnd)]
+	if !ok {
+		return false
+	}
+	return strings.ToLower(winInfo.ExeName) == "explorer.exe"
+}
+
+const WM_CLOSE = 0x0010
+
+// Close sends a WM_CLOSE message to the window to request it to close.
+func (hwnd WindowHandle) Close() error {
+	_, _, err := setForegroundWindow.Call(uintptr(hwnd))
+	if err != nil && err.Error() != "The operation completed successfully." {
+		return fmt.Errorf("failed to set foreground window: %v", err)
+	}
+	ret, _, err := user32.NewProc("PostMessageW").Call(uintptr(hwnd), uintptr(WM_CLOSE), 0, 0)
+	if ret == 0 {
+		return fmt.Errorf("failed to send WM_CLOSE to window: %v", err)
+	}
+	return nil
+}
 
 func (hwnd WindowHandle) Maximize() error {
 	_, _, err := setForegroundWindow.Call(uintptr(hwnd))
@@ -129,14 +163,6 @@ func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, er
 	return result.hwnd, nil
 }
 
-func (hwnd WindowHandle) GetClassName() string {
-	buf := make([]uint16, 256)
-	_, _, _ = getClassName.Call(
-		uintptr(hwnd),
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(len(buf)))
-	return syscall.UTF16ToString(buf)
-}
 
 // SetForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
 func setForegroundOrMinimize(hwnd uintptr) error {
@@ -146,7 +172,7 @@ func setForegroundOrMinimize(hwnd uintptr) error {
 	}
 
 	if hwnd == foreground {
-		log.Print("forceForeground: window already in foreground, minimizing instead")
+		// Already in foreground, minimize instead
 		return WindowHandle(hwnd).Minimize()
 	}
 
@@ -187,7 +213,7 @@ func GetWindowClassName(hwnd uintptr) string {
 		return ""
 	}
 	buf := make([]uint16, 256)
-	_, _, _ = getClassName.Call( // Using the getClassName global var from your first code snippet
+	_, _, _ = procGetClassNameW.Call(
 		hwnd,
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(len(buf)))

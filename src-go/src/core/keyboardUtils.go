@@ -59,7 +59,52 @@ const (
 	VK_SHIFT   = 0x10
 	VK_CONTROL = 0x11
 	VK_ALT     = 0x12
-	// Add any other virtual key codes you need
+	VK_MENU    = 0x12 // Alt
+	VK_LWIN    = 0x5B
+	VK_RWIN    = 0x5C
+)
+
+const (
+	INPUT_MOUSE    = 0
+	INPUT_KEYBOARD = 1
+	INPUT_HARDWARE = 2
+
+	KEYEVENTF_EXTENDEDKEY = 0x0001
+	KEYEVENTF_KEYUP       = 0x0002
+)
+
+type KEYBDINPUT struct {
+	WVk         uint16
+	WScan       uint16
+	DwFlags     uint32
+	Time        uint32
+	DwExtraInfo uintptr
+}
+
+type MOUSEINPUT struct {
+	Dx          int32
+	Dy          int32
+	MouseData   uint32
+	DwFlags     uint32
+	Time        uint32
+	DwExtraInfo uintptr
+}
+
+type HARDWAREINPUT struct {
+	UMsg    uint32
+	WParamL uint16
+	WParamH uint16
+}
+
+type INPUT struct {
+	Type    uint32
+	_       [4]byte    // explicit padding to align Ki to 8-byte boundary (x64)
+	Ki      KEYBDINPUT // 24 bytes
+	_       [8]byte    // explicit padding to reach 40 bytes total (Windows x64 expects sizeof(INPUT)==40)
+}
+
+var (
+	SendInput = User32.NewProc("SendInput")
 )
 
 const (
@@ -93,6 +138,10 @@ var (
 	// Keyboard/Mouse state - ADD THESE
 	GetKeyState        = User32.NewProc("GetKeyState")
 	GetCursorPos       = User32.NewProc("GetCursorPos")
+
+	// Clipboard
+	OpenClipboard      = User32.NewProc("OpenClipboard")
+	CloseClipboard     = User32.NewProc("CloseClipboard")
 
 	// Message loop - ADD/MODIFY THESE
 	GetMessage          = User32.NewProc("GetMessageW")

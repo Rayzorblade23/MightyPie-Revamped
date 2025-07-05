@@ -52,7 +52,8 @@ var winEventProcCallback = windows.NewCallback(func(hWinEventHook windows.Handle
 	}
 
 	if event == EVENT_OBJECT_NAMECHANGE {
-    fmt.Printf("[CALLBACK DEBUG] Title change detected for HWND: 0x%X\n", hwnd)
+    // Silenced debug prints for title change detection and signal sent/skipped
+    // fmt.Printf("[CALLBACK DEBUG] Title change detected for HWND: 0x%X\n", hwnd)
 
     // Perform additional actions here, such as updating the window list
     watcher.mutex.Lock()
@@ -61,9 +62,9 @@ var winEventProcCallback = windows.NewCallback(func(hWinEventHook windows.Handle
 
     select {
     case watcher.changeDetected <- struct{}{}:
-        fmt.Printf("[CALLBACK DEBUG] Title change signal sent for HWND: 0x%X\n", hwnd)
+        // fmt.Printf("[CALLBACK DEBUG] Title change signal sent for HWND: 0x%X\n", hwnd)
     default:
-        fmt.Printf("[CALLBACK DEBUG] Title change signal skipped (channel busy) for HWND: 0x%X\n", hwnd)
+        // fmt.Printf("[CALLBACK DEBUG] Title change signal skipped (channel busy) for HWND: 0x%X\n", hwnd)
     }
 }
 

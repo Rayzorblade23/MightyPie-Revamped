@@ -26,6 +26,12 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 			if err := setForegroundOrMinimize(hwnd); err != nil {
 				return fmt.Errorf("show_program_window: failed to focus window: %w", err)
 			}
+			// Save HWND if this is an Explorer window
+			if windowProps.ButtonTextLower == "Windows Explorer" {
+				a.mu.Lock()
+				a.lastExplorerWindowHWND = WindowHandle(hwnd)
+				a.mu.Unlock()
+			}
 			log.Printf("ShowProgramWindow: Focused existing window for '%s' (Title: %s, HWND: %X)",
 				appNameKey, windowProps.ButtonTextUpper, hwnd)
 			return nil
@@ -46,7 +52,18 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 		log.Printf("ShowProgramWindow (Right Click STUB) for app '%s'", appNameKey)
 		return nil
 	case ClickTypeMiddleUp:
-		log.Printf("ShowProgramWindow (Middle Click STUB) for app '%s'", appNameKey)
+		log.Printf("ShowProgramWindow (Middle Click): Attempting to close window for app '%s'", appNameKey)
+		if windowProps.WindowHandle > 0 {
+			hwnd := uintptr(windowProps.WindowHandle)
+			if err := WindowHandle(hwnd).Close(); err != nil {
+				log.Printf("ShowProgramWindow (Middle Click): Failed to close HWND %X: %v", hwnd, err)
+				return fmt.Errorf("show_program_window (Middle Click): %w", err)
+			} else {
+				log.Printf("ShowProgramWindow (Middle Click): HWND %X requested to close (Button %d)", hwnd, executionInfo.ButtonIndex)
+			}
+		} else {
+			log.Printf("ShowProgramWindow (Middle Click): No window handle available to close for app '%s'", appNameKey)
+		}
 		return nil
 	default:
 		log.Printf("ShowProgramWindow: Unhandled click type '%s' for app '%s'. No action taken.",
@@ -78,14 +95,27 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 			log.Printf("show_any_window (Left Click): Failed to foreground HWND %X: %v", hwnd, e)
 			err = fmt.Errorf("show_any_window (Left Click): %w", e)
 		} else {
+			// Save HWND if this is an Explorer window
+			if props.ButtonTextLower == "Windows Explorer" {
+				a.mu.Lock()
+				a.lastExplorerWindowHWND = WindowHandle(hwnd)
+				a.mu.Unlock()
+			}
 			log.Printf("show_any_window (Left Click): HWND %X requested to foreground (Button %d)", hwnd, executionInfo.ButtonIndex)
 		}
 	case ClickTypeRightUp:
 		log.Printf("ShowAnyWindow (Right Click STUB) for HWND %X", hwnd)
 		// No operation for right-click yet
 	case ClickTypeMiddleUp:
-		log.Printf("ShowAnyWindow (Middle Click STUB) for HWND %X", hwnd)
-		// No operation for middle-click yet
+		log.Printf("ShowAnyWindow (Middle Click): Closing window HWND %X", hwnd)
+		if hwnd != 0 {
+			if err := WindowHandle(hwnd).Close(); err != nil {
+				log.Printf("ShowAnyWindow (Middle Click): Failed to close HWND %X: %v", hwnd, err)
+			} else {
+				log.Printf("ShowAnyWindow (Middle Click): HWND %X requested to close (Button %d)", hwnd, executionInfo.ButtonIndex)
+			}
+		}
+		// No further action for middle click
 	default:
 		log.Printf("ShowAnyWindow: Unhandled ClickType '%s' for HWND %X. Performing default (left-click like) action.",
 			executionInfo.ClickType, hwnd)
@@ -123,7 +153,8 @@ func (a *PieButtonExecutionAdapter) handleLaunchProgram(executionInfo *pieButton
 	case ClickTypeRightUp:
 		log.Printf("LaunchProgram (Right Click STUB) for '%s'", appNameKey)
 	case ClickTypeMiddleUp:
-		log.Printf("LaunchProgram (Middle Click STUB) for '%s'", appNameKey)
+		log.Printf("LaunchProgram (Middle Click): No window handle available to close for '%s'", appNameKey)
+		// No further action for middle click
 	default:
 		log.Printf("LaunchProgram: Unhandled ClickType '%s' for '%s'. Performing default (left-click like) action.",
 			executionInfo.ClickType, appNameKey)
@@ -144,15 +175,9 @@ func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonE
 
 	displayName := functionProps.ButtonTextUpper
 
-	// Map display name to actual function name using buttonFunctions
-	meta, ok := buttonFunctionMetadataMap[displayName]
-	if !ok {
-		return fmt.Errorf("unknown function display name: %s", displayName)
-	}
-	functionName := meta.FunctionName
-
+	// Use displayName directly as the handler key
 	log.Printf("Button %d - Action: CallFunction, TargetFn: %s, ClickType: %s",
-		executionInfo.ButtonIndex, functionName, executionInfo.ClickType)
+		executionInfo.ButtonIndex, displayName, executionInfo.ClickType)
 
 	// Get mouse coordinates regardless of click type, as they might be logged or used by left-click
 	a.mu.RLock()
@@ -162,30 +187,30 @@ func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonE
 
 	switch executionInfo.ClickType {
 	case ClickTypeLeftUp:
-		log.Printf("CallFunction (Left Click): Proceeding to execute function '%s'", functionName)
-		handler, exists := a.functionHandlers[functionName]
+		log.Printf("CallFunction (Left Click): Proceeding to execute function '%s'", displayName)
+		handler, exists := a.functionHandlers[displayName]
 		if !exists {
-			return fmt.Errorf("unknown function requested for left-click: %s", functionName)
+			return fmt.Errorf("unknown function requested for left-click: %s", displayName)
 		}
 		err := handler.Execute(mouseX, mouseY)
 		if err != nil {
-			return fmt.Errorf("call_function '%s' (Left Click) failed: %w", functionName, err)
+			return fmt.Errorf("call_function '%s' (Left Click) failed: %w", displayName, err)
 		}
 		return nil
 
 	case ClickTypeRightUp:
 		log.Printf("CallFunction (Right Click STUB) for function '%s' at X:%d, Y:%d. No action taken.",
-			functionName, mouseX, mouseY)
+			displayName, mouseX, mouseY)
 		return nil
 
 	case ClickTypeMiddleUp:
 		log.Printf("CallFunction (Middle Click STUB) for function '%s' at X:%d, Y:%d. No action taken.",
-			functionName, mouseX, mouseY)
+			displayName, mouseX, mouseY)
 		return nil
 
 	default:
 		log.Printf("CallFunction: Unhandled ClickType '%s' for function '%s'. No action taken.",
-			executionInfo.ClickType, functionName)
+			executionInfo.ClickType, displayName)
 		return nil
 	}
 }

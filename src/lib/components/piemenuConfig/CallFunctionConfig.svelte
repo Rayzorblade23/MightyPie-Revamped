@@ -6,7 +6,6 @@
 
     // Data for function definitions
     interface FunctionDefinition {
-        function_name: string;
         icon_path: string;
         description?: string;
     }
