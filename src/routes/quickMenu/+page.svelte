@@ -88,7 +88,7 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl shadow-lg relative">
+<div class="w-full min-h-screen flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl shadow-lg relative">
     <button
             aria-label="Toggle dark mode"
             class="absolute top-4 right-4 py-2 px-2 rounded bg-purple-500 text-white hover:bg-purple-600 dark:bg-purple-700 dark:hover:bg-purple-800 transition text-base focus:outline-none z-10"
@@ -96,8 +96,8 @@
     >
         {isDark ? '🌙 Dark Theme' : '☀️ Light Theme'}
     </button>
-    <h1 class="text-center mb-6 font-semibold text-lg text-gray-900 dark:text-white">Quick Menu</h1>
-    <div class="rounded-xl bg-slate-100 dark:bg-gray-700 p-2 flex flex-col items-center w-auto h-auto">
+    <h1 class="text-center mb-6 font-semibold text-lg text-zinc-900 dark:text-white">Quick Menu</h1>
+    <div class="rounded-xl bg-zinc-100 dark:bg-zinc-700 p-2 flex flex-col items-center w-auto h-auto">
         <div class="grid grid-cols-3 gap-4 mx-auto">
             {#each buttonList.slice(0, 4) as [buttonID, button]}
                 <QuickMenuPieButton
@@ -129,13 +129,13 @@
         </div>
     </div>
     <div class="flex flex-col gap-4 items-center px-4 py-4 w-full max-w-xs mx-auto">
-        <button class="w-full px-4 py-2  bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
                 onclick={navigateToPieMenuConfig}>Pie Menu Config
         </button>
-        <button class="w-full px-4 py-2  bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
                 onclick={navigateToSettings}>Settings
         </button>
-        <button class="w-full px-4 py-2  bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
                 onclick={async () => { await getCurrentWindow().close(); }}>
             Exit
         </button>

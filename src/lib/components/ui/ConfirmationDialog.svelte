@@ -81,22 +81,22 @@
             onkeydown={handleKeyDown}
     >
         <div
-                class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-sm w-full border border-gray-200 dark:border-gray-700"
+                class="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6 max-w-sm w-full border border-zinc-200 dark:border-zinc-700"
                 role="document"
         >
-            <h2 id="dialog-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h2>
-            <p id="dialog-description" class="text-gray-700 dark:text-gray-300 mb-4">{message}</p>
+            <h2 id="dialog-title" class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">{title}</h2>
+            <p id="dialog-description" class="text-zinc-700 dark:text-zinc-300 mb-4">{message}</p>
             <div class="flex justify-end space-x-2">
                 <button
                         bind:this={cancelButtonRef}
                         onclick={handleCancel}
-                        class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 transition-colors"
+                        class="px-4 py-2 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 border border-zinc-300 dark:border-zinc-600 transition-colors"
                 >
                     {cancelText}
                 </button>
                 <button
                         onclick={handleConfirm}
-                        class="px-4 py-2 rounded bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-100 hover:bg-blue-700 dark:hover:bg-blue-600 border border-blue-700 dark:border-blue-600 transition-colors"
+                        class="px-4 py-2 rounded bg-blue-600 dark:bg-blue-500 text-white dark:text-zinc-100 hover:bg-blue-700 dark:hover:bg-blue-600 border border-blue-700 dark:border-blue-600 transition-colors"
                 >
                     {confirmText}
                 </button>

@@ -192,16 +192,16 @@
     {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getMenuConfiguration().get(menuID)?.get(pageID)?.has(buttonID)}
     {@const friendlyButtonTypeName = getFriendlyButtonTypeName(button.button_type)}
 
-    <div class="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 w-full min-w-0">
+    <div class="p-4 border rounded-md shadow-sm bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 w-full min-w-0">
         <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Button Details</h2>
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Button Details</h2>
             <p class="text-right">Slot: {slotIndex + 1} <span
-                    class="text-gray-600 dark:text-gray-400">(Page: {pageID + 1})</span></p>
+                    class="text-zinc-600 dark:text-zinc-400">(Page: {pageID + 1})</span></p>
         </div>
         <div class="text-sm space-y-2">
             {#if isTrulyEmptySlot && button.button_type === ButtonType.Disabled}
                 <p class="text-yellow-700 dark:text-yellow-400 font-medium"><strong>Status:</strong> Empty Slot</p>
-                <p class="text-gray-600 dark:text-gray-400 mb-2">Select a type below to configure this button.</p>
+                <p class="text-zinc-600 dark:text-zinc-400 mb-2">Select a type below to configure this button.</p>
             {/if}
 
             <ButtonTypeSelector
@@ -243,12 +243,12 @@
                                 {friendlyButtonTypeName}
                         />
                     {:else if !hasSpecializedUI}
-                        <p class="text-gray-600 dark:text-gray-400 mt-2">
+                        <p class="text-zinc-600 dark:text-zinc-400 mt-2">
                             {friendlyButtonTypeName} has no other specific properties to configure here.
                         </p>
                     {/if}
                 {:else if button.button_type !== ButtonType.Disabled}
-                    <p class="text-gray-600 dark:text-gray-400 mt-2">
+                    <p class="text-zinc-600 dark:text-zinc-400 mt-2">
                         No properties are defined for this button (type: <span
                             class="font-medium">{friendlyButtonTypeName}</span>).
                     </p>
@@ -258,7 +258,7 @@
     </div>
 {:else}
     <div class="p-4 text-center">
-        <p class="text-gray-500 dark:text-gray-400">
+        <p class="text-zinc-500 dark:text-zinc-400">
             Select a button from a pie menu preview to see its details.
         </p>
     </div>

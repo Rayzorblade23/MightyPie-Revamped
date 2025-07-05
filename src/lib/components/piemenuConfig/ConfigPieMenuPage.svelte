@@ -8,7 +8,7 @@
     import ConfigPieButton from "$lib/components/piemenuConfig/ConfigPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/elements/RemovePageButton.svelte";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
-    import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
+    import { getIndicatorSVG } from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
 
     // --- Component Props (using $props) ---
     let {
@@ -63,8 +63,13 @@
         }
     });
 
+    $effect(() => {
+        (async () => {
+            indicator = await getIndicatorSVG();
+        })();
+    });
 
-    onMount(async () => {
+    onMount(() => {
         let newPositions: { x: number; y: number }[] = [];
         for (let i = 0; i < numLayoutSlots; i++) {
             const {offsetX, offsetY} = calculatePieButtonOffsets(i, buttonWidthRem, buttonHeightRem);
@@ -80,7 +85,6 @@
             newPositions.push({x: x, y: y});
         }
         internalSlotXYOffsets = newPositions;
-        indicator = await loadAndProcessIndicatorSVG();
     });
 
     const NUM_SLOTS_ITERATION = numLayoutSlots;
@@ -217,13 +221,13 @@
 
 <!-- Main container for the Pie Menu visualization -->
 <div
-        class="pie-menu-settings-view relative bg-slate-300 dark:bg-gray-700"
+        class="pie-menu-settings-view relative bg-zinc-300 dark:bg-zinc-700"
         style="width: {containerWidthPx}px; height: {containerHeightPx}px"
 >
     <RemovePageButton onClick={handleRemoveThisPage} title="Remove this page"/>
 
     {#if internalSlotXYOffsets.length === 0 && NUM_SLOTS_ITERATION > 0}
-        <p class="text-gray-500 text-xs">Calculating positions...</p>
+        <p class="text-zinc-500 text-xs">Calculating positions...</p>
     {/if}
     <!-- SVG Indicator: Only visible if this menu has the active button -->
     <div
@@ -256,7 +260,7 @@
     <div class="absolute left-3 top-3 z-10 pointer-events-none">
         <div class="flex items-center gap-2 mb-2">
             <span
-                    class="text-sm font-medium px-3 py-1 rounded-md shadow bg-slate-100 text-gray-700 dark:bg-slate-600 dark:text-gray-100"
+                    class="text-sm font-medium px-3 py-1 rounded-md shadow bg-zinc-100 text-zinc-700 dark:bg-zinc-600 dark:text-zinc-100"
                     style="display:inline-block;"
             >
                 Page {pageID + 1}

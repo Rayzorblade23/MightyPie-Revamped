@@ -33,7 +33,8 @@
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {goto} from '$app/navigation';
     import {listen} from '@tauri-apps/api/event';
-    import {type SettingsMap, updateSettings} from '$lib/data/settingsHandler.svelte.ts';
+    import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsHandler.svelte.ts';
+    import {saturateHexColor} from "$lib/colorUtils.ts";
 
     let validationHasRun = false;
     $effect(() => {
@@ -104,6 +105,32 @@
             '+layout.svelte: Settings Update'
         );
     };
+
+    $effect(() => {
+        const settings = getSettings();
+        if (!settings) return;
+        const map = {
+            colorAccentAnywin: '--color-accent-anywin',
+            colorAccentProgramwin: '--color-accent-programwin',
+            colorAccentLaunch: '--color-accent-launch',
+            colorAccentFunction: '--color-accent-function',
+            colorPieButtonHighlight: '--color-button-hover-bg',
+        };
+        for (const [key, cssVar] of Object.entries(map)) {
+            if (settings[key]?.value) {
+                document.documentElement.style.setProperty(cssVar, settings[key].value);
+            }
+        }
+
+        // Generate and set more saturated highlight for pressed states
+        const highlightColor = settings.colorPieButtonHighlight?.value;
+        if (highlightColor) {
+            const saturated = saturateHexColor(highlightColor, 1.4);
+            document.documentElement.style.setProperty('--color-button-pressed-left-bg', saturated);
+            document.documentElement.style.setProperty('--color-button-pressed-middle-bg', saturated);
+            document.documentElement.style.setProperty('--color-button-pressed-right-bg', saturated);
+        }
+    });
 
     $effect(() => {
         let stopButtonUpdate: (() => void) | null = null;

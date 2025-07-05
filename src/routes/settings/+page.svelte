@@ -50,22 +50,6 @@
         settings = cloneSettings(initialSettingsSnapshot);
     }
 
-    // Update accent color CSS variables whenever settings change
-    $effect(() => {
-        if (!settings) return;
-        const map = {
-            colorAccentAnywin: '--color-accent-anywin',
-            colorAccentProgramwin: '--color-accent-programwin',
-            colorAccentLaunch: '--color-accent-launch',
-            colorAccentFunction: '--color-accent-function'
-        };
-        for (const [key, cssVar] of Object.entries(map)) {
-            if (settings[key]?.value) {
-                document.documentElement.style.setProperty(cssVar, settings[key].value);
-            }
-        }
-    });
-
     function handleBooleanChange(e: Event, key: string) {
         const target = e.target as HTMLInputElement;
         handleValueChange(key, target?.checked ?? false);
@@ -144,25 +128,25 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg border-b border-gray-200 dark:border-gray-700">
+<div class="w-full min-h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700">
     <!-- Title Bar -->
-    <div class="title-bar relative flex items-center py-1 bg-slate-300 dark:bg-gray-800 rounded-t-lg border-b border-gray-200 dark:border-gray-700 h-8">
+    <div class="title-bar relative flex items-center py-1 bg-zinc-300 dark:bg-zinc-800 rounded-t-lg border-b border-zinc-200 dark:border-zinc-700 h-8">
         <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
         <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
-            <span class="font-semibold text-sm lg:text-base text-gray-900 dark:text-gray-400">Settings</span>
+            <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Settings</span>
         </div>
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
     <div class="flex-1 w-full p-4 space-y-6 relative">
         {#if Object.keys(settings).length === 0}
-            <p class="text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-gray-800/70 rounded-lg shadow p-6 text-center text-lg font-medium">
+            <p class="text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/70 rounded-lg shadow p-6 text-center text-lg font-medium">
                 No settings available.</p>
         {:else}
             <div class="w-full">
                 {#each Object.entries(settings) as [key, entry]}
                     {#if entry.isExposed}
-                        <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-gray-100 dark:bg-gray-800 rounded-lg mb-2 shadow-sm border border-gray-200 dark:border-gray-700">
-                            <label class="w-1/2 md:w-1/3 text-gray-900 dark:text-gray-200 pr-4 pl-4 text-base" for={key}>{entry.label}</label>
+                        <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-2 shadow-sm border border-zinc-200 dark:border-zinc-700">
+                            <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base" for={key}>{entry.label}</label>
                             <div class="flex-1 flex items-center gap-2 min-w-0">
                                 {#if entry.type === 'boolean' || entry.type === 'bool'}
                                     <label class="relative inline-flex items-center cursor-pointer select-none">
@@ -178,7 +162,7 @@
                                             style="background-color: {entry.value ? '#2563eb' : (document.documentElement.classList.contains('dark') ? '#374151' : '#d1d5db')};"
                                         >
                                             <span
-                                                class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-gray-200 rounded-full shadow transition-transform duration-200"
+                                                class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-zinc-200 rounded-full shadow transition-transform duration-200"
                                                 style="transform: translateX({entry.value ? '1.0rem' : '0'});"
                                             ></span>
                                         </span>
@@ -190,9 +174,9 @@
                                                value={entry.value}
                                                onchange={e => handleColorInput(key, e)}/>
                                         <div class="relative w-28 flex-shrink min-w-0">
-                                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none select-none">#</span>
+                                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none select-none">#</span>
                                             <input type="text"
-                                                   class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg pl-6 pr-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all shadow-sm text-gray-900 dark:text-gray-100 w-full"
+                                                   class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all shadow-sm text-zinc-900 dark:text-zinc-100 w-full"
                                                    value={entry.value ? entry.value.replace(/^#/, '') : ''}
                                                    oninput={e => handleHexInput(key, e)}
                                                    maxlength="6"
@@ -201,7 +185,7 @@
                                     </div>
                                 {:else if entry.type === 'number' || entry.type === 'float'}
                                     <input type="number" id={key}
-                                           class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-gray-900 dark:text-gray-100"
+                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)} />
                                 {:else if entry.type === 'int' || entry.type === 'integer'}
@@ -209,18 +193,18 @@
                                            step="1"
                                            inputmode="numeric"
                                            pattern="^-?\\d+$"
-                                           class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-gray-900 dark:text-gray-100"
+                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}
                                            onkeydown={handleIntKeydown} />
                                 {:else if entry.type === 'string'}
                                     <input type="text" id={key}
-                                           class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-gray-900 dark:text-gray-100"
+                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleStringInput(key, e)}/>
                                 {:else if entry.type === 'enum' && entry.options}
                                     <select id={key}
-                                            class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-gray-900 dark:text-gray-100"
+                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                             value={entry.value}
                                             onchange={e => handleEnumChange(e, key)}>
                                         {#each entry.options as opt}
@@ -232,7 +216,7 @@
                                 {/if}
                                 <div class="flex-1"></div>
                                 <button
-                                    class="w-8 h-8 flex items-center justify-center p-0 rounded bg-white/80 dark:bg-gray-700/80 border border-gray-300 dark:border-gray-600 shadow hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
+                                    class="w-8 h-8 flex items-center justify-center p-0 rounded bg-white/80 dark:bg-zinc-700/80 border border-zinc-300 dark:border-zinc-600 shadow hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex-shrink-0"
                                     title="Reset to Default"
                                     aria-label="Reset to Default"
                                     onclick={() => handleResetToDefault(key)}
@@ -251,7 +235,7 @@
         <div class="fixed bottom-6 right-8 z-50 flex flex-row gap-2">
             <button
                 aria-label="Undo"
-                class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
+                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
                 onclick={handleUndo}
                 type="button"
                 disabled={undoHistory.length === 0}
@@ -260,7 +244,7 @@
             </button>
             <button
                 aria-label="Discard Changes"
-                class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-gray-400 disabled:dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:hover:bg-gray-200 disabled:dark:hover:bg-gray-700"
+                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
                 onclick={() => showDiscardConfirmDialog = true}
                 type="button"
                 disabled={undoHistory.length === 0}
@@ -269,7 +253,7 @@
             </button>
             <button
                 aria-label="Done"
-                class="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600"
+                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 onclick={() => goto('/')} type="button">
                 Done
             </button>

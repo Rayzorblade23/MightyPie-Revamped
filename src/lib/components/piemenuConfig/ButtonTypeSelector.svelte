@@ -23,19 +23,19 @@
 </script>
 
 <div class="mt-1">
-    <label for="buttonTypeSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+    <label for="buttonTypeSelect" class="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">
         Button Type:
     </label>
     <select
             id="buttonTypeSelect"
-            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:focus:border-indigo-400 sm:text-sm rounded-md shadow-sm disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed bg-slate-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-zinc-300 dark:border-zinc-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:focus:border-indigo-400 sm:text-sm rounded-md shadow-sm disabled:bg-zinc-100 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed bg-zinc-50 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors"
             value={currentType ?? ''}
             onchange={handleChange}
             {disabled}
     >
         {#each buttonTypeKeys as typeValue (typeValue)}
             <option value={typeValue}
-                    class="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">{buttonTypeFriendlyNames[typeValue]}</option>
+                    class="bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100">{buttonTypeFriendlyNames[typeValue]}</option>
         {/each}
     </select>
 </div>

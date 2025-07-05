@@ -6,8 +6,8 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
     [ButtonType.ShowProgramWindow]: 'border-[var(--color-accent-programwin)]',
     [ButtonType.LaunchProgram]: 'border-[var(--color-accent-launch)]',
     [ButtonType.CallFunction]: 'border-[var(--color-accent-function)]',
-    [ButtonType.Disabled]: 'border-[var(--color-foreground-base)]',
-    default: 'border-[var(--color-foreground-base)]',
+    [ButtonType.Disabled]: 'border-zinc-500 dark:border-grey-600',
+    default: 'border-zinc-500 dark:border-grey-600',
 };
 
 // Returns the base button classes (can be extended if needed)
@@ -30,15 +30,15 @@ export function composePieButtonClasses({
     if (isDisabled) {
         staticBaseClasses = [
             baseButtonClasses,
-            'bg-gray-200 text-gray-400 border-gray-300',
-            'dark:bg-gray-800 dark:text-gray-500 dark:border-gray-600',
+            'bg-zinc-200 text-zinc-400',
+            'dark:bg-zinc-800 dark:text-zinc-500',
             allowSelectWhenDisabled ? '' : 'select-none pointer-events-none',
         ].join(' ').trim();
     } else {
         staticBaseClasses = [
             baseButtonClasses,
-            'bg-white text-gray-900',
-            'dark:bg-gray-800 dark:text-white',
+            'bg-white text-zinc-900',
+            'dark:bg-zinc-800 dark:text-white',
         ].join(' ');
     }
     const borderClass = borderClassMap[taskType ?? 'default'];

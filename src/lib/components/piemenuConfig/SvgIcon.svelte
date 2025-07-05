@@ -49,7 +49,7 @@
     {#if iconPath.endsWith('.svg')}
         {#if svgPromise}
             {#await svgPromise}
-                <div class="{svgClasses} animate-pulse bg-gray-300 rounded"></div>
+                <div class="{svgClasses} animate-pulse bg-zinc-300 rounded"></div>
             {:then svgContent}
                 {@html svgContent}
             {:catch error}
@@ -65,5 +65,5 @@
     {/if}
 {:else}
     <!-- Placeholder for when iconPath is empty or undefined -->
-    <span class="text-gray-400 {svgClasses} flex items-center justify-center">...</span>
+    <span class="text-zinc-400 {svgClasses} flex items-center justify-center">...</span>
 {/if}

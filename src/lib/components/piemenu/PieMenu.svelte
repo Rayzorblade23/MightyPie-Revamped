@@ -15,7 +15,6 @@
         type IPiemenuOpenedMessage,
         mouseEvents
     } from "$lib/components/piemenu/piemenuTypes.ts";
-    import {loadAndProcessIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
         PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
@@ -25,6 +24,7 @@
         PUBLIC_PIEMENU_RADIUS as RADIUS
     } from "$env/static/public";
     import {getCurrentWindow} from "@tauri-apps/api/window";
+    import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
 
     const numButtons = 8;
     const radius = Number(RADIUS);
@@ -38,10 +38,10 @@
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
     let currentMouseEvent = $state<string>('');
-    let indicator = $state("");
     let indicatorRotation = $state(0);
-
     let {menuID, pageID}: { menuID: number; pageID: number } = $props();
+
+    const indicatorSVG = $derived.by(async () => await getIndicatorSVG());
 
     const handleButtonClickMessage = async (message: string) => {
         try {
@@ -114,7 +114,6 @@
         }
     });
 
-
     function startAnimationLoop() {
         const update = async () => {
             let {slice, mouseAngle} = await detectActivePieSlice(deadzoneRadius);
@@ -134,10 +133,8 @@
         }
     }
 
-    onMount(async () => {
+    onMount(() => {
         console.log("PieMenu.svelte: onMount hook running");
-
-        indicator = await loadAndProcessIndicatorSVG();
 
         let newButtonPositions: { x: number; y: number }[] = [];
 
@@ -159,7 +156,13 @@
 <div class="relative" style="width: {width}px; height: {height}px;">
     <div class="absolute left-1/2 top-1/2 z-10"
          style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);">
-        <img alt="indicator" height="300" src={indicator} width="300"/>
+        {#await indicatorSVG}
+            <span>Loading...</span>
+        {:then svg}
+            <img alt="indicator" height="300" src={svg} width="300"/>
+        {:catch error}
+            <span>Error loading indicator: {error && error.message ? error.message : error}</span>
+        {/await}
     </div>
 
     {#each buttonPositions as position, i}

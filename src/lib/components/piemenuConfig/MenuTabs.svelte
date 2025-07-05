@@ -45,7 +45,7 @@
     });
 </script>
 
-<div class="tabs flex items-center space-x-1 pt-1 border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 rounded-t-lg">
+<div class="tabs flex items-center space-x-1 pt-1 border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 rounded-t-lg">
     <div class="flex-1 overflow-x-auto whitespace-nowrap flex flex-nowrap items-center horizontal-scrollbar"
          bind:this={scrollDiv} use:horizontalScroll>
         {#each menuIndices as menuIndex (menuIndex)}
@@ -53,8 +53,8 @@
                     type="button"
                     class="flex items-center gap-2 px-4 py-2 font-semibold text-base transition-colors cursor-pointer focus:outline-none
                 {currentSelectedMenuID === menuIndex
-                    ? 'rounded-t-lg text-rose-400  border-b-2 border-amber-400 bg-white dark:bg-gray-800'
-                    : 'rounded-t-lg  border-t-1 border-r-1 border-gray-300 dark:border-gray-700  bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-300 hover:text-amber-400 hover:bg-white hover:border-gray-300  dark:hover:bg-gray-800 dark:hover:border-gray-600 '}"
+                    ? 'rounded-t-lg text-rose-400  border-b-2 border-amber-400 bg-white dark:bg-zinc-800'
+                    : 'rounded-t-lg  border-t-1 border-r-1 border-zinc-300 dark:border-zinc-700  bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 hover:text-amber-400 hover:bg-white hover:border-zinc-300  dark:hover:bg-zinc-800 dark:hover:border-zinc-600 '}"
                     onclick={() => onSelectMenu(menuIndex)}
             >
                 <span>Menu {menuIndex + 1}</span>
@@ -65,7 +65,7 @@
                         e.stopPropagation();
                         onRemoveMenu(menuIndex);
                     }}
-                        buttonClass={`ml-2 p-0.5 bg-slate-700 hover:bg-rose-500 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors${(menuIndices.length <= 1 || disableRemove) ? ' pointer-events-none opacity-50' : ''}`}
+                        buttonClass={`ml-2 p-0.5 bg-zinc-700 hover:bg-rose-500 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors${(menuIndices.length <= 1 || disableRemove) ? ' pointer-events-none opacity-50' : ''}`}
                         svgClass="w-3 h-3"
                 />
             </button>
@@ -93,5 +93,5 @@
     {/if}
 </div>
 {#if menuIndices.length === 0}
-    <span class="px-4 py-2 text-sm text-gray-400 dark:text-gray-500">No Menus Configured</span>
+    <span class="px-4 py-2 text-sm text-zinc-400 dark:text-zinc-500">No Menus Configured</span>
 {/if}

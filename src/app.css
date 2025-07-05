@@ -3,50 +3,35 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --color-accent-anywin: #5a14b7;
-    --color-accent-programwin: #fa9fa4;
-    --color-accent-launch: #f37fc0;
-    --color-accent-function: #71b8ed;
 
-    --color-foreground-base: #D8DEE9;
-    --color-background-base: #1d1b16;
-    --color-text-base: #EEEEEE;
-
-    --color-button-hover-bg: #5f3c8e;
-    --color-button-pressed-left-bg: #5a14b7;
-    --color-button-pressed-middle-bg: #f37fc0;
-    --color-button-pressed-right-bg: #1d1b16;
+    --color-button-hover-bg: #FFFFFFF; /* will be overridden in +layout.svelte */
+    --color-button-pressed-left-bg: #FFFFFFF; /* will be overridden in +layout.svelte */
+    --color-button-pressed-middle-bg: #FFFFFFF; /* will be overridden in +layout.svelte */
+    --color-button-pressed-right-bg: #FFFFFFF; /* will be overridden in +layout.svelte */
 }
 
-.horizontal-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #f1f5f9 #cbd5e1; /* thumb, track for light */
-}
+/* Horizontal scrollbar styling for Tauri (Chromium-based) using Tailwind's zinc palette */
 
 .horizontal-scrollbar::-webkit-scrollbar {
-    height: 8px;
+    height: 8px; /* Horizontal scrollbar height */
 }
 
 .horizontal-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #d4d4d8; /* zinc-300 */
     border-radius: 6px;
 }
 
 .horizontal-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #ffffff; /* white */
     border-radius: 6px;
 }
 
-html.dark .horizontal-scrollbar {
-    scrollbar-color: #475569 #1e293b; /* thumb, track for dark */
-}
-
 html.dark .horizontal-scrollbar::-webkit-scrollbar-thumb {
-    background: #475569 !important;
+    background: #52525b !important; /* zinc-600 */
 }
 
 html.dark .horizontal-scrollbar::-webkit-scrollbar-track {
-    background: #1e293b !important;
+    background: #27272a !important; /* zinc-800 */
 }
 
 /* PieButton interactive states (moved from PieButton.svelte for Svelte/IDE compatibility) */
