@@ -14,6 +14,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Track unknown apps that have been logged already
+var seenUnknownApps = make(map[string]bool)
+
 // GetWindowText gets the title of a window
 func GetWindowText(hwnd win.HWND) string {
 	textLen, _, _ := procGetWindowTextLengthW.Call(uintptr(hwnd))
@@ -221,12 +224,12 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 		// Process not found in installedAppsInfo by its ExePath or basename.
 		// It might be an app not in our list, or a transient system process.
 		// Icon path remains empty if not associated with an entry in installedAppsInfo.
-		// TODO: Maybe save this not-found app to not process it again every time
-		// log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
-		// 	exePathFromProcess, exeNameFromProcess, identifiedAppName)
-		// Optional: if you still want an icon for a completely unknown app, you could call GetIconPathForExe here:
-		// genericIconPath, errIcon := GetIconPathForExe(exePathFromProcess)
-		// if errIcon == nil { appIconPath = genericIconPath }
+		// Only log once per exePath per session
+		if !seenUnknownApps[exePathFromProcess] {
+			log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
+				exePathFromProcess, exeNameFromProcess, identifiedAppName)
+			seenUnknownApps[exePathFromProcess] = true
+		}
 	}
 	// --- End AppName and IconPath Lookup ---
 
