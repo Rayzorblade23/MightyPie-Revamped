@@ -229,10 +229,10 @@
         buttonIndex?: number;
         easing?: (t: number) => number;
     }) {
-        const start = 0.2;
+        const start = 0.1;
         const duration = 150;
         const baseDelay = 0;
-        const delayIncrement = 15;
+        const delayIncrement = 5;
         const delay = baseDelay + (buttonIndex * delayIncrement);
         
         return {

@@ -1,7 +1,7 @@
 <!-- +page.svelte (Main Page for Pie Menu -->
 <script lang="ts">
     // Import subscribeToSubject AND the getter for connection status
-    import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
+    import PieMenuWithTransitions from "$lib/components/piemenu/PieMenuWithTransitions.svelte";
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
@@ -12,8 +12,8 @@
     } from "$env/static/public";
     import {hasPageForMenu} from "$lib/data/configHandler.svelte.ts";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
-    import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {onMount} from "svelte";
+    import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
 
     // --- Core State ---
@@ -23,6 +23,13 @@
     let menuID = $state(0);
     let isNatsReady = $state(false);
     let monitorScaleFactor = $state(1);
+    // Animation key to force component remount
+    let animationKey = $state(0);
+    // Control PieMenu opacity
+    let pieMenuOpacity = $state(0);
+    // Reference to PieMenu component
+    let pieMenuComponent: any = null;
+
     let keepPieMenuAnchored = $state(false);
 
     $effect(() => {
@@ -30,20 +37,22 @@
         keepPieMenuAnchored = settings.keepPieMenuAnchored?.value ?? false;
     });
 
-    async function handlePieMenuVisible(newPageID?: number) {
+    const handlePieMenuVisible = async (newPageID?: number) => {
         if (newPageID !== undefined) {
             pageID = newPageID;
         }
-        if (!isPieMenuVisible) {
-            isPieMenuVisible = true;
-            console.log("PieMenu state: VISIBLE, PageID:", pageID);
-            if (isNatsReady) {
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
-            }
+        isPieMenuVisible = true;
+        console.log("PieMenu state: VISIBLE, PageID:", pageID);
+        if (isNatsReady) {
+            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
         }
-    }
+        // Set opacity to 1 after a short delay to ensure animations have started
+        setTimeout(() => {
+            pieMenuOpacity = 1;
+        }, 50);
+    };
 
-    async function handlePieMenuHidden() {
+    const handlePieMenuHidden = async () => {
         if (isPieMenuVisible) {
             isPieMenuVisible = false;
             pageID = 0;
@@ -51,8 +60,10 @@
             if (isNatsReady) {
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
             }
+            // Set opacity to 0 when hiding
+            pieMenuOpacity = 0;
         }
-    }
+    };
 
     const handleShortcutMessage = async (message: string) => {
         const currentWindow = getCurrentWindow();
@@ -61,22 +72,42 @@
 
             if (shortcutDetectedMsg.shortcutPressed >= 0) {
                 console.log("[NATS] Shortcut (" + shortcutDetectedMsg.shortcutPressed + "): Show/Cycle.");
-                menuID = shortcutDetectedMsg.shortcutPressed;
+                // Only cycle if the same menu shortcut is pressed
                 let newPageID: number;
 
-                // Simplified logic: if window is visible AND pie menu is visible, then cycle
-                if (await currentWindow.isVisible() && isPieMenuVisible) {
+                // Track if we're changing page or showing a new menu
+                const isChangingPage = menuID === shortcutDetectedMsg.shortcutPressed &&
+                    await currentWindow.isVisible() &&
+                    isPieMenuVisible;
+
+                // Set opacity to 0 immediately
+                pieMenuOpacity = 0;
+
+                // Cancel any running animations
+                if (pieMenuComponent?.cancelAnimations) {
+                    pieMenuComponent.cancelAnimations();
+                }
+
+                // Small delay to ensure DOM updates
+                await new Promise(resolve => setTimeout(resolve, 20));
+
+                if (isChangingPage) {
+                    // Cycle to the next page
                     const nextPotentialPageID = pageID + 1;
                     newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
                     if (!keepPieMenuAnchored) {
                         monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                     }
                 } else {
-                    newPageID = 0;  // Always start with menu 0 when showing initially
+                    // Open the menu
+                    menuID = shortcutDetectedMsg.shortcutPressed;
+                    newPageID = 0;  // Always start with page 0 when switching menus or opening initially
                     monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
-
                 await moveCursorToWindowCenter();
+
+                // Increment animation key to trigger button animations
+                animationKey++;
 
                 await currentWindow.show();
 
@@ -87,12 +118,29 @@
                     await handlePieMenuHidden();
                 }
             } else {
+                // Set opacity to 0 before hiding the window
+                pieMenuOpacity = 0;
                 console.log(`[NATS] Shortcut (${shortcutDetectedMsg.shortcutPressed}): Hide.`);
+                // Cancel all animations before hiding
+                if (pieMenuComponent?.cancelAnimations) {
+                    pieMenuComponent.cancelAnimations();
+                }
+                // Small delay to ensure DOM updates
+                await new Promise(resolve => setTimeout(resolve, 20));
                 await currentWindow.hide();
                 await handlePieMenuHidden();
             }
         } catch (e) {
+            // Set opacity to 0 before hiding the window
+            pieMenuOpacity = 0;
             console.error('[NATS] Error in handleShortcutMessage:', e);
+            // Cancel all animations before hiding
+            if (pieMenuComponent?.cancelAnimations) {
+                pieMenuComponent.cancelAnimations();
+            }
+            // Small delay to ensure DOM updates
+            await new Promise(resolve => setTimeout(resolve, 20));
+            await currentWindow.hide();
             await handlePieMenuHidden();
         }
     };
@@ -181,6 +229,7 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenu menuID={menuID} pageID={pageID}/>
+        <PieMenuWithTransitions menuID={menuID} pageID={pageID} animationKey={animationKey} opacity={pieMenuOpacity}
+                                bind:this={pieMenuComponent}/>
     </div>
 </main>
