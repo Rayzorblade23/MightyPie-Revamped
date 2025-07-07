@@ -524,6 +524,12 @@
         }
     }
 
+    function handleClearShortcut() {
+        if (selectedMenuID !== undefined && shortcutLabels[selectedMenuID]) {
+            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE, {index: selectedMenuID});
+        }
+    }
+
     const buttonTypeFriendlyNames: Record<ButtonType, string> = {
         [ButtonType.ShowProgramWindow]: "Show Program Window",
         [ButtonType.ShowAnyWindow]: "Show Any Window",
@@ -789,10 +795,22 @@
                                         : 'Set Shortcut'}
                                 </button>
                             </div>
+                            <div class="flex flex-row justify-between items-center w-full mt-2">
+                                <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
+                                <button
+                                        class="w-full px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                                        style="max-width: 120px;"
+                                        onclick={handleClearShortcut}
+                                        disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
+                                >
+                                    Clear
+                                </button>
+                            </div>
                             <div class="flex flex-row justify-between mt-2 items-center w-full">
                                 <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
                                 <button
-                                        class="px-4 py-2 bg-rose-500 text-white rounded hover:bg-rose-600 dark:bg-rose-700 transition dark:hover:bg-rose-800"
+                                        class="w-full px-4 py-2 bg-rose-500 text-white rounded hover:bg-rose-600 dark:bg-rose-700 transition dark:hover:bg-rose-800"
+                                        style="max-width: 120px;"
                                         onclick={() => showResetAllConfirmDialog = true}
                                         title="Reset all menus to default (keeps only the first menu with default page/buttons)"
                                 >
