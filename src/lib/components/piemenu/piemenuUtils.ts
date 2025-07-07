@@ -160,11 +160,11 @@ export async function detectActivePieSlice(deadzoneRadius: number): Promise<{
 
         const result = calculatePieSliceFromCoordinates(relX, relY, winSize, deadzoneRadius);
 
-        if (result.slice === -1) {
-            console.log("Mouse is inside the inner radius (dead zone).");
-        } else {
-            console.log(`Mouse is in slice: ${result.slice}`);
-        }
+        // if (result.slice === -1) {
+        //     console.log("Mouse is inside the inner radius (dead zone).");
+        // } else {
+        //     console.log(`Mouse is in slice: ${result.slice}`);
+        // }
 
         return {slice: result.slice, mouseAngle: result.theta};
     } catch (error) {
@@ -227,6 +227,18 @@ export async function ensureWindowWithinMonitorBounds(): Promise<void> {
 }
 
 /**
+ * Moves the cursor to the center of the current window.
+ */
+export async function moveCursorToWindowCenter() {
+    const window = getCurrentWindow();
+    const outerPos = await window.outerPosition();
+    const outerSize = await window.outerSize();
+    const centerX = Math.round(outerPos.x + outerSize.width / 2);
+    const centerY = Math.round(outerPos.y + outerSize.height / 2);
+    await setMousePosition(centerX, centerY);
+}
+
+/**
  * Centers the window at the current mouse position and handles monitor scale factors.
  * @param monitorScaleFactor - The current monitor's scale factor
  * @returns Promise containing the new monitor's scale factor
@@ -277,12 +289,5 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
     let newSize = new LogicalSize(innerSize.width / windowScaleFactor, innerSize.height / windowScaleFactor);
     await window.setSize(newSize);
 
-    const finalOuterPos = await window.outerPosition();
-    const finalOuterSize = await window.outerSize();
-    const centerX = Math.round(finalOuterPos.x + finalOuterSize.width / 2);
-    const centerY = Math.round(finalOuterPos.y + finalOuterSize.height / 2);
-    await setMousePosition(centerX, centerY);
-
     return newScaleFactor;
 }
-

@@ -9,6 +9,7 @@ export interface SettingsEntry {
     defaultValue: any;
     type: string;
     options?: string[]; // For enum types
+    index?: number; // For sorting order
 }
 
 export type SettingsMap = Record<string, SettingsEntry>;

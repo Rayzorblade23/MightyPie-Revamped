@@ -6,7 +6,7 @@
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
-    import {PUBLIC_SETTINGS_SIZE_X, PUBLIC_SETTINGS_SIZE_Y} from "$env/static/public";
+    import {PUBLIC_SETTINGS_SIZE_X, PUBLIC_SETTINGS_SIZE_Y, PUBLIC_DIR_BUTTONFUNCTIONS} from "$env/static/public";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
 
     // Canonical deep clone for settings, matching piemenuConfig approach
@@ -21,6 +21,60 @@
     let undoHistory = $state<SettingsMap[]>([]);
     let showDiscardConfirmDialog = $state(false);
     let initialSettingsSnapshot: SettingsMap = cloneSettings(getSettings());
+
+    // --- Deadzone Function Options State ---
+    let deadzoneFunctionOptions = $state<string[]>([]);
+
+    onMount(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                if (event.defaultPrevented) return;
+                if (showDiscardConfirmDialog) return;
+                const active = document.activeElement;
+                // If an input or textarea is focused, first Escape should blur it, second Escape should trigger the normal logic
+                if (active && (["INPUT", "TEXTAREA"].includes(active.tagName) || active.getAttribute("contenteditable") === "true")) {
+                    (active as HTMLElement).blur();
+                    return;
+                }
+                // Only block Escape if the user is editing a text input or textarea
+                if (active && ["INPUT", "TEXTAREA"].includes(active.tagName) && !(active as HTMLInputElement).readOnly && !(active as HTMLInputElement).disabled && (active as HTMLInputElement).type === "text") return;
+                // Use the same logic as Discard Changes button for unsaved changes
+                if (undoHistory.length === 0) {
+                    goto('/');
+                } else {
+                    showDiscardConfirmDialog = true;
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+
+        // Async logic for window setup
+        (async () => {
+            try {
+                currentWindow = getCurrentWindow();
+                await centerAndSizeWindowOnMonitor(
+                    currentWindow,
+                    Number(PUBLIC_SETTINGS_SIZE_X),
+                    Number(PUBLIC_SETTINGS_SIZE_Y)
+                );
+            } catch (e) {
+                console.error(e);
+            }
+            try {
+                const response = await fetch(PUBLIC_DIR_BUTTONFUNCTIONS);
+                if (response.ok) {
+                    const defs = await response.json();
+                    deadzoneFunctionOptions = Object.keys(defs).sort();
+                }
+            } catch (e) {
+                console.error("Failed to load buttonFunctions.json for deadzone options:", e);
+            }
+        })();
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    });
 
     function pushUndoState() {
         undoHistory = [...undoHistory, cloneSettings(settings)];
@@ -95,6 +149,7 @@
     }
 
     function handleResetToDefault(key: string) {
+        pushUndoState();
         settings = {
             ...settings,
             [key]: {
@@ -109,19 +164,6 @@
             e.preventDefault();
         }
     }
-
-    onMount(async () => {
-        try {
-            currentWindow = getCurrentWindow();
-            await centerAndSizeWindowOnMonitor(
-                currentWindow,
-                Number(PUBLIC_SETTINGS_SIZE_X),
-                Number(PUBLIC_SETTINGS_SIZE_Y)
-            );
-        } catch (error) {
-            console.error("Failed to get/resize window onMount:", error);
-        }
-    });
 
     onDestroy(() => {
         publishSettings(settings);
@@ -143,7 +185,9 @@
                 No settings available.</p>
         {:else}
             <div class="w-full">
-                {#each Object.entries(settings) as [key, entry]}
+                {#each Object.entries(settings)
+                    .sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0))
+                    as [key, entry]}
                     {#if entry.isExposed}
                         <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-2 shadow-sm border border-zinc-200 dark:border-zinc-700">
                             <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base" for={key}>{entry.label}</label>
@@ -202,6 +246,15 @@
                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleStringInput(key, e)}/>
+                                {:else if entry.type === 'enum' && key === 'pieMenuDeadzoneFunction'}
+                                    <select id={key}
+                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                            value={entry.value}
+                                            onchange={e => handleEnumChange(e, key)}>
+                                        {#each deadzoneFunctionOptions as opt}
+                                            <option value={opt} selected={entry.value === opt}>{opt}</option>
+                                        {/each}
+                                    </select>
                                 {:else if entry.type === 'enum' && entry.options}
                                     <select id={key}
                                             class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
@@ -259,13 +312,13 @@
             </button>
         </div>
         <ConfirmationDialog
+            cancelText="Save Changes"
+            confirmText="Discard Changes"
             isOpen={showDiscardConfirmDialog}
-            title="Discard All Changes?"
-            message="This will reset all settings since you opened this window. Are you sure?"
-            confirmText="Discard"
-            cancelText="Cancel"
-            onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); }}
-            onCancel={() => showDiscardConfirmDialog = false}
+            message="You have unsaved changes. What would you like to do?"
+            onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+            onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+            title="Unsaved Changes"
         />
     </div>
 </div>

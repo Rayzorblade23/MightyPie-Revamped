@@ -11,11 +11,10 @@
     import QuickMenuPieButton from '$lib/components/piemenuConfig/QuickMenuPieButton.svelte';
     import {getMenuConfiguration} from '$lib/data/configHandler.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts';
-    import {centerWindowAtCursor, ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
+    import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
 
     // --- THEME TOGGLE LOGIC ---
     let isDark = $state(false);
-    let monitorScaleFactor = $state(1);
 
     function toggleDark() {
         isDark = !isDark;
@@ -81,9 +80,17 @@
 
         initialize();
 
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                onLostFocus();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+
         window.addEventListener('blur', onLostFocus);
         return () => {
             window.removeEventListener('blur', onLostFocus);
+            window.removeEventListener("keydown", handleKeyDown);
         };
     });
 </script>
@@ -112,7 +119,9 @@
                 />
             {/each}
             <div class="flex items-center justify-center" style="width:100%;">
-                <img src="/tabler_icons/star.svg" alt="star icon" class="w-full h-full rounded-lg p-2 object-contain bg-transparent dark:invert" style="min-width:{buttonWidth}rem; min-height:{buttonHeight}rem; max-width:{buttonWidth}rem; max-height:{buttonHeight}rem;" />
+                <img alt="star icon" class="w-full h-full rounded-lg p-2 object-contain bg-transparent dark:invert"
+                     src="/tabler_icons/star.svg"
+                     style="min-width:{buttonWidth}rem; min-height:{buttonHeight}rem; max-width:{buttonWidth}rem; max-height:{buttonHeight}rem;"/>
             </div>
             {#each buttonList.slice(4, 8) as [buttonID, button]}
                 <QuickMenuPieButton

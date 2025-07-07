@@ -80,7 +80,7 @@
     const handleInstalledAppsMessage = (message: string) => {
         try {
             const installedAppsInfo = parseInstalledAppsInfo(message);
-            console.log("Received installed apps list:", installedAppsInfo);
+            // console.log("Received installed apps list:", installedAppsInfo);
             updateInstalledAppsInfo(installedAppsInfo);
         } catch (error) {
             console.error("[+layout.svelte] Failed to process installed apps message:", error);

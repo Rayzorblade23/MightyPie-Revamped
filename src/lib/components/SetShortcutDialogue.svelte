@@ -6,6 +6,8 @@
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === 'Escape' && isOpen) {
+            event.stopPropagation();
+            event.preventDefault();
             onCancel();
         }
     }

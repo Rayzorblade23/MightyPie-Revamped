@@ -57,6 +57,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 
 // SettingsEntry represents a single settings entry with type info, value, and metadata.
 type SettingsEntry struct {
+	Index        int      `json:"index"`
 	Label        string   `json:"label"`
 	IsExposed    bool     `json:"isExposed"`
 	Type         string   `json:"type"` // "int", "float", "string", "bool", "enum", "color"

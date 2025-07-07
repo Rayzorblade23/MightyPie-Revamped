@@ -60,6 +60,5 @@ function hslToHex(h: number, s: number, l: number) {
 export function saturateHexColor(hex: string, amount: number = 1.4) {
     let {h, s, l} = hexToHsl(hex);
     s = Math.min(1, s * amount);
-    console.log("HEXING THE COLOR", hex, h, s, l);
     return hslToHex(h, s, l);
 }

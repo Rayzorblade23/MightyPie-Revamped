@@ -29,6 +29,8 @@
 
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === 'Escape') {
+            event.stopPropagation();
+            event.preventDefault();
             handleCancel();
             return;
         }

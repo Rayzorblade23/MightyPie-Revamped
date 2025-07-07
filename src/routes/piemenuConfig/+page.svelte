@@ -333,9 +333,35 @@
         }
     });
 
+    onMount(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                if (event.defaultPrevented) return;
+                const active = document.activeElement;
+                // If an input, textarea, select, or contenteditable is focused, first Escape should blur it, second Escape should trigger the normal logic
+                if (active && (["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) || active.getAttribute("contenteditable") === "true")) {
+                    (active as HTMLElement).blur();
+                    return;
+                }
+                if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen) return;
+                // Use the same logic as Discard Changes button for unsaved changes
+                if (undoHistory.length === 0) {
+                    goto('/');
+                } else {
+                    showDiscardConfirmDialog = true;
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    });
+
     onDestroy(async () => {
         publishBaseMenuConfiguration(baseMenuConfig);
     });
+
 
     // --- Event Handlers ---
     /** Close the shortcut dialog and abort shortcut recording. */
@@ -601,7 +627,6 @@
     $effect(() => {
         baseMenuConfig = getBaseMenuConfiguration();
     });
-
 </script>
 
 <div class="w-full min-h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700 h-8">
@@ -852,31 +877,31 @@
                 onConfirm={confirmRemoveMenu}
         />
         <ConfirmationDialog
+                cancelText="Save Changes"
+                confirmText="Discard Changes"
                 isOpen={showDiscardConfirmDialog}
-                title="Discard All Changes?"
-                message="This will reset all menu changes since you opened this window. This cannot be undone. Are you sure?"
-                confirmText="Discard"
-                cancelText="Cancel"
-                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); }}
-                onCancel={() => showDiscardConfirmDialog = false}
+                message="You have unsaved changes. What would you like to do?"
+                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+                title="Unsaved Changes"
         />
         <ConfirmationDialog
-                isOpen={showResetAllConfirmDialog}
-                title="Reset All Menus?"
-                message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
-                confirmText="Reset All"
                 cancelText="Cancel"
-                onConfirm={confirmResetAllMenus}
+                confirmText="Reset All"
+                isOpen={showResetAllConfirmDialog}
+                message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
                 onCancel={cancelResetAllMenus}
+                onConfirm={confirmResetAllMenus}
+                title="Reset All Menus?"
         />
         <SetShortcutDialogue isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
         <ConfirmationDialog
-                isOpen={showBackupCreatedDialog}
-                title="Backup Created"
-                message="A backup of the current Config has been created."
                 confirmText="OK"
-                onConfirm={() => showBackupCreatedDialog = false}
+                isOpen={showBackupCreatedDialog}
+                message="A backup of the current Config has been created."
                 onCancel={() => showBackupCreatedDialog = false}
+                onConfirm={() => showBackupCreatedDialog = false}
+                title="Backup Created"
         />
     </div>
 </div>
