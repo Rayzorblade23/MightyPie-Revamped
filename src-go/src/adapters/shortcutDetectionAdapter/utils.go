@@ -68,9 +68,6 @@ func isEventKeyInShortcutCodes(eventVKCode int, shortcutDefinedCodes []int) bool
 // Returns true if the event was consumed by a shortcut.
 func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 	for shortcutKeyIndex, shortcutDefinition := range adapter.keyboardHook.shortcuts {
-		if len(shortcutDefinition.Codes) < 2 {
-			continue
-		} // Original logic: requires at least 2 keys for a shortcut.
 		mainShortcutKey := shortcutDefinition.Codes[len(shortcutDefinition.Codes)-1]
 		modifierKeys := shortcutDefinition.Codes[:len(shortcutDefinition.Codes)-1]
 		if eventVKCode == mainShortcutKey && checkShortcutModifiers(modifierKeys) {

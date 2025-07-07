@@ -82,10 +82,8 @@ func (kh *setterKeyboardHook) hookProc(nCode int, wParam uintptr, lParam uintptr
             kh.pressed[vk] = true
 
             modifiers := getCurrentlyPressedModifiers()
-            if len(modifiers) > 0 {
-                shortcut := append(modifiers, vk)
-                kh.callback(shortcut)
-            }
+            shortcut := append(modifiers, vk)
+            kh.callback(shortcut)
         case core.WM_KEYUP, core.WM_SYSKEYUP:
             delete(kh.pressed, vk)
         }

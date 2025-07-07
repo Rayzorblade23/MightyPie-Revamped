@@ -8,29 +8,14 @@ type ShortcutIndexMessage struct {
 
 type ShortcutMap map[string]core.ShortcutEntry
 
-// IsValidShortcut checks if a shortcut is valid (at least one modifier and a main key).
+// IsValidShortcut checks if a shortcut is valid (at least one non-modifier key).
 func IsValidShortcut(shortcut []int) bool {
-	if len(shortcut) < 2 {
-		return false
-	}
-	hasMain := false
-	for _, k := range shortcut {
-		if !core.IsModifier(k) {
-			hasMain = true
-			break
-		}
-	}
-	if !hasMain {
+	if len(shortcut) < 1 {
 		return false
 	}
 	mainKey := shortcut[len(shortcut)-1]
 	if core.IsModifier(mainKey) {
 		return false
-	}
-	for _, k := range shortcut[:len(shortcut)-1] {
-		if !core.IsModifier(k) {
-			return false
-		}
 	}
 	return true
 }
