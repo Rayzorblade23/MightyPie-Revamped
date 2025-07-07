@@ -1,7 +1,7 @@
 <!-- PieMenuWithTransitions.svelte -->
 <script lang="ts">
-    import { fly, scale } from 'svelte/transition';
-    import { cubicOut } from 'svelte/easing';
+    import {scale} from 'svelte/transition';
+    import {cubicOut} from 'svelte/easing';
     import {onDestroy, onMount} from 'svelte';
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {goto} from "$app/navigation";
@@ -42,13 +42,13 @@
     let animationFrameId: number | null = null;
     let currentMouseEvent = $state<string>('');
     let indicatorRotation = $state(0);
-    
+
     // New state for controlling transitions
     let showButtons = $state(false);
-    
-    let {menuID, pageID, animationKey = 0, opacity = 1}: { 
-        menuID: number; 
-        pageID: number; 
+
+    let {menuID, pageID, animationKey = 0, opacity = 1}: {
+        menuID: number;
+        pageID: number;
         animationKey?: number;
         opacity?: number;
     } = $props();
@@ -133,22 +133,26 @@
         if (activeSlice !== -1) {
             // First trigger left_down
             currentMouseEvent = mouseEvents.left_down;
-            
+
             // Wait for the DOM/reactivity to process the left_down state change
             setTimeout(() => {
-                // Then trigger left_up which will execute the button via PieButton's effect
-                currentMouseEvent = mouseEvents.left_up;
-                
-                // Delay hiding to ensure the button click is processed
-                setTimeout(() => {
-                    // Optionally close the menu here
-                    publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
-                    // Set opacity to 0 before hiding the window
-                    opacity = 0;
-                    // Hide buttons before hiding window, but after click is processed
-                    showButtons = false;
-                    getCurrentWindow().hide();
-                }, 100); // Add delay to ensure button action is processed
+                if (activeSlice !== -1) {
+
+                    // Then trigger left_up which will execute the button via PieButton's effect
+                    currentMouseEvent = mouseEvents.left_up;
+                    console.log(`Left drag released in Slice: ${activeSlice}!`);
+
+                    // Delay hiding to ensure the button click is processed
+                    setTimeout(() => {
+                        // Optionally close the menu here
+                        publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+                        // Set opacity to 0 before hiding the window
+                        opacity = 0;
+                        // Hide buttons before hiding window, but after click is processed
+                        showButtons = false;
+                        getCurrentWindow().hide();
+                    }, 100); // Add delay to ensure button action is processed
+                }
             }, 50); // Increased delay between down and up events
         }
     };
@@ -201,7 +205,7 @@
         buttonPositions = newButtonPositions;
 
         startAnimationLoop();
-        
+
         // Show buttons after a short delay
         setTimeout(() => {
             showButtons = true;
@@ -211,15 +215,15 @@
     onDestroy(() => {
         stopAnimationLoop();
     });
-    
+
     // Expose method to hide buttons (used by the parent component when needed)
     export function cancelAnimations() {
         showButtons = false;
     }
 
     // Improved flyAndScale transition - uses buttonIndex to calculate delay
-    function flyAndScale(node: HTMLElement, { 
-        x = 0, 
+    function flyAndScale(_node: HTMLElement, {
+        x = 0,
         y = 0,
         buttonIndex = 0,
         easing = cubicOut
@@ -234,7 +238,7 @@
         const baseDelay = 0;
         const delayIncrement = 5;
         const delay = baseDelay + (buttonIndex * delayIncrement);
-        
+
         return {
             duration,
             delay,
@@ -244,25 +248,25 @@
                 const flyY = y * (1 - eased);
                 const scaleValue = start + (1 - start) * eased;
                 const opacity = eased;
-                
+
                 return `transform: translate(${flyX}px, ${flyY}px) scale(${scaleValue}); opacity: ${opacity};`;
             }
         };
     }
-    
+
     // Helper component factory function to reduce repetition
     function createPieButtonContainer(buttonIndex: number) {
         // Since we always check buttonPositions.length and showButtons before calling this
         // function, we can assume these values are valid and remove the null return
         const x = buttonPositions[buttonIndex].x;
         const y = buttonPositions[buttonIndex].y;
-        const flyX = width/2 - x;
-        const flyY = height/2 - y;
-        
+        const flyX = width / 2 - x;
+        const flyY = height / 2 - y;
+
         return {
-            x, 
-            y, 
-            flyX, 
+            x,
+            y,
+            flyX,
             flyY,
             buttonIndex
         };
@@ -271,10 +275,10 @@
 
 <div class="relative" style="width: {width}px; height: {height}px; opacity: {opacity};">
     <div
-        class="deadzone"
-        class:active={activeSlice === -1 && (currentMouseEvent === mouseEvents.left_down || currentMouseEvent === mouseEvents.middle_down)}
-        class:hovered={activeSlice === -1 && !(currentMouseEvent === mouseEvents.left_down || currentMouseEvent === mouseEvents.middle_down)}
-        style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: {deadzoneRadius * 2}px; height: {deadzoneRadius * 2}px; border-radius: 50%; z-index: 5;"
+            class="deadzone"
+            class:active={activeSlice === -1 && (currentMouseEvent === mouseEvents.left_down || currentMouseEvent === mouseEvents.middle_down)}
+            class:hovered={activeSlice === -1 && !(currentMouseEvent === mouseEvents.left_down || currentMouseEvent === mouseEvents.middle_down)}
+            style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: {deadzoneRadius * 2}px; height: {deadzoneRadius * 2}px; border-radius: 50%; z-index: 5;"
     ></div>
     <div class="absolute left-1/2 top-1/2 z-10"
          style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);">
@@ -289,21 +293,21 @@
 
     {#if showButtons && buttonPositions.length >= 1}
         {@const button = createPieButtonContainer(0)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 0 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 0 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={0}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={0}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 0,
                     leftDown: activeSlice === 0 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 0 && currentMouseEvent === mouseEvents.left_up,
@@ -315,24 +319,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 2}
         {@const button = createPieButtonContainer(1)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 1 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 1 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={1}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={1}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 1,
                     leftDown: activeSlice === 1 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 1 && currentMouseEvent === mouseEvents.left_up,
@@ -344,24 +348,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 3}
         {@const button = createPieButtonContainer(2)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 2 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 2 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={2}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={2}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 2,
                     leftDown: activeSlice === 2 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 2 && currentMouseEvent === mouseEvents.left_up,
@@ -373,24 +377,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 4}
         {@const button = createPieButtonContainer(3)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 3 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 3 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={3}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={3}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 3,
                     leftDown: activeSlice === 3 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 3 && currentMouseEvent === mouseEvents.left_up,
@@ -402,24 +406,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 5}
         {@const button = createPieButtonContainer(4)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 4 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 4 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={4}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={4}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 4,
                     leftDown: activeSlice === 4 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 4 && currentMouseEvent === mouseEvents.left_up,
@@ -431,24 +435,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 6}
         {@const button = createPieButtonContainer(5)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 5 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 5 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={5}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={5}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 5,
                     leftDown: activeSlice === 5 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 5 && currentMouseEvent === mouseEvents.left_up,
@@ -460,24 +464,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 7}
         {@const button = createPieButtonContainer(6)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 6 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 6 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={6}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={6}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 6,
                     leftDown: activeSlice === 6 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 6 && currentMouseEvent === mouseEvents.left_up,
@@ -489,24 +493,24 @@
             />
         </div>
     {/if}
-    
+
     {#if showButtons && buttonPositions.length >= 8}
         {@const button = createPieButtonContainer(7)}
-        <div 
-            class="button-container"
-            style="position: absolute; left: {button.x}px; top: {button.y}px;"
-            in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 7 }}
-            out:scale={{ start: 1, opacity: 0, duration: 150 }}
+        <div
+                class="button-container"
+                style="position: absolute; left: {button.x}px; top: {button.y}px;"
+                in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 7 }}
+                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
-                menuID={menuID}
-                pageID={pageID}
-                buttonID={7}
-                x={0}
-                y={0}
-                width={buttonWidth}
-                height={buttonHeight}
-                mouseState={{
+                    menuID={menuID}
+                    pageID={pageID}
+                    buttonID={7}
+                    x={0}
+                    y={0}
+                    width={buttonWidth}
+                    height={buttonHeight}
+                    mouseState={{
                     hovered: activeSlice === 7,
                     leftDown: activeSlice === 7 && currentMouseEvent === mouseEvents.left_down,
                     leftUp: activeSlice === 7 && currentMouseEvent === mouseEvents.left_up,
