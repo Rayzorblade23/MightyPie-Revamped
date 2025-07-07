@@ -4,12 +4,17 @@
     import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
-    import {PUBLIC_NATSSUBJECT_PIEMENU_OPENED, PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED} from "$env/static/public";
+    import {
+        PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
+        PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
+        PUBLIC_PIEMENU_SIZE_X,
+        PUBLIC_PIEMENU_SIZE_Y
+    } from "$env/static/public";
     import {hasPageForMenu} from "$lib/data/configHandler.svelte.ts";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
-    import {centerWindowAtCursor} from "$lib/components/piemenu/piemenuUtils.ts";
-    import {PUBLIC_PIEMENU_SIZE_X, PUBLIC_PIEMENU_SIZE_Y} from "$env/static/public";
+    import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {onMount} from "svelte";
+    import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
 
     // --- Core State ---
     // Temporarily force PieMenu to be visible for debugging
@@ -18,6 +23,12 @@
     let menuID = $state(0);
     let isNatsReady = $state(false);
     let monitorScaleFactor = $state(1);
+    let keepPieMenuAnchored = $state(false);
+
+    $effect(() => {
+        const settings = getSettings();
+        keepPieMenuAnchored = settings.keepPieMenuAnchored?.value ?? false;
+    });
 
     async function handlePieMenuVisible(newPageID?: number) {
         if (newPageID !== undefined) {
@@ -57,10 +68,15 @@
                 if (await currentWindow.isVisible() && isPieMenuVisible) {
                     const nextPotentialPageID = pageID + 1;
                     newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
+                    if (!keepPieMenuAnchored) {
+                        monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
+                    }
                 } else {
                     newPageID = 0;  // Always start with menu 0 when showing initially
                     monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
+
+                await moveCursorToWindowCenter();
 
                 await currentWindow.show();
 
@@ -130,6 +146,20 @@
 
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    });
+
+    onMount(() => {
+        const handleKeyDown = async (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                console.log("Escape pressed: closing PieMenu and hiding window.");
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+                await getCurrentWindow().hide();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
         };
     });
 
