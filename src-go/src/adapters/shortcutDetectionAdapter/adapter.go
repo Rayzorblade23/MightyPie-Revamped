@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"syscall"
-	"time"
+
 	"unsafe"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
@@ -80,26 +80,6 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		fmt.Printf("Error: Failed to subscribe to JetStream subject: %v\n", err)
 	}
 
-	// Goroutine for initial/default hook setup after a delay.
-	// NATS updates will supersede these defaults.
-	go func(currentAdapter *ShortcutDetectionAdapter) {
-		time.Sleep(1500 * time.Millisecond)
-		// This block is for setting default/debug shortcuts if NATS doesn't provide them quickly.
-		// For pure NATS-driven setup, this 'if' block can be removed entirely.
-		// /*
-		// if len(currentAdapter.shortcuts) == 0 { // Only if NATS hasn't populated shortcuts yet
-		// 	currentAdapter.shortcuts = map[string]core.ShortcutEntry{
-		// 		"0": {Codes: []int{core.VK_SHIFT, core.VK_CONTROL, core.KeyMap["D"]}, Label: "Default: Shift+Ctrl+D"},
-		// 		// Example: "1": {Codes: []int{core.VK_ALT, core.KeyMap["S"]}, Label: "Default: Alt+S"},
-		// 	}
-		// 	currentAdapter.pressedState = make(map[string]bool)
-		// 	for k := range currentAdapter.shortcuts {
-		// 		currentAdapter.pressedState[k] = false
-		// 	}
-		// 	currentAdapter.updateKeyboardHook()
-		// }
-		// */
-	}(adapter)
 
 	pressedEventSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
