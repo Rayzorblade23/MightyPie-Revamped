@@ -14,6 +14,7 @@ import (
 // --- Windows API constants and helpers ---
 var (
 	user32 = syscall.NewLazyDLL("user32.dll")
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 	procMouseEvent = user32.NewProc("mouse_event")
 
 	showWindow          = user32.NewProc("ShowWindow")
@@ -25,6 +26,9 @@ var (
 	switchToThisWindow  = user32.NewProc("SwitchToThisWindow")
 	getWindowPlacement  = user32.NewProc("GetWindowPlacement")
 	procGetClassNameW   = user32.NewProc("GetClassNameW")
+	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+	getCurrentThreadId       = kernel32.NewProc("GetCurrentThreadId")
+	attachThreadInput        = user32.NewProc("AttachThreadInput")
 )
 
 const (
@@ -166,23 +170,51 @@ func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, er
 
 // SetForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
 func setForegroundOrMinimize(hwnd uintptr) error {
+	log.Printf("[setForegroundOrMinimize] Called for HWND: 0x%X", hwnd)
 	foreground, _, callErr := getForegroundWindow.Call()
 	if callErr != nil && callErr != syscall.Errno(0) {
+		log.Printf("[setForegroundOrMinimize] getForegroundWindow failed: %v", callErr)
 		return fmt.Errorf("getForegroundWindow failed: %v", callErr)
 	}
 
 	if hwnd == foreground {
-		// Already in foreground, minimize instead
+		log.Printf("[setForegroundOrMinimize] HWND is already foreground, minimizing instead.")
 		return WindowHandle(hwnd).Minimize()
 	}
 
-	ret, _, callErr := switchToThisWindow.Call(hwnd, 1)
+	// --- Input join (AttachThreadInput) method ---
+	var tmp uint32
+	fgThread, _, _ := getWindowThreadProcessId.Call(foreground, uintptr(unsafe.Pointer(&tmp)))
+	thisThread, _, _ := getCurrentThreadId.Call()
+	log.Printf("[setForegroundOrMinimize] thisThread: %d, fgThread: %d", thisThread, fgThread)
+
+	// Attach input of our thread and foreground thread
+	res, _, err := attachThreadInput.Call(thisThread, fgThread, 1)
+	log.Printf("[setForegroundOrMinimize] AttachThreadInput result: %d, err: %v", res, err)
+	
+	// Always restore the window first
+	showRet, _, showErr := showWindow.Call(hwnd, SW_RESTORE)
+	if showRet == 0 {
+		log.Printf("[setForegroundOrMinimize] showWindow(SW_RESTORE) failed: %v", showErr)
+		attachThreadInput.Call(thisThread, fgThread, 0)
+		return fmt.Errorf("showWindow(SW_RESTORE) failed: %v", showErr)
+	}
+
+	// Now try to bring to foreground
+	ret, _, callErr := setForegroundWindow.Call(hwnd)
+	log.Printf("[setForegroundOrMinimize] setForegroundWindow result: %d, err: %v", ret, callErr)
+
+	// Detach input
+	detachRes, _, detachErr := attachThreadInput.Call(thisThread, fgThread, 0)
+	log.Printf("[setForegroundOrMinimize] DetachThreadInput result: %d, err: %v", detachRes, detachErr)
+
 	if ret == 0 {
-		return fmt.Errorf("switchToThisWindow failed: %v", callErr)
+		return fmt.Errorf("setForegroundWindow failed after restore: %v", callErr)
 	}
 
 	return nil
 }
+
 
 func logWindowContext(index int, text string, hwnd uintptr) {
 	title := GetWindowTitle(hwnd)
