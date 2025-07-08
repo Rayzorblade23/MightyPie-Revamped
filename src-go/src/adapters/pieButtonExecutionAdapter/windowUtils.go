@@ -3,32 +3,36 @@ package pieButtonExecutionAdapter
 import (
 	"fmt"
 	"log"
+	"strings"
 	"syscall"
 	"unsafe"
-	"strings"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
-
 // --- Windows API constants and helpers ---
 var (
-	user32 = syscall.NewLazyDLL("user32.dll")
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	user32         = syscall.NewLazyDLL("user32.dll")
+	kernel32       = syscall.NewLazyDLL("kernel32.dll")
 	procMouseEvent = user32.NewProc("mouse_event")
 
-	showWindow          = user32.NewProc("ShowWindow")
-	getWindowRect       = user32.NewProc("GetWindowRect")
-	setForegroundWindow = user32.NewProc("SetForegroundWindow")
-	enumWindows         = user32.NewProc("EnumWindows")
-	getWindowTextW      = user32.NewProc("GetWindowTextW")
-	getForegroundWindow = user32.NewProc("GetForegroundWindow")
-	switchToThisWindow  = user32.NewProc("SwitchToThisWindow")
-	getWindowPlacement  = user32.NewProc("GetWindowPlacement")
-	procGetClassNameW   = user32.NewProc("GetClassNameW")
+	showWindow               = user32.NewProc("ShowWindow")
+	getWindowRect            = user32.NewProc("GetWindowRect")
+	setForegroundWindow      = user32.NewProc("SetForegroundWindow")
+	enumWindows              = user32.NewProc("EnumWindows")
+	getWindowTextW           = user32.NewProc("GetWindowTextW")
+	getForegroundWindow      = user32.NewProc("GetForegroundWindow")
+	getWindowPlacement       = user32.NewProc("GetWindowPlacement")
+	procGetClassNameW        = user32.NewProc("GetClassNameW")
 	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
 	getCurrentThreadId       = kernel32.NewProc("GetCurrentThreadId")
 	attachThreadInput        = user32.NewProc("AttachThreadInput")
+
+	getCursorPos     = user32.NewProc("GetCursorPos")
+	monitorFromPoint = user32.NewProc("MonitorFromPoint")
+	getMonitorInfo   = user32.NewProc("GetMonitorInfoW")
+	setWindowPos     = user32.NewProc("SetWindowPos")
+	isZoomed         = user32.NewProc("IsZoomed")
 )
 
 const (
@@ -54,8 +58,6 @@ type windowPlacement struct {
 type WindowHandle uintptr
 
 // --- Window manipulation methods ---
-
-
 
 // isExplorerWindow returns true if the given HWND belongs to explorer.exe using the cached windowsList
 func isExplorerWindow(hwnd uintptr, windowsList map[int]core.WindowInfo) bool {
@@ -167,7 +169,6 @@ func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, er
 	return result.hwnd, nil
 }
 
-
 // SetForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
 func setForegroundOrMinimize(hwnd uintptr) error {
 	log.Printf("[setForegroundOrMinimize] Called for HWND: 0x%X", hwnd)
@@ -191,7 +192,7 @@ func setForegroundOrMinimize(hwnd uintptr) error {
 	// Attach input of our thread and foreground thread
 	res, _, err := attachThreadInput.Call(thisThread, fgThread, 1)
 	log.Printf("[setForegroundOrMinimize] AttachThreadInput result: %d, err: %v", res, err)
-	
+
 	// Always restore the window first
 	showRet, _, showErr := showWindow.Call(hwnd, SW_RESTORE)
 	if showRet == 0 {
@@ -214,7 +215,6 @@ func setForegroundOrMinimize(hwnd uintptr) error {
 
 	return nil
 }
-
 
 func logWindowContext(index int, text string, hwnd uintptr) {
 	title := GetWindowTitle(hwnd)
@@ -250,4 +250,76 @@ func GetWindowClassName(hwnd uintptr) string {
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(len(buf)))
 	return syscall.UTF16ToString(buf)
+}
+
+// CenterWindowUnderCursor centers the given window under the monitor where the cursor is,
+// and resizes it to half the monitor's width and height.
+func CenterWindowOnMonitor(hwnd uintptr) error {
+
+	// Check if maximized
+	zoomed, _, _ := isZoomed.Call(hwnd)
+	if zoomed != 0 {
+		ret, _, err := showWindow.Call(hwnd, SW_RESTORE)
+		if ret == 0 {
+			return fmt.Errorf("ShowWindow(SW_RESTORE) failed: %v", err)
+		}
+	}
+
+	type POINT struct {
+		X, Y int32
+	}
+	type MONITORINFO struct {
+		CbSize    uint32
+		RcMonitor RECT
+		RcWork    RECT
+		DwFlags   uint32
+	}
+
+	// Get cursor position
+	var pt POINT
+	r1, _, err := getCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	if r1 == 0 {
+		return fmt.Errorf("GetCursorPos failed: %v", err)
+	}
+
+	// Get monitor under cursor
+	const MONITOR_DEFAULTTONEAREST = 2
+	hMonitor, _, _ := monitorFromPoint.Call(uintptr(*(*int64)(unsafe.Pointer(&pt))), MONITOR_DEFAULTTONEAREST)
+	if hMonitor == 0 {
+		return fmt.Errorf("MonitorFromPoint failed")
+	}
+
+	// Get monitor info
+	var mi MONITORINFO
+	mi.CbSize = uint32(unsafe.Sizeof(mi))
+	r2, _, err := getMonitorInfo.Call(hMonitor, uintptr(unsafe.Pointer(&mi)))
+	if r2 == 0 {
+		return fmt.Errorf("GetMonitorInfo failed: %v", err)
+	}
+
+	monWidth := mi.RcMonitor.Right - mi.RcMonitor.Left
+	monHeight := mi.RcMonitor.Bottom - mi.RcMonitor.Top
+	winWidth := monWidth / 2
+	winHeight := monHeight / 2
+	winLeft := mi.RcMonitor.Left + (monWidth-winWidth)/2
+	winTop := mi.RcMonitor.Top + (monHeight-winHeight)/2
+
+	// Set window position and size
+	const SWP_NOZORDER = 0x0004
+	const SWP_NOACTIVATE = 0x0010
+	r3, _, err := setWindowPos.Call(
+		hwnd,
+		0,
+		uintptr(winLeft),
+		uintptr(winTop),
+		uintptr(winWidth),
+		uintptr(winHeight),
+		SWP_NOZORDER|SWP_NOACTIVATE,
+	)
+	if r3 == 0 {
+		log.Printf("[CenterWindowOnMonitor] SetWindowPos failed: %v", err)
+		return fmt.Errorf("SetWindowPos failed: %v", err)
+	}
+
+	return nil
 }

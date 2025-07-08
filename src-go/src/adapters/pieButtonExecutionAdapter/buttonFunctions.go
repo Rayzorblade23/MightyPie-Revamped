@@ -9,7 +9,6 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/go-vgo/robotgo"
-	"github.com/lxn/win"
 	"github.com/go-ole/go-ole"
 )
 
@@ -269,7 +268,7 @@ func (a *PieButtonExecutionAdapter) CenterWindowUnderCursor(x, y int) error {
 	if err != nil {
 		return err
 	}
-	return core.CenterWindowUnderCursor(win.HWND(hwnd))
+	return CenterWindowOnMonitor(uintptr(hwnd))
 }
 
 // MaximizeWindowUnderCursor
