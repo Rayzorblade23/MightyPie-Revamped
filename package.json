@@ -22,6 +22,7 @@
     "@tauri-apps/plugin-positioner": "~2",
     "@tauri-apps/plugin-shell": "^2.2.1",
     "dotenv": "^16.5.0",
+    "fuse.js": "^7.1.0",
     "nats": "^2.29.3",
     "nats.ws": "^1.30.3",
     "svelte-ux": "^1.0.6",

@@ -30,6 +30,10 @@
         goto('/piemenuConfig');
     }
 
+    function navigateToFuzzySearch() {
+        goto('/fuzzySearch');
+    }
+
     function onLostFocus() {
         console.log('Window lost focus');
         const window = getCurrentWindow();
@@ -138,6 +142,9 @@
         </div>
     </div>
     <div class="flex flex-col gap-4 items-center px-4 py-4 w-full max-w-xs mx-auto">
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+                onclick={navigateToFuzzySearch}>Fuzzy Search
+        </button>
         <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
                 onclick={navigateToPieMenuConfig}>Pie Menu Config
         </button>
