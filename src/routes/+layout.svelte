@@ -66,7 +66,7 @@
     };
 
     const handleBaseConfigUpdateMessage = (message: string) => {
-        console.log("Received base config update message:", message);
+        // console.log("Received base config update message:", message);
         handleJsonMessage<ConfigData>(
             message,
             (configData) => {

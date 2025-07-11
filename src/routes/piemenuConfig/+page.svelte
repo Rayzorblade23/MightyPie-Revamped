@@ -58,6 +58,10 @@
 
     let availableFunctionsData = $state<AvailableFunctionsMap>({});
 
+    onMount(() => {
+        getCurrentWindow().show();
+    });
+
     $effect(() => {
         fetch(PUBLIC_DIR_BUTTONFUNCTIONS)
             .then((response) => {

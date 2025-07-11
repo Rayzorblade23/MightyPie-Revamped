@@ -15,6 +15,7 @@
     import {onMount} from "svelte";
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
+    import {goto} from "$app/navigation";
 
     // --- Core State ---
     // Temporarily force PieMenu to be visible for debugging
@@ -35,6 +36,13 @@
     $effect(() => {
         const settings = getSettings();
         keepPieMenuAnchored = settings.keepPieMenuAnchored?.value ?? false;
+
+        if (
+            settings?.startInPieMenuConfig?.value && !sessionStorage.getItem('alreadyRedirectedToConfig')
+        ) {
+            sessionStorage.setItem('alreadyRedirectedToConfig', '1');
+            goto('/piemenuConfig', {replaceState: true});
+        }
     });
 
     const handlePieMenuVisible = async (newPageID?: number) => {
@@ -218,7 +226,6 @@
         await getCurrentWindow().hide();
         await handlePieMenuHidden();
     });
-
 </script>
 
 <main>
@@ -229,7 +236,8 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenuWithTransitions menuID={menuID} pageID={pageID} animationKey={animationKey} opacity={pieMenuOpacity}
-                                bind:this={pieMenuComponent}/>
+        <PieMenuWithTransitions animationKey={animationKey} bind:this={pieMenuComponent} menuID={menuID}
+                                opacity={pieMenuOpacity}
+                                pageID={pageID}/>
     </div>
 </main>
