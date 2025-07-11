@@ -22,7 +22,7 @@
     let fuse: Fuse<{ button: Button; menuId: number; pageId: number; buttonId: number }>;
     let selectedIndex = $state(0);
     let lastSearch = $state('');
-    let mouseActive = false;
+    let mouseMoved = $state(false);
     let inputEl: HTMLInputElement;
 
     function onLostFocus() {
@@ -51,7 +51,6 @@
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-        mouseActive = false;
         const current = selectedIndex;
         console.log('KEY:', event.key, 'selectedIndex:', current);
         if (event.key === "Escape") {
@@ -96,6 +95,13 @@
         if (search !== lastSearch) {
             selectedIndex = 0;
             lastSearch = search;
+            mouseMoved = false;
+            // Add a one-time mousemove listener to detect real mouse movement
+            const onFirstMove = () => {
+                mouseMoved = true;
+                window.removeEventListener('mousemove', onFirstMove);
+            };
+            window.addEventListener('mousemove', onFirstMove);
         }
     });
 
@@ -136,14 +142,15 @@
             type="text"
     />
     {#if search.trim().length > 0}
-        <div class="text-xs text-zinc-500 mb-1">selectedIndex: {selectedIndex}</div>
-        <div class="w-96 bg-white dark:bg-zinc-800 rounded shadow p-2 max-h-80 overflow-y-auto" role="listbox">
+        <div class="w-96 bg-zinc-100 dark:bg-zinc-800 rounded shadow p-2 max-h-80 overflow-y-auto horizontal-scrollbar"
+             role="listbox">
             {#if results.length === 0}
                 <div class="text-zinc-400 text-center py-2">No results found.</div>
             {:else}
                 {#each results as {button, menuId, pageId, buttonId}, i}
                     <div
-                            class="w-full text-left py-2 px-3 rounded cursor-pointer flex flex-col transition-colors duration-75 {selectedIndex === i ? 'bg-blue-100 dark:bg-blue-900 ring-1 ring-blue-400' : 'hover:bg-blue-50 dark:hover:bg-blue-800'}"
+                            class="w-full text-left py-2 px-3 rounded cursor-pointer flex flex-col transition-colors duration-75 {selectedIndex === i ? 'bg-blue-100 dark:bg-blue-900 ring-1 ring-blue-400' : ''}"
+                            onmouseenter={() => { if (mouseMoved) selectedIndex = i; }}
                             onmousedown={e => { e.preventDefault(); publishButtonClick(pageId, buttonId, button.button_type, button.properties); }}
                             aria-selected={selectedIndex === i}
                             role="option"

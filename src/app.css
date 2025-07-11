@@ -14,6 +14,7 @@
 
 .horizontal-scrollbar::-webkit-scrollbar {
     height: 8px; /* Horizontal scrollbar height */
+    width: 8px;  /* Vertical scrollbar width */
 }
 
 .horizontal-scrollbar::-webkit-scrollbar-thumb {
