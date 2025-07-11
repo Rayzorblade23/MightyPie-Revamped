@@ -115,11 +115,11 @@ func (a *PieButtonExecutionAdapter) RestartAndRestoreExplorerWindows() error {
 
 func (a *PieButtonExecutionAdapter) Copy() error {
 	time.Sleep(100 * time.Millisecond)
-	err := robotgo.KeyTap("c", "ctrl")
-	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap ctrl+c failed: %v", err)
-		return err
-	}
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("c")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("c")
+	robotgo.KeyUp("ctrl")
 	time.Sleep(100 * time.Millisecond)
 	return nil
 }
@@ -127,11 +127,11 @@ func (a *PieButtonExecutionAdapter) Copy() error {
 // Paste simulates Ctrl+V to paste clipboard content.
 func (a *PieButtonExecutionAdapter) Paste() error {
 	time.Sleep(100 * time.Millisecond)
-	err := robotgo.KeyTap("v", "ctrl")
-	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap ctrl+v failed: %v", err)
-		return err
-	}
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("v")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("v")
+	robotgo.KeyUp("ctrl")
 	time.Sleep(100 * time.Millisecond)
 	return nil
 }
@@ -139,14 +139,15 @@ func (a *PieButtonExecutionAdapter) Paste() error {
 // OpenClipboard simulates Win+V to open the Windows clipboard history UI.
 func (a *PieButtonExecutionAdapter) OpenClipboard() error {
 	time.Sleep(100 * time.Millisecond)
-	err := robotgo.KeyTap("v", "cmd")
-	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap win+v failed: %v", err)
-		return err
-	}
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("v")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("v")
+	robotgo.KeyUp("cmd")
 	time.Sleep(200 * time.Millisecond)
 	return nil
 }
+
 
 // Fullscreen_F11 simulates pressing F11 to toggle fullscreen mode in most applications.
 func (a *PieButtonExecutionAdapter) Fullscreen_F11() error {
