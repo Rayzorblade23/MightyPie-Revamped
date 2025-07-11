@@ -59,6 +59,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			return
 		}
 
+		// Reject empty config updates
+		if len(newConfig) == 0 {
+			log.Printf("ERROR: Rejected incoming config update: config is empty!")
+			return
+		}
+
 		if err := WriteButtonConfig(newConfig); err != nil {
 			log.Printf("ERROR: Failed to write config: %v", err)
 			return

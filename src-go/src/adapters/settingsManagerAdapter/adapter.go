@@ -39,6 +39,11 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 			log.Printf("ERROR: Failed to unmarshal settings update: %v", err)
 			return
 		}
+		// Reject empty settings updates
+		if len(newSettings) == 0 {
+			log.Printf("ERROR: Rejected incoming settings update: settings map is empty!")
+			return
+		}
 		// Only write if settings have changed
 		if !settingsEqual(currentSettings, newSettings) {
 			if err := WriteSettings(newSettings); err != nil {
