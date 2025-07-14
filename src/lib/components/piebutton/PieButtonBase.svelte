@@ -12,7 +12,6 @@
         properties,
         buttonTextUpper = '',
         buttonTextLower = '',
-        allowSelectWhenDisabled = false,
         // Optional positioning props - some buttons position themselves, others are positioned by parent
         x = undefined,
         y = undefined,
@@ -25,7 +24,8 @@
         // Optional events - will be forwarded if provided
         onclick = undefined,
         // Children content (replaces slots in Svelte 5)
-        buttonContent = undefined
+        buttonContent = undefined,
+        allowSelectWhenDisabled = false,
     } = $props<PieButtonBaseProps & {
         x?: number;
         y?: number;
@@ -36,7 +36,12 @@
         forcePressedMiddle?: boolean;
         onclick?: (event: MouseEvent) => void;
         buttonContent?: any;
+        allowSelectWhenDisabled?: boolean;
     }>();
+
+    // Make textSize and subTextSize internal only
+    let textSize = 0.775; // default 0.875rem (equivalent to text-sm)
+    let subTextSize = 0.65; // default 0.75rem (equivalent to text-xs)
 
     // SVG icon handling
     let svgPromise = $state<Promise<string> | undefined>(undefined);
@@ -59,17 +64,16 @@
     function handleMouseUp(e: MouseEvent) { if (e.button === 0) pressedLeft = false; }
 
     // Class handling - simplified to use direct classes to fix styling issues
-    const finalButtonClasses = $derived.by(() => {
+    const { buttonClass: finalButtonClasses, subtextClass: finalSubtextClass } = $derived.by(() => {
         // Use exact same logic as original PieButton
         const isDisabled = taskType === ButtonType.Disabled || (
             taskType === ButtonType.ShowAnyWindow &&
             (properties as any)?.window_handle === -1
         );
-        
         return composePieButtonClasses({ 
             isDisabled, 
             taskType: taskType ?? "default",
-            allowSelectWhenDisabled: true
+            allowSelectWhenDisabled
         });
     });
 
@@ -99,15 +103,7 @@
 
 <style>
     button {
-        transition: background-color 0.15s, border-color 0.15s;
-    }
-    
-    /* Ensure these classes are recognized by Svelte */
-    :global(.hovered),
-    :global(.pressed-left),
-    :global(.pressed-middle),
-    :global(.pressed-right) {
-        /* Empty to ensure Svelte recognizes these classes */
+        transition: background-color 0.15s, border-color 0.3s;
     }
 </style>
 
@@ -156,9 +152,9 @@
             {/if}
 
             <span class="flex flex-col flex-1 pl-1 min-w-0 items-start text-left">
-                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
+                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight" style="font-size: {textSize}rem;">{buttonTextUpper}</span>
                 {#if buttonTextLower}
-                    <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {buttonTextUpper ? 'text-xs' : 'text-sm'}">{buttonTextLower}</span>
+                    <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}" style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
                 {/if}
             </span>
         {/if}
@@ -205,9 +201,9 @@
         {/if}
 
         <span class="flex flex-col flex-1 pl-1 min-w-0 items-start text-left">
-            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
+            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight" style="font-size: {textSize}rem;">{buttonTextUpper}</span>
             {#if buttonTextLower}
-                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {buttonTextUpper ? 'text-xs' : 'text-sm'}">{buttonTextLower}</span>
+                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}" style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
             {/if}
         </span>
     {/if}

@@ -27,6 +27,7 @@ export function composePieButtonClasses({
     allowSelectWhenDisabled?: boolean;
 }) {
     let staticBaseClasses: string;
+    let subtextClass: string;
     if (isDisabled) {
         staticBaseClasses = [
             baseButtonClasses,
@@ -34,15 +35,20 @@ export function composePieButtonClasses({
             'dark:bg-zinc-800 dark:text-zinc-500',
             allowSelectWhenDisabled ? '' : 'select-none pointer-events-none',
         ].join(' ').trim();
+        subtextClass = 'text-zinc-400 dark:text-zinc-500 italic';
     } else {
         staticBaseClasses = [
             baseButtonClasses,
             'bg-white text-zinc-900',
             'dark:bg-zinc-800 dark:text-white',
         ].join(' ');
+        subtextClass = 'text-zinc-500 dark:text-zinc-400 italic';
     }
     const borderClass = borderClassMap[taskType ?? 'default'];
-    return `${staticBaseClasses} ${borderClass} ${extraClasses}`.trim();
+    return {
+        buttonClass: `${staticBaseClasses} ${borderClass} ${extraClasses}`.trim(),
+        subtextClass
+    };
 }
 
 // Fetches SVG as string, returns a Promise<string> (with error SVG fallback)
