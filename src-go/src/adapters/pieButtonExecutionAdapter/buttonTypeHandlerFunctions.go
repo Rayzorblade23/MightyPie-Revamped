@@ -23,7 +23,7 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 	case ClickTypeLeftUp:
 		if windowProps.WindowHandle > 0 {
 			hwnd := uintptr(windowProps.WindowHandle)
-			if err := setForegroundOrMinimize(hwnd); err != nil {
+			if err := a.setForegroundOrMinimize(hwnd); err != nil {
 				return fmt.Errorf("show_program_window: failed to focus window: %w", err)
 			}
 			// Save HWND if this is an Explorer window
@@ -90,7 +90,7 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 	switch executionInfo.ClickType {
 	case ClickTypeLeftUp:
 		// This is your original logic from handleShowAnyWindow
-		if e := setForegroundOrMinimize(hwnd); e != nil {
+		if e := a.setForegroundOrMinimize(hwnd); e != nil {
 			log.Printf("show_any_window (Left Click): Failed to foreground HWND %X: %v", hwnd, e)
 			err = fmt.Errorf("show_any_window (Left Click): %w", e)
 		} else {
@@ -118,7 +118,7 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 		log.Printf("ShowAnyWindow: Unhandled ClickType '%s' for HWND %X. Performing default (left-click like) action.",
 			executionInfo.ClickType, hwnd)
 		// Defaulting to left-click behavior for unhandled types
-		if e := setForegroundOrMinimize(hwnd); e != nil {
+		if e := a.setForegroundOrMinimize(hwnd); e != nil {
 			err = fmt.Errorf("show_any_window (Default Click): %w", e)
 		}
 	}

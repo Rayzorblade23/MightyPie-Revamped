@@ -28,7 +28,7 @@ func (a *PieButtonExecutionAdapter) BringLastExplorerWindowToForeground() error 
 	if hwnd == 0 {
 		return fmt.Errorf("no last Explorer window recorded")
 	}
-	if err := setForegroundOrMinimize(uintptr(hwnd)); err != nil {
+	if err := a.setForegroundOrMinimize(uintptr(hwnd)); err != nil {
 		return fmt.Errorf("failed to bring Explorer window to foreground: %w", err)
 	}
 	return nil
@@ -42,7 +42,7 @@ func (a *PieButtonExecutionAdapter) BringAllExplorerWindowsToForeground() error 
 	for hwndInt, winInfo := range a.windowsList {
 		if winInfo.ExeName != "" && strings.EqualFold(winInfo.ExeName, "explorer.exe") {
 			hwnd := uintptr(hwndInt)
-			if err := setForegroundOrMinimize(hwnd); err == nil {
+			if err := a.setForegroundOrMinimize(hwnd); err == nil {
 				count++
 			}
 		}

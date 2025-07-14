@@ -176,8 +176,23 @@ func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, er
 	return result.hwnd, nil
 }
 
-// SetForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
-func setForegroundOrMinimize(hwnd uintptr) error {
+// setForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
+// Now a method so it can access installedAppsInfo and windowsList for special handling.
+func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error {
+	// --- Special handling for Task Manager ---
+	a.mu.RLock()
+	winInfo, ok := a.windowsList[int(hwnd)]
+	appInfo, appOk := a.installedAppsInfo["Task Manager"]
+	a.mu.RUnlock()
+	if ok && strings.EqualFold(winInfo.ExeName, "taskmgr.exe") && appOk {
+		// Always launch Task Manager, as foregrounding is unreliable and only one instance runs
+		if err := LaunchApp("Task Manager", appInfo); err != nil {
+			log.Printf("[setForegroundOrMinimize] Failed to launch Task Manager: %v", err)
+			return err
+		}
+		return nil
+	}
+
 	foreground, _, callErr := getForegroundWindow.Call()
 	if callErr != nil && callErr != syscall.Errno(0) {
 		log.Printf("[setForegroundOrMinimize] getForegroundWindow failed: %v", callErr)
