@@ -5,17 +5,8 @@
     import {ButtonType} from "$lib/data/piebuttonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
-    import {composePieButtonClasses, fetchSvgIcon} from './pieButtonUtils';
-
-    interface MouseState {
-        hovered: boolean;
-        leftDown: boolean;
-        leftUp: boolean;
-        rightDown: boolean;
-        rightUp: boolean;
-        middleDown: boolean;
-        middleUp: boolean;
-    }
+    import PieButtonBase from './PieButtonBase.svelte';
+    import type { MouseState } from '$lib/data/pieButtonSharedTypes';
 
     let {menuID, pageID, buttonID, x, y, width, height, mouseState}: {
         menuID: number,
@@ -46,15 +37,23 @@
 
     const buttonTextLower = $derived(properties?.button_text_lower ?? "");
 
-    const finalButtonClasses = $derived.by(() => {
-        const isDisabled = taskType === ButtonType.Disabled || (
-            taskType === ButtonType.ShowAnyWindow &&
-            (properties as import('$lib/data/piebuttonTypes').ShowAnyWindowProperties)?.window_handle === -1
-        );
-        return composePieButtonClasses({ isDisabled, taskType: taskType ?? "default" });
-    });
+    // Function to publish click events to NATS
+    function publishButtonClick(clickType: string) {
+        if (!properties || !taskType) return;
+        
+        const message: IPieButtonExecuteMessage = {
+            page_index: pageID,
+            button_index: buttonID,
+            button_type: taskType,
+            properties: properties,
+            click_type: clickType,
+        };
+        
+        publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
+    }
 
-    // Consolidated mouse click handling
+    // Handle the actual click detection logic
+    // We maintain this logic here because it's more complex than what PieButtonBase handles
     type MouseButtonType = "left" | "middle" | "right";
     const clickState = {
         left: { prevUp: false, wasDown: false },
@@ -81,72 +80,22 @@
         processClick("middle", middleDown, middleUp);
         processClick("right", rightDown, rightUp);
     });
-
-    function publishButtonClick(clickType: string) {
-        if (!properties || !taskType) return;
-        const message: IPieButtonExecuteMessage = {
-            page_index: pageID, button_index: buttonID, button_type: taskType,
-            properties: properties, click_type: clickType
-        };
-        publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
-    }
-
-    let svgPromise = $state<Promise<string> | undefined>();
-    $effect(() => {
-        const iconPath = properties?.icon_path;
-        if (iconPath?.endsWith('.svg')) {
-            svgPromise = fetchSvgIcon(iconPath);
-        } else {
-            svgPromise = undefined;
-        }
-    });
+    
+    // Compute states to pass to the base component
+    const isHovered = $derived(mouseState.hovered && !mouseState.leftDown && !mouseState.middleDown && !mouseState.rightDown);
 </script>
 
-<style>
-    button {
-        transition: background 0.15s, border-color 0.15s;
-    }
-</style>
-
-<!-- Hidden element to declare dynamic classes for Svelte/IDE analyzers -->
-<span style="display:none" class="hovered pressed-left pressed-middle pressed-right select-none"></span>
-
-<div class="absolute" style="left: {x}px; top: {y}px; transform: translate(-50%, -50%);">
-    <button
-            class="{finalButtonClasses}"
-            class:hovered={mouseState.hovered && !mouseState.leftDown && !mouseState.middleDown && !mouseState.rightDown}
-            class:pressed-left={mouseState.leftDown}
-            class:pressed-middle={mouseState.middleDown}
-            class:pressed-right={mouseState.rightDown}
-            style="width: {width}rem; height: {height}rem;"
-    >
-        {#if properties?.icon_path}
-            {#if properties.icon_path.endsWith('.svg')}
-                {#await svgPromise}
-                    <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5" style="aspect-ratio: 1/1;">
-                        ⌛ <!-- Loading indicator -->
-                    </div>
-                {:then svgContent}
-                    <span class="h-full flex-shrink-0 flex items-center justify-center p-0.5"
-                          style="aspect-ratio: 1/1;">{@html svgContent}</span>
-                {:catch error}
-                    <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
-                         style="aspect-ratio: 1/1;"
-                         title="{error instanceof Error ? error.message : 'Error loading SVG'}">
-                        ⚠️ <!-- Error indicator -->
-                    </div>
-                {/await}
-            {:else}
-                <img src={properties.icon_path} alt="button icon" class="h-full flex-shrink-0 object-contain p-1"
-                     style="aspect-ratio: 1/1;"/>
-            {/if}
-        {/if}
-
-        <span class="flex flex-col flex-1 pl-1 min-w-0 items-start text-left">
-            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis text-sm leading-tight">{buttonTextUpper}</span>
-            {#if buttonTextLower}
-                <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {buttonTextUpper ? 'text-xs' : 'text-sm'}">{buttonTextLower}</span>
-            {/if}
-        </span>
-    </button>
-</div>
+<PieButtonBase
+    {x}
+    {y}
+    {width}
+    {height}
+    taskType={taskType || 'empty'}
+    {properties}
+    {buttonTextUpper}
+    {buttonTextLower}
+    forceHovered={isHovered}
+    forcePressedLeft={mouseState.leftDown}
+    forcePressedRight={mouseState.rightDown}
+    forcePressedMiddle={mouseState.middleDown}
+/>

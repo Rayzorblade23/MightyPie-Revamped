@@ -1,0 +1,42 @@
+// Shared types for pie button components
+import type { ButtonType } from './piebuttonTypes';
+
+/**
+ * Union type for all possible button properties
+ */
+export type ButtonPropertiesUnion =
+    | import('./piebuttonTypes').ShowProgramWindowProperties
+    | import('./piebuttonTypes').ShowAnyWindowProperties
+    | import('./piebuttonTypes').CallFunctionProperties
+    | import('./piebuttonTypes').LaunchProgramProperties;
+
+/**
+ * Base props shared by all pie button components
+ */
+export interface PieButtonBaseProps {
+    // Layout props
+    width: number;
+    height: number;
+    
+    // Display props
+    taskType: ButtonType | 'empty';
+    properties: ButtonPropertiesUnion | undefined;
+    buttonTextUpper?: string;
+    buttonTextLower?: string;
+    
+    // Styling props
+    allowSelectWhenDisabled?: boolean;
+}
+
+/**
+ * Mouse state interface for tracking all mouse interactions
+ */
+export interface MouseState {
+    hovered: boolean;
+    leftDown: boolean;
+    leftUp: boolean;
+    rightDown: boolean;
+    rightUp: boolean;
+    middleDown: boolean;
+    middleUp: boolean;
+}
