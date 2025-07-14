@@ -8,7 +8,7 @@
         PUBLIC_QUICKMENU_SIZE_X,
         PUBLIC_QUICKMENU_SIZE_Y
     } from "$env/static/public";
-    import QuickMenuPieButton from '$lib/components/piemenuConfig/QuickMenuPieButton.svelte';
+    import QuickMenuPieButton from '$lib/components/quickMenu/QuickMenuPieButton.svelte';
     import {getMenuConfiguration} from '$lib/data/configHandler.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";

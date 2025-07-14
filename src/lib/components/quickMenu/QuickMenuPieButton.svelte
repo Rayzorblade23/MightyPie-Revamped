@@ -2,7 +2,7 @@
 <script lang="ts">
     import type {IPieButtonExecuteMessage} from '$lib/data/piebuttonTypes.ts';
     import {ButtonType} from '$lib/data/piebuttonTypes.ts';
-    import {composePieButtonClasses, fetchSvgIcon} from '../piebutton/pieButtonUtils';
+    import {composePieButtonClasses, fetchSvgIcon} from '../piebutton/pieButtonUtils.ts';
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
 

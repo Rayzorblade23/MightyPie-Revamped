@@ -108,7 +108,7 @@
     $effect(() => {
         allButtons = extractButtons();
         fuse = new Fuse(allButtons, {
-            keys: ["button.properties.button_text_upper"],
+            keys: ["button.properties.button_text_upper", "button.properties.button_text_lower"],
             threshold: 0.4,
         });
         results = search.trim().length > 0 ? fuse.search(search).map(r => r.item) : [];
@@ -158,6 +158,9 @@
                             style="user-select: none;"
                     >
                         <span class="font-semibold dark:text-white">{button.properties.button_text_upper}</span>
+                        {#if button.properties.button_text_lower}
+                            <span class="text-xs text-zinc-400 mt-0.5">{button.properties.button_text_lower}</span>
+                        {/if}
                         <span class="text-xs text-zinc-500">Menu {menuId + 1} / Page {pageId + 1}
                             / Slot {buttonId + 1}</span>
                     </div>
