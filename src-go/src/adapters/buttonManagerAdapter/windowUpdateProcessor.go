@@ -83,7 +83,6 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 		return nil, nil
 	}
 
-	log.Println("INFO: Final JSON comparison shows configurations ARE different. Returning updated config.") // Keep INFO
 	return updatedConfig, nil
 }
 

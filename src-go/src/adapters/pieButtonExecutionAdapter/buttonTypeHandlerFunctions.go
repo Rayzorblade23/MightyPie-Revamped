@@ -89,7 +89,6 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 	var err error
 	switch executionInfo.ClickType {
 	case ClickTypeLeftUp:
-		log.Printf("ShowAnyWindow (Left Click): Standard foreground for HWND %X", hwnd)
 		// This is your original logic from handleShowAnyWindow
 		if e := setForegroundOrMinimize(hwnd); e != nil {
 			log.Printf("show_any_window (Left Click): Failed to foreground HWND %X: %v", hwnd, e)
@@ -101,7 +100,6 @@ func (a *PieButtonExecutionAdapter) handleShowAnyWindow(executionInfo *pieButton
 				a.lastExplorerWindowHWND = WindowHandle(hwnd)
 				a.mu.Unlock()
 			}
-			log.Printf("show_any_window (Left Click): HWND %X requested to foreground (Button %d)", hwnd, executionInfo.ButtonIndex)
 		}
 	case ClickTypeRightUp:
 		log.Printf("ShowAnyWindow (Right Click STUB) for HWND %X", hwnd)

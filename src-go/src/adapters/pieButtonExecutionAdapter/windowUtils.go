@@ -27,12 +27,13 @@ var (
 	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
 	getCurrentThreadId       = kernel32.NewProc("GetCurrentThreadId")
 	attachThreadInput        = user32.NewProc("AttachThreadInput")
-
-	getCursorPos     = user32.NewProc("GetCursorPos")
-	monitorFromPoint = user32.NewProc("MonitorFromPoint")
-	getMonitorInfo   = user32.NewProc("GetMonitorInfoW")
-	setWindowPos     = user32.NewProc("SetWindowPos")
-	isZoomed         = user32.NewProc("IsZoomed")
+	bringWindowToTop         = user32.NewProc("BringWindowToTop")
+	setWindowPos             = user32.NewProc("SetWindowPos")
+	isIconic                 = user32.NewProc("IsIconic")
+	getCursorPos             = user32.NewProc("GetCursorPos")
+	monitorFromPoint         = user32.NewProc("MonitorFromPoint")
+	getMonitorInfo           = user32.NewProc("GetMonitorInfoW")
+	isZoomed                 = user32.NewProc("IsZoomed")
 )
 
 const (
@@ -40,6 +41,12 @@ const (
 	SW_MAXIMIZE    = 3
 	SW_MINIMIZE    = 6
 	SW_RESTORE     = 9
+
+	HWND_TOPMOST   = ^uintptr(0)     // 0xFFFFFFFF
+	HWND_NOTOPMOST = ^uintptr(0) - 1 // 0xFFFFFFFE
+	SWP_NOMOVE     = 0x0002
+	SWP_NOSIZE     = 0x0001
+	SWP_SHOWWINDOW = 0x0040
 )
 
 type RECT struct {
@@ -171,7 +178,6 @@ func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, er
 
 // SetForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
 func setForegroundOrMinimize(hwnd uintptr) error {
-	log.Printf("[setForegroundOrMinimize] Called for HWND: 0x%X", hwnd)
 	foreground, _, callErr := getForegroundWindow.Call()
 	if callErr != nil && callErr != syscall.Errno(0) {
 		log.Printf("[setForegroundOrMinimize] getForegroundWindow failed: %v", callErr)
@@ -179,38 +185,64 @@ func setForegroundOrMinimize(hwnd uintptr) error {
 	}
 
 	if hwnd == foreground {
-		log.Printf("[setForegroundOrMinimize] HWND is already foreground, minimizing instead.")
-		return WindowHandle(hwnd).Minimize()
+		// Check if the window is minimized (iconic)
+		ret, _, _ := isIconic.Call(hwnd)
+		if ret != 0 {
+			showWindow.Call(hwnd, SW_RESTORE)
+			// Continue to rest of logic to bring to foreground
+		} else {
+			// Minimize if already foreground and not minimized
+			return WindowHandle(hwnd).Minimize()
+		}
 	}
 
 	// --- Input join (AttachThreadInput) method ---
 	var tmp uint32
 	fgThread, _, _ := getWindowThreadProcessId.Call(foreground, uintptr(unsafe.Pointer(&tmp)))
 	thisThread, _, _ := getCurrentThreadId.Call()
-	log.Printf("[setForegroundOrMinimize] thisThread: %d, fgThread: %d", thisThread, fgThread)
 
-	// Attach input of our thread and foreground thread
-	res, _, err := attachThreadInput.Call(thisThread, fgThread, 1)
-	log.Printf("[setForegroundOrMinimize] AttachThreadInput result: %d, err: %v", res, err)
-
-	// Always restore the window first
-	showRet, _, showErr := showWindow.Call(hwnd, SW_RESTORE)
-	if showRet == 0 {
-		log.Printf("[setForegroundOrMinimize] showWindow(SW_RESTORE) failed: %v", showErr)
-		attachThreadInput.Call(thisThread, fgThread, 0)
-		return fmt.Errorf("showWindow(SW_RESTORE) failed: %v", showErr)
+	// Only attach thread input if threads differ
+	attached := false
+	if thisThread != fgThread {
+		attachThreadInput.Call(thisThread, fgThread, 1)
+		attached = true
 	}
 
+	// Check if window is maximized
+	wasMaximized := false
+	var placement windowPlacement
+	placement.Length = uint32(unsafe.Sizeof(placement))
+	ret, _, _ := getWindowPlacement.Call(hwnd, uintptr(unsafe.Pointer(&placement)))
+	if ret != 0 && placement.ShowCmd == SW_MAXIMIZE {
+		wasMaximized = true
+	}
+
+	// Restore or maximize as needed
+	if wasMaximized {
+		showWindow.Call(hwnd, SW_MAXIMIZE)
+	} else {
+		showWindow.Call(hwnd, SW_RESTORE)
+	}
+
+	// Bring window to top
+	bringWindowToTop.Call(hwnd)
+
+	// Set window topmost, then notopmost
+	setWindowPos.Call(hwnd, HWND_TOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
+	setWindowPos.Call(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
+
 	// Now try to bring to foreground
-	ret, _, callErr := setForegroundWindow.Call(hwnd)
-	log.Printf("[setForegroundOrMinimize] setForegroundWindow result: %d, err: %v", ret, callErr)
-
-	// Detach input
-	detachRes, _, detachErr := attachThreadInput.Call(thisThread, fgThread, 0)
-	log.Printf("[setForegroundOrMinimize] DetachThreadInput result: %d, err: %v", detachRes, detachErr)
-
+	ret, _, callErr = setForegroundWindow.Call(hwnd)
 	if ret == 0 {
+		log.Printf("[setForegroundOrMinimize] WARNING: setForegroundWindow failed after restore: %v", callErr)
+		if attached {
+			attachThreadInput.Call(thisThread, fgThread, 0)
+		}
 		return fmt.Errorf("setForegroundWindow failed after restore: %v", callErr)
+	}
+
+	if attached {
+		attachThreadInput.Call(thisThread, fgThread, 0)
 	}
 
 	return nil
