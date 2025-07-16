@@ -85,7 +85,9 @@ func buildLaunchInfo(
 					info.WorkingDirectory = linkFile.StringData.WorkingDir
 				}
 				if flagMap["HasArguments"] {
-					info.Args = linkFile.StringData.CommandLineArguments
+					if !appEntry.ResolvedFromArguments {
+						info.Args = linkFile.StringData.CommandLineArguments
+					}
 				}
 			} else {
 				log.Printf("Warning: Failed to parse LNK file '%s' for app '%s' (exe: '%s'): %v",

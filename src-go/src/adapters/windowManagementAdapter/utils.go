@@ -137,6 +137,30 @@ func assignInstanceNumbers(tempMapping WindowMapping, existingMapping WindowMapp
 	return resultMapping
 }
 
+// getParentPID returns the parent process ID for a given PID on Windows.
+func getParentPID(pid uint32) uint32 {
+	var pbi struct {
+		ExitStatus      int32
+		PebBaseAddress  uintptr
+		AffinityMask    uintptr
+		BasePriority    int32
+		UniqueProcessID uintptr
+		InheritedFromUniqueProcessID uintptr
+	}
+	h, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, pid)
+	if err != nil {
+		return 0
+	}
+	defer syscall.CloseHandle(h)
+	ntdll := syscall.NewLazyDLL("ntdll.dll")
+	proc := ntdll.NewProc("NtQueryInformationProcess")
+	ret, _, _ := proc.Call(uintptr(h), 0, uintptr(unsafe.Pointer(&pbi)), unsafe.Sizeof(pbi), 0)
+	if ret != 0 {
+		return 0
+	}
+	return uint32(pbi.InheritedFromUniqueProcessID)
+}
+
 // getWindowInfo gets information about a window by its handle (HWND).
 // It attempts to identify the application using the installedAppsInfo map and returns
 // a WindowMapping containing details and the identified application name.
@@ -222,8 +246,32 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 		appIconPath = bestMatchInfo.IconPath // Directly use the pre-resolved icon path
 	} else {
 		// Process not found in installedAppsInfo by its ExePath or basename.
-		// It might be an app not in our list, or a transient system process.
-		// Icon path remains empty if not associated with an entry in installedAppsInfo.
+		// Try parent process fallback
+		parentPid := getParentPID(pid)
+		if parentPid > 0 {
+			parentExePath, err := getProcessExePath(parentPid)
+			if err == nil && parentExePath != "" && fileExists(parentExePath) {
+				parentExeName := strings.ToLower(filepath.Base(parentExePath))
+				// Try matching parent exe path
+				for appKey, appInfoEntry := range installedAppsInfo {
+					if appInfoEntry.ExePath != "" && strings.EqualFold(appInfoEntry.ExePath, parentExePath) {
+						identifiedAppName = appKey
+						appIconPath = appInfoEntry.IconPath
+						break
+					}
+				}
+				// Try matching parent exe basename if not matched
+				if identifiedAppName == defaultAppName {
+					for appKey, appInfoEntry := range installedAppsInfo {
+						if appInfoEntry.ExePath != "" && strings.EqualFold(filepath.Base(appInfoEntry.ExePath), parentExeName) {
+							identifiedAppName = appKey
+							appIconPath = appInfoEntry.IconPath
+							break
+						}
+					}
+				}
+			}
+		}
 		// Only log once per exePath per session
 		if !seenUnknownApps[exePathFromProcess] {
 			log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",

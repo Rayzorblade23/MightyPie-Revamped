@@ -72,6 +72,7 @@ type AppEntry struct {
 	Name string
 	Path string // Resolved executable path
 	URI  string // Optional URI for store apps
+	ResolvedFromArguments bool // True if created from resolving .exe in shortcut args
 }
 
 type PackageInfo struct {

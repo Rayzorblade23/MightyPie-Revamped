@@ -57,6 +57,48 @@ var (
 
 // --- Core Functions ---
 
+// extractExeFromArgs extracts the first .exe filename from command-line arguments.
+func extractExeFromArgs(args string) string {
+	for _, part := range strings.Fields(args) {
+		if strings.HasSuffix(strings.ToLower(part), ".exe") {
+			return part
+		}
+	}
+	return ""
+}
+
+// resolveExePath tries to resolve an exe path directly, and if not found, searches recursively in baseDir.
+func resolveExePath(baseDir, exeName string) string {
+	tryPath := exeName
+	if !filepath.IsAbs(tryPath) {
+		tryPath = filepath.Join(baseDir, exeName)
+	}
+	tryPathAbs, err := filepath.Abs(tryPath)
+	if err == nil {
+		tryPathAbs = filepath.Clean(tryPathAbs)
+		statInfo, err := os.Stat(tryPathAbs)
+		if err == nil && !statInfo.IsDir() {
+			return tryPathAbs
+		}
+	}
+	// Not found directly; search recursively
+	found := findExeRecursive(baseDir, exeName)
+	return found
+}
+
+// findExeRecursive searches for exeName recursively in baseDir. Returns absolute path if found, else empty string.
+func findExeRecursive(baseDir, exeName string) string {
+	var foundPath string
+	filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() && strings.EqualFold(info.Name(), exeName) {
+			foundPath = path
+			return filepath.SkipDir // Stop after first match
+		}
+		return nil
+	})
+	return foundPath
+}
+
 // resolveLnkTarget retrieves the target path from a Windows shortcut (.lnk) file.
 // It prioritizes checks, expands environment variables, cleans the path,
 // and attempts to resolve relative paths based on the LNK file's directory.
@@ -243,6 +285,21 @@ func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]b
 		return nil
 	} // Duplicate target path check
 	if isUnwantedEntry(linkName, absPath) {
+		linkFile, err := lnk.File(linkPath)
+		if err == nil && linkFile.StringData.CommandLineArguments != "" {
+			args := linkFile.StringData.CommandLineArguments
+			exeName := extractExeFromArgs(args)
+			if exeName != "" {
+				resolvedExe := resolveExePath(filepath.Dir(absPath), exeName)
+				if resolvedExe != "" {
+					lowerResolvedExe := strings.ToLower(resolvedExe)
+					if !seenTargets[lowerResolvedExe] {
+						seenTargets[lowerResolvedExe] = true
+						return &AppEntry{Name: linkName, Path: resolvedExe, ResolvedFromArguments: true}
+					}
+				}
+			}
+		}
 		return nil
 	} // Filtering check
 
