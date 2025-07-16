@@ -14,18 +14,14 @@
         properties,
         buttonTextUpper = '',
         buttonTextLower = '',
-        // Optional positioning props - some buttons position themselves, others are positioned by parent
         x = undefined,
         y = undefined,
-        // Optional styling states - allow external control of hover/pressed states
         active = false,
-        forceHovered = false,
-        forcePressedLeft = false,
-        forcePressedRight = false,
-        forcePressedMiddle = false,
-        // Optional events - will be forwarded if provided
+        forceHovered,
+        forcePressedLeft,
+        forcePressedRight,
+        forcePressedMiddle,
         onclick = undefined,
-        // Children content (replaces slots in Svelte 5)
         buttonContent = undefined,
         allowSelectWhenDisabled = false,
     } = $props<PieButtonBaseProps & {
@@ -67,7 +63,7 @@
                 autoScrollOverflow = true;
                 break;
             case 1: // Second option ("Auto-scroll on hover")
-                autoScrollOverflow = isHovered;
+                autoScrollOverflow = forceHovered;
                 break;
             case 2:
                 autoScrollOverflow = false;
@@ -85,27 +81,6 @@
         }
     });
 
-    // Mouse state management
-    let hovered = $state(false);
-    let pressedLeft = $state(false);
-
-    function handleMouseEnter() {
-        hovered = true;
-    }
-
-    function handleMouseLeave() {
-        hovered = false;
-        pressedLeft = false;
-    }
-
-    function handleMouseDown(e: MouseEvent) {
-        if (e.button === 0) pressedLeft = true;
-    }
-
-    function handleMouseUp(e: MouseEvent) {
-        if (e.button === 0) pressedLeft = false;
-    }
-
     // Class handling - simplified to use direct classes to fix styling issues
     const {buttonClass: finalButtonClasses, subtextClass: finalSubtextClass} = $derived.by(() => {
         // Use exact same logic as original PieButton
@@ -120,14 +95,46 @@
         });
     });
 
-    // Compute final hover/pressed states by combining internal and forced states
-    const isHovered = $derived(forceHovered || (hovered && !pressedLeft));
-    const isPressedLeft = $derived(forcePressedLeft || pressedLeft);
+    // Hybrid hover/pressed logic: use force* props if defined, else fall back to local mouse state
+    let hovered = $state(false);
+    let pressedLeft = $state(false);
+
+    function handleMouseEnter() {
+        hovered = true;
+    }
+    function handleMouseLeave() {
+        hovered = false;
+        pressedLeft = false;
+    }
+    function handleMouseDown(e: MouseEvent) {
+        if (e.button === 0) pressedLeft = true;
+    }
+    function handleMouseUp(e: MouseEvent) {
+        if (e.button === 0) pressedLeft = false;
+    }
+
+    // Fix TS implicit any for isDefined
+    function isDefined(val: unknown): boolean {
+        return val !== undefined && val !== null;
+    }
+
+    const isHovered = $derived(
+        isDefined(forceHovered) ? forceHovered : (hovered && !pressedLeft)
+    );
+    const isPressedLeft = $derived(
+        isDefined(forcePressedLeft) ? forcePressedLeft : pressedLeft
+    );
+    const isPressedRight = $derived(
+        isDefined(forcePressedRight) ? forcePressedRight : false
+    );
+    const isPressedMiddle = $derived(
+        isDefined(forcePressedMiddle) ? forcePressedMiddle : false
+    );
 
     // Expose internal state to parent components
     const buttonState = $derived({
-        hovered,
-        pressedLeft
+        hovered: isHovered,
+        pressedLeft: isPressedLeft
     });
 
     // Forward to parent
@@ -176,16 +183,16 @@
                 class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses}"
                 class:hovered={isHovered}
                 class:pressed-left={isPressedLeft}
-                class:pressed-right={forcePressedRight}
-                class:pressed-middle={forcePressedMiddle}
+                class:pressed-right={isPressedRight}
+                class:pressed-middle={isPressedMiddle}
                 class:active-btn={active}
                 class:select-none={false}
                 style="width: {width}rem; height: {height}rem;"
                 onclick={onclick}
-                onmouseenter={handleMouseEnter}
-                onmouseleave={handleMouseLeave}
-                onmousedown={handleMouseDown}
-                onmouseup={handleMouseUp}
+                onmouseenter={isDefined(forceHovered) ? undefined : handleMouseEnter}
+                onmouseleave={isDefined(forceHovered) ? undefined : handleMouseLeave}
+                onmousedown={isDefined(forceHovered) ? undefined : handleMouseDown}
+                onmouseup={isDefined(forceHovered) ? undefined : handleMouseUp}
         >
             {#if buttonContent}
                 {@render buttonContent()}
@@ -238,16 +245,16 @@
             class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses}"
             class:hovered={isHovered}
             class:pressed-left={isPressedLeft}
-            class:pressed-right={forcePressedRight}
-            class:pressed-middle={forcePressedMiddle}
+            class:pressed-right={isPressedRight}
+            class:pressed-middle={isPressedMiddle}
             class:active-btn={active}
             class:select-none={false}
             style="width: {width}rem; height: {height}rem;"
             onclick={onclick}
-            onmouseenter={handleMouseEnter}
-            onmouseleave={handleMouseLeave}
-            onmousedown={handleMouseDown}
-            onmouseup={handleMouseUp}
+            onmouseenter={isDefined(forceHovered) ? undefined : handleMouseEnter}
+            onmouseleave={isDefined(forceHovered) ? undefined : handleMouseLeave}
+            onmousedown={isDefined(forceHovered) ? undefined : handleMouseDown}
+            onmouseup={isDefined(forceHovered) ? undefined : handleMouseUp}
     >
         {#if buttonContent}
             {@render buttonContent()}

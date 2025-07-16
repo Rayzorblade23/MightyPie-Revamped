@@ -14,6 +14,7 @@
         buttonTextLower = '',
         onclick = undefined,
         allowSelectWhenDisabled = true,
+        active = false,
     } = $props<{
         x: number,
         y: number,
@@ -24,7 +25,8 @@
         buttonTextUpper?: string,
         buttonTextLower?: string,
         onclick?: (event: MouseEvent) => void,
-        allowSelectWhenDisabled?: boolean
+        allowSelectWhenDisabled?: boolean,
+        active?: boolean
     }>();
 
     // Forward all props to PieButtonBase which handles all the shared functionality
@@ -41,4 +43,5 @@
         {buttonTextLower}
         {onclick}
         {allowSelectWhenDisabled}
+        {active}
 />

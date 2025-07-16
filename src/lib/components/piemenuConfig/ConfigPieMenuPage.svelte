@@ -2,6 +2,7 @@
 <script lang="ts">
     import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts'; // Assuming you add this to your types file
     import {ButtonType} from '$lib/data/piebuttonTypes.ts';
+    import {getDefaultButton} from "$lib/data/pieButtonDefaults";
     import {onMount} from 'svelte';
     import {PUBLIC_PIEBUTTON_HEIGHT, PUBLIC_PIEBUTTON_WIDTH, PUBLIC_PIEMENU_RADIUS} from "$env/static/public";
     import {calculatePieButtonOffsets, calculatePieButtonPosition} from "$lib/components/piemenu/piemenuUtils.ts";
@@ -248,7 +249,7 @@
                     width={buttonWidthRem}
                     height={buttonHeightRem}
                     taskType={displayInfo.taskType}
-                    properties={displayInfo.properties}
+                    properties={displayInfo.properties ?? getDefaultButton(ButtonType.ShowAnyWindow).properties}
                     buttonTextUpper={displayInfo.buttonTextUpper}
                     buttonTextLower={displayInfo.buttonTextLower}
                     onclick={() => handleSlotClick(slotIndex)}
@@ -281,4 +282,4 @@
         onCancel={handleCancel}
         onConfirm={handleConfirm}
         title="Remove Page"
-/>
+/>.
