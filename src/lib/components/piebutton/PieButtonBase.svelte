@@ -4,6 +4,7 @@
     import {composePieButtonClasses, fetchSvgIcon} from './pieButtonUtils';
     import type {PieButtonBaseProps} from '$lib/data/pieButtonSharedTypes';
     import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
+    import AutoScrollText from './AutoScrollText.svelte';
 
     // Base props for pie buttons
     let {
@@ -142,107 +143,19 @@
     // Make buttonElement reactive
     let buttonElement = $state<HTMLButtonElement | null>(null);
 
-    // Rename prop and add logic for auto-scrolling overflow text
-    let upperTextEl = $state<HTMLSpanElement | null>(null);
-    let containerEl = $state<HTMLSpanElement | null>(null);
-
     // Force text element remount whenever text changes to ensure animation restarts
     let textKey = $state(0);
 
     $effect(() => {
         void buttonTextUpper; // Track the text
-        void shouldScroll;    // Track if scrolling is needed
         setTimeout(() => textKey = (textKey + 1) % 1000, 0);
     });
 
-    // Svelte 5: use $derived for reactive DOM-based value
-    let shouldScroll = $derived.by(() => {
-        if (!autoScrollOverflow) return false;
-        if (!upperTextEl || !containerEl) return false;
-        void textKey;
-        return upperTextEl.scrollWidth > containerEl.offsetWidth;
-    });
-
-    // Ensure scrollDistance and scrollDuration are always accurate and consistent
-    let scrollDistance = $derived.by(() => {
-        if (!autoScrollOverflow || !upperTextEl || !containerEl) return 0;
-        void textKey;
-        const textWidth = upperTextEl.scrollWidth;
-        const containerWidth = containerEl.offsetWidth;
-        if (textWidth <= containerWidth) return 0;
-        // Round to whole pixels for more consistent animation
-        return Math.round(textWidth - containerWidth);
-    });
-    
-    // --- SCROLL DURATION LOGIC ---
-    const pxPerSecond = 80;
-    const pauseDuration = 2;
-
-    let scrollDuration = $derived.by(() => {
-        const distance = scrollDistance;
-        if (distance <= 0) return pauseDuration * 2;
-        
-        // Total duration: scrollTime + pauseDuration*2
-        const scrollTime = distance / pxPerSecond;
-        return parseFloat(((scrollTime / 0.8) + 2 * pauseDuration).toFixed(2));
-    });
-
-    // Add debug to see what's happening
-    $effect(() => {
-        if (autoScrollOverflow && shouldScroll) {
-            console.log({
-                scroll: 'active',
-                distance: scrollDistance,
-                duration: scrollDuration,
-                text: buttonTextUpper,
-                textWidth: upperTextEl?.scrollWidth,
-                containerWidth: containerEl?.offsetWidth
-            });
-        }
-    });
 </script>
 
 <style>
     button {
         transition: background-color 0.15s, border-color 0.3s;
-    }
-
-    @keyframes scroll-horizontal {
-        0%   { margin-left: 0; }
-        10%  { margin-left: 0; }
-        90%  { margin-left: calc(-1 * var(--scroll-distance, 0px)); }
-        100% { margin-left: calc(-1 * var(--scroll-distance, 0px)); }
-    }
-
-    @keyframes scroll-horizontal-no-start {
-        0%   { margin-left: 0; }
-        80%  { margin-left: calc(-1 * var(--scroll-distance, 0px)); }
-        100% { margin-left: calc(-1 * var(--scroll-distance, 0px)); }
-    }
-
-    .scroll-clip {
-        display: flex;
-        align-items: center;
-        overflow: hidden;
-        width: 100%;
-        height: 1.2em;
-    }
-    .scrolling-text,
-    .truncate-text {
-        display: inline-block;
-        vertical-align: middle;
-        font-size: inherit;
-        white-space: nowrap;
-    }
-    .scrolling-text {
-        animation: scroll-horizontal var(--scroll-duration, 2s) linear infinite;
-    }
-    .scrolling-text.no-start-pause {
-        animation: scroll-horizontal-no-start var(--scroll-duration, 2s) linear infinite;
-    }
-    .truncate-text {
-        text-overflow: ellipsis;
-        overflow: hidden;
     }
 
     .piebutton-flex-parent {
@@ -302,21 +215,13 @@
 
                 <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
                       style="font-size: {textSize}rem;">
-                    <span class="scroll-clip" bind:this={containerEl}>
-                        {#if autoScrollOverflow && shouldScroll}
-                            {#key textKey}
-                                <span class="scrolling-text" 
-                                      class:no-start-pause={hovered && getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1]}
-                                      bind:this={upperTextEl}
-                                      style="font-size: inherit; --scroll-distance: {scrollDistance}px; --scroll-duration: {scrollDuration}s;">
-                                    {buttonTextUpper}
-                                </span>
-                            {/key}
-                        {:else}
-                            <span class="truncate-text" bind:this={upperTextEl}
-                                  style="font-size: inherit; text-overflow:ellipsis; overflow:hidden;">{buttonTextUpper}</span>
-                        {/if}
-                    </span>
+                    <AutoScrollText
+                        text={buttonTextUpper}
+                        enabled={autoScrollOverflow}
+                        mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                        className="w-full"
+                        style="min-width:0;"
+                    />
                     {#if buttonTextLower}
                         <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
                               style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
@@ -372,21 +277,13 @@
 
             <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
                   style="font-size: {textSize}rem;">
-                <span class="scroll-clip" bind:this={containerEl}>
-                    {#if autoScrollOverflow && shouldScroll}
-                        {#key textKey}
-                            <span class="scrolling-text" 
-                                  class:no-start-pause={hovered && getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1]}
-                                  bind:this={upperTextEl}
-                                  style="font-size: inherit; --scroll-distance: {scrollDistance}px; --scroll-duration: {scrollDuration}s;">
-                                {buttonTextUpper}
-                            </span>
-                        {/key}
-                    {:else}
-                        <span class="truncate-text" bind:this={upperTextEl}
-                              style="font-size: inherit; text-overflow:ellipsis; overflow:hidden;">{buttonTextUpper}</span>
-                    {/if}
-                </span>
+                <AutoScrollText
+                    text={buttonTextUpper}
+                    enabled={autoScrollOverflow}
+                    mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                    className="w-full"
+                    style="min-width:0;"
+                />
                 {#if buttonTextLower}
                     <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
                           style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
