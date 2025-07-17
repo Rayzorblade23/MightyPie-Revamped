@@ -14,31 +14,33 @@ import (
 
 // processWindowUpdate - Refactored structure (Cleaned)
 func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows core.WindowsUpdate) (ConfigData, error) {
+	const debugHWND = 7608652
+	if w, found := windows[debugHWND]; !found {
+		log.Printf("WARNING: HWND %d is NOT present in processWindowUpdate windows argument! (total windows: %d)", debugHWND, len(windows))
+	} else {
+		log.Printf("DEBUG: HWND %d is present in processWindowUpdate windows argument! (total windows: %d) -- AppName: %s, Title: %q, ExeName: %s, Instance: %d, IconPath: %s", debugHWND, len(windows), w.AppName, w.Title, w.ExeName, w.Instance, w.IconPath)
+	}
+
 	if len(currentConfig) == 0 {
-		// INFO level might be appropriate if this state is unusual
 		log.Println("INFO: Skipping button processing - currentConfig is empty.")
 		return nil, nil
 	}
 
-	// 1. Deep Copy Config
 	updatedConfig, err := deepCopyConfig(currentConfig)
 	if err != nil || updatedConfig == nil || (len(updatedConfig) == 0 && len(currentConfig) > 0) {
 		log.Printf("ERROR: processWindowUpdate - Deep copy failed or resulted in invalid state. Error: %v", err)
 		return nil, fmt.Errorf("config deep copy failed: %w", err)
 	}
 
-	// 2. Handle Empty Window List Case
 	if len(windows) == 0 {
 		return a.handleEmptyWindowListAndCompare(currentConfig, updatedConfig) // Use helper
 	}
 
-	// 3. Setup for Processing - Shared State
 	availableWindows := make(core.WindowsUpdate, len(windows))
 	maps.Copy(availableWindows, windows)
 	processedButtons := make(map[string]bool)
 
-	// 4. === Phase 1: Process Existing Handles and Non-Window Buttons ===
-	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1: Process existing state...") // Removed DEBUG
+	// First: run processExistingShowProgramHandles for all pages
 	for menuID, menuConfig := range updatedConfig {
 		if menuConfig == nil {
 			continue
@@ -47,29 +49,27 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-
-			showProgramButtons, showAnyButtons, _, _ :=
-				a.separateButtonsByType(pageConfig)
-
-			// Process buttons
+			showProgramButtons, _, _, _ := a.separateButtonsByType(pageConfig)
 			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, pageConfig)
+		}
+	}
+	// Then: run assignMatchingProgramWindows and processExistingShowAnyHandles for all pages
+	for menuID, menuConfig := range updatedConfig {
+		if menuConfig == nil {
+			continue
+		}
+		for pageID, pageConfig := range menuConfig {
+			if pageConfig == nil {
+				continue
+			}
+			_, showAnyButtons, _, _ := a.separateButtonsByType(pageConfig)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, pageConfig)
 		}
 	}
-	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
 
-	// 5. === Phase 1.5 (NEW): Assign Matching Program Windows ===
-	// log.Println("DEBUG: processWindowUpdate - Starting Phase 1.5: Assign matching program windows...") // Removed DEBUG
-	// log.Printf("DEBUG: processWindowUpdate - Finished Phase 1.5. Remaining windows: %d", len(availableWindows)) // Removed DEBUG
-
-	// 6. === Phase 2: Assign Remaining Windows to Available ShowAny Slots ===
-	// log.Println("DEBUG: processWindowUpdate - Starting Phase 2: Assign remaining windows to ShowAny slots...") // Removed DEBUG
 	a.assignRemainingWindows(availableWindows, processedButtons, updatedConfig)
-	// log.Println("DEBUG: processWindowUpdate - Finished Phase 2.") // Removed DEBUG
 
-	// 7. Final Comparison (Use JSON)
-	// log.Println("DEBUG: processWindowUpdate - Performing final JSON comparison...") // Removed DEBUG
 	jsonSnapshotFinal, errSnapFinal := json.Marshal(currentConfig)
 	jsonUpdatedFinal, errUpdateFinal := json.Marshal(updatedConfig)
 
