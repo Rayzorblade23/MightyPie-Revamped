@@ -16,7 +16,7 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 
 	types := []struct {
 		TypeStr string
-		Type ButtonType
+		Type    ButtonType
 	}{
 		{"show_any_window", ButtonTypeShowAnyWindow},
 		{"show_program_window", ButtonTypeShowProgramWindow},
@@ -49,6 +49,23 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 				}
 			}
 		}
+
+		sort.Slice(keys, func(i, j int) bool {
+			mi, _ := strconv.Atoi(keys[i].menuID)
+			mj, _ := strconv.Atoi(keys[j].menuID)
+			if mi != mj {
+				return mi < mj
+			}
+			pi, _ := strconv.Atoi(keys[i].pageID)
+			pj, _ := strconv.Atoi(keys[j].pageID)
+			if pi != pj {
+				return pi < pj
+			}
+			bi, _ := strconv.Atoi(keys[i].btnID)
+			bj, _ := strconv.Atoi(keys[j].btnID)
+			return bi < bj
+		})
+
 		// Minimal-move gap-filling: for each gap, move the highest-indexed assigned window above it into the gap
 		moves := 0
 		for {
@@ -66,7 +83,7 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 			}
 			// Find the highest-indexed assigned window above the gap
 			srcIdx := -1
-			for i := len(keys)-1; i > gapIdx; i-- {
+			for i := len(keys) - 1; i > gapIdx; i-- {
 				srcBtn := config[keys[i].menuID][keys[i].pageID][keys[i].btnID]
 				if !isButtonEmpty(&srcBtn) {
 					if t.Type == ButtonTypeShowProgramWindow {
@@ -164,7 +181,6 @@ func dumpFirstMenuPages(config ConfigData) {
 	}
 }
 
-
 func isButtonEmpty(btn *Button) bool {
 	switch ButtonType(btn.ButtonType) {
 	case ButtonTypeShowProgramWindow:
@@ -176,4 +192,3 @@ func isButtonEmpty(btn *Button) bool {
 	}
 	return true
 }
-
