@@ -160,7 +160,21 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 			if bMap == nil {
 				continue
 			}
-			for bID, button := range bMap {
+			// Sort button IDs numerically so lowest IDs are assigned first
+			btnIDs := make([]string, 0, len(bMap))
+			for bID := range bMap {
+				btnIDs = append(btnIDs, bID)
+			}
+			sort.Slice(btnIDs, func(i, j int) bool {
+				id1, err1 := strconv.Atoi(btnIDs[i])
+				id2, err2 := strconv.Atoi(btnIDs[j])
+				if err1 != nil || err2 != nil {
+					return btnIDs[i] < btnIDs[j] // fallback to string sort
+				}
+				return id1 < id2
+			})
+			for _, bID := range btnIDs {
+				button := bMap[bID]
 				buttonKey := fmt.Sprintf("%s:%s:%s", pID, mID, bID)
 				if ButtonType(button.ButtonType) != ButtonTypeShowProgramWindow || processedButtons[buttonKey] {
 					continue

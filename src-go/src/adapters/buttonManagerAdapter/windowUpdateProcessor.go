@@ -14,13 +14,6 @@ import (
 
 // processWindowUpdate - Refactored structure (Cleaned)
 func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows core.WindowsUpdate) (ConfigData, error) {
-	const debugHWND = 7608652
-	if w, found := windows[debugHWND]; !found {
-		log.Printf("WARNING: HWND %d is NOT present in processWindowUpdate windows argument! (total windows: %d)", debugHWND, len(windows))
-	} else {
-		log.Printf("DEBUG: HWND %d is present in processWindowUpdate windows argument! (total windows: %d) -- AppName: %s, Title: %q, ExeName: %s, Instance: %d, IconPath: %s", debugHWND, len(windows), w.AppName, w.Title, w.ExeName, w.Instance, w.IconPath)
-	}
-
 	if len(currentConfig) == 0 {
 		log.Println("INFO: Skipping button processing - currentConfig is empty.")
 		return nil, nil
