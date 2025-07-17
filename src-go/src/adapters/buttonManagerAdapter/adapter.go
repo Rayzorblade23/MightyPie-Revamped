@@ -38,6 +38,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	saveConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
 	loadConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
 	receiveNewBaseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
+	fillGapsSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS")
 
 	config, err := ReadButtonConfig()
 	if err != nil {
@@ -130,7 +131,23 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		}
 	})
 
+	// Gap-filling/compaction subscription
+	a.natsAdapter.SubscribeToSubject(fillGapsSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+		mu.Lock()
+		currentConfig := buttonConfig
+		mu.Unlock()
+		gapFilledConfig, cleared := FillWindowAssignmentGaps(currentConfig)
+		if cleared > 0 {
+			updateButtonConfig(gapFilledConfig)
+			a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
+			log.Println("INFO: Gap-filling/compaction performed and update published (no processWindowUpdate).")
+		} else {
+			log.Println("INFO: Gap-filling triggered but no gaps were found.")
+		}
+	})
+
 	a.natsAdapter.SubscribeToSubject(loadConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+
 		// msg.Data contains the path to the backup file as a string (may include quotes)
 		backupPath := string(msg.Data)
 		// Remove any leading/trailing quotes (single or double)

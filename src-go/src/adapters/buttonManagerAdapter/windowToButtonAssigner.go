@@ -302,6 +302,9 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 
 	var windowsToAssign []availableWindowInfo
 	for handle, info := range availableWindows {
+		if info.Title == "RzMonitorForegroundWindow" || info.Title == "mightypie-revamped" {
+			continue // Skip windows with Unknown App
+		}
 		windowsToAssign = append(windowsToAssign, availableWindowInfo{Handle: handle, Info: info})
 	}
 	sort.Slice(windowsToAssign, func(i, j int) bool { return windowsToAssign[i].Handle < windowsToAssign[j].Handle })

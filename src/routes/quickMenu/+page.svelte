@@ -8,6 +8,8 @@
         PUBLIC_QUICKMENU_SIZE_X,
         PUBLIC_QUICKMENU_SIZE_Y
     } from "$env/static/public";
+    import {publishMessage} from "$lib/natsAdapter.svelte.ts";
+    import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS} from "$env/static/public";
     import QuickMenuPieButton from '$lib/components/quickMenu/QuickMenuPieButton.svelte';
     import {getMenuConfiguration} from '$lib/data/configHandler.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts';
@@ -142,16 +144,20 @@
         </div>
     </div>
     <div class="flex flex-col gap-4 items-center px-4 py-4 w-full max-w-xs mx-auto">
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
                 onclick={navigateToFuzzySearch}>Fuzzy Search
         </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
+                onclick={() => publishMessage(PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS, {})}>
+            Fill unassigned Button gaps
+        </button>
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
                 onclick={navigateToPieMenuConfig}>Pie Menu Config
         </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
                 onclick={navigateToSettings}>Settings
         </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
                 onclick={async () => { await getCurrentWindow().close(); }}>
             Exit
         </button>
