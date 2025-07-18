@@ -63,7 +63,7 @@
                 autoScrollOverflow = true;
                 break;
             case 1: // Second option ("Auto-scroll on hover")
-                autoScrollOverflow = forceHovered;
+                autoScrollOverflow = isHovered;
                 break;
             case 2:
                 autoScrollOverflow = false;
