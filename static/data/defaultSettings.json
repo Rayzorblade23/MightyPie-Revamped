@@ -1,0 +1,135 @@
+{
+  "colorAccentAnywin": {
+    "index": 0,
+    "label": "Show-Any-Window Button Accent",
+    "isExposed": true,
+    "type": "color",
+    "value": "#5a14b7",
+    "defaultValue": "#5a14b7"
+  },
+  "colorAccentFunction": {
+    "index": 1,
+    "label": "Function Button Accent",
+    "isExposed": true,
+    "type": "color",
+    "value": "#71b8ed",
+    "defaultValue": "#71b8ed"
+  },
+  "colorAccentLaunch": {
+    "index": 2,
+    "label": "Launch-Program Button Accent",
+    "isExposed": true,
+    "type": "color",
+    "value": "#f37fc0",
+    "defaultValue": "#f37fc0"
+  },
+  "colorAccentProgramwin": {
+    "index": 3,
+    "label": "Show-Program-Window Button Accent",
+    "isExposed": true,
+    "type": "color",
+    "value": "#fa9fa4",
+    "defaultValue": "#fa9fa4"
+  },
+  "pieMenuDeadzoneFunction": {
+    "index": 4,
+    "label": "Pie Menu Center function (left-click)",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Forwards",
+    "defaultValue": "Forwards"
+  },
+  "colorPieButtonHighlight": {
+    "index": 5,
+    "label": "Pie Menu Button Highlight color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#5f3c8e",
+    "defaultValue": "#5f3c8e"
+  },
+  "colorIndicator": {
+    "index": 6,
+    "label": "Pie Menu Indicator color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#5f3c8e",
+    "defaultValue": "#5f3c8e"
+  },
+  "colorRingFill": {
+    "index": 7,
+    "label": "Center Ring Fill color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#202020",
+    "defaultValue": "#202020"
+  },
+  "colorRingStroke": {
+    "index": 8,
+    "label": "Center Ring Outline color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#303030",
+    "defaultValue": "#303030"
+  },
+  "configPath": {
+    "index": 9,
+    "label": "Config Path",
+    "isExposed": false,
+    "type": "string",
+    "value": "C:\\Users\\raimo\\AppData\\Local\\MightyPieRevamped",
+    "defaultValue": "C:\\Users\\raimo\\AppData\\Local\\MightyPieRevamped"
+  },
+  "darkMode": {
+    "index": 10,
+    "label": "Dark Mode",
+    "isExposed": false,
+    "type": "bool",
+    "value": true,
+    "defaultValue": true
+  },
+  "startInPieMenuConfig": {
+    "index": 11,
+    "label": "On program start show Pie Menu Config",
+    "isExposed": true,
+    "type": "bool",
+    "value": true,
+    "defaultValue": true
+  },
+  "keepPieMenuAnchored": {
+    "index": 12,
+    "label": "Keep open Pie Menu in place",
+    "isExposed": true,
+    "type": "bool",
+    "value": false,
+    "defaultValue": false
+  },
+  "exampleFloat": {
+    "index": 13,
+    "label": "Example Float",
+    "isExposed": false,
+    "type": "float",
+    "value": 0,
+    "defaultValue": 0
+  },
+  "exampleInt": {
+    "index": 14,
+    "label": "Example Integer",
+    "isExposed": false,
+    "type": "int",
+    "value": 0,
+    "defaultValue": 0
+  },
+  "autoScrollOverflow": {
+    "index": 15,
+    "label": "When text is too long for button",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Auto-scroll",
+    "defaultValue": "Auto-scroll",
+    "options": [
+      "Auto-scroll",
+      "Auto-scroll on hover",
+      "Do nothing"
+    ]
+  }
+}
