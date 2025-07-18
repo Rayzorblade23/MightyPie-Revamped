@@ -41,6 +41,8 @@
             settings?.startInPieMenuConfig?.value && !sessionStorage.getItem('alreadyRedirectedToConfig')
         ) {
             sessionStorage.setItem('alreadyRedirectedToConfig', '1');
+            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+
             goto('/piemenuConfig', {replaceState: true});
         }
     });
