@@ -12,7 +12,7 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
 
 // Returns the base button classes (can be extended if needed)
 const baseButtonClasses =
-    'flex items-center p-0.5 min-w-0 border-solid border rounded-lg';
+    'flex items-center p-0.5 min-w-0 border-solid rounded-lg';
 
 // Returns the final button classes based on state
 export function composePieButtonClasses({

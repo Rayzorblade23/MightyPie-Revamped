@@ -41,36 +41,52 @@
     let textSize = 0.775; // default 0.875rem (equivalent to text-sm)
     let subTextSize = 0.65; // default 0.75rem (equivalent to text-xs)
 
+    // Map enum values to px
+    function getBorderWidthFromSetting(setting: string): number {
+        switch (setting) {
+            case "None":
+                return 0;
+            case "Thin":
+                return 1;
+            case "Medium":
+                return 1.5;
+            case "Thick":
+                return 2;
+            default:
+                return 1.5;
+        }
+    }
+
+    let borderWidth = $state(1.5);
+
     // SVG icon handling
     let svgPromise = $state<Promise<string> | undefined>(undefined);
     let autoScrollOverflow = $state(false);
 
+    function getAutoScrollOverflowMode(idx: number, isHovered: boolean): boolean {
+        switch (idx) {
+            case 0: return true; // Auto-scroll
+            case 1: return isHovered; // Auto-scroll on hover
+            case 2: default: return false; // Do nothing or unknown
+        }
+    }
+
     $effect(() => {
         const settings = getSettings();
-        const entry = settings.autoScrollOverflow;
-        const value = entry?.value ?? entry?.defaultValue ?? entry?.options?.[0];
 
-        if (!entry || !entry.options) {
+        // Handle border thickness
+        const thicknessSetting = settings.pieButtonBorderThickness?.value ?? settings.pieButtonBorderThickness?.defaultValue ?? "Medium";
+        borderWidth = getBorderWidthFromSetting(thicknessSetting);
+
+        // Handle auto-scroll overflow
+        const autoScrollSetting = settings.autoScrollOverflow;
+        const value = autoScrollSetting?.value ?? autoScrollSetting?.defaultValue ?? autoScrollSetting?.options?.[0];
+        if (!autoScrollSetting || !autoScrollSetting.options) {
             autoScrollOverflow = false;
             return;
         }
-
-        // Use the index of the selected value in the options array to determine behavior
-        const idx = entry.options.indexOf(value);
-
-        switch (idx) {
-            case 0: // First option ("Auto-scroll")
-                autoScrollOverflow = true;
-                break;
-            case 1: // Second option ("Auto-scroll on hover")
-                autoScrollOverflow = isHovered;
-                break;
-            case 2:
-                autoScrollOverflow = false;
-                break;
-            default:
-                autoScrollOverflow = false;
-        }
+        const idx = autoScrollSetting.options.indexOf(value);
+        autoScrollOverflow = getAutoScrollOverflowMode(idx, isHovered);
     });
 
     $effect(() => {
@@ -192,7 +208,7 @@
                 class:pressed-middle={isPressedMiddle}
                 class:active-btn={active}
                 class:select-none={false}
-                style="width: {width}rem; height: {height}rem;"
+                style="width: {width}rem; height: {height}rem; border-width: {borderWidth}px;"
                 onclick={onclick}
                 onmouseenter={isDefined(forceHovered) ? undefined : handleMouseEnter}
                 onmouseleave={isDefined(forceHovered) ? undefined : handleMouseLeave}
@@ -201,9 +217,9 @@
         >
 
             {#if typeof instanceNum === 'number'
-                && instanceNum !== 0
-                && taskType !== ButtonType.Disabled
-                && properties?.window_handle !== -1}
+            && instanceNum !== 0
+            && taskType !== ButtonType.Disabled
+            && properties?.window_handle !== -1}
                 <svg class="absolute -top-4 -right-4 z-20 pointer-events-none select-none" width="3.5em" height="3.5em"
                      viewBox="0 0 100 100">
                     <polygon points="100,0 100,100 0,0" fill="currentColor"
@@ -252,7 +268,7 @@
                     />
                     {#if buttonTextLower}
                         <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
-                              style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
+                              style="font-size: {buttonTextUpper ? subTextSize : textSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px; ">{buttonTextLower}</span>
                     {/if}
                 </span>
             {/if}
@@ -270,7 +286,7 @@
             class:pressed-middle={isPressedMiddle}
             class:active-btn={active}
             class:select-none={false}
-            style="width: {width}rem; height: {height}rem;"
+            style="width: {width}rem; height: {height}rem; border-width: {borderWidth}px;"
             onclick={onclick}
             onmouseenter={isDefined(forceHovered) ? undefined : handleMouseEnter}
             onmouseleave={isDefined(forceHovered) ? undefined : handleMouseLeave}
@@ -314,7 +330,7 @@
                 />
                 {#if buttonTextLower}
                     <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
-                          style="font-size: {buttonTextUpper ? subTextSize : textSize}rem;">{buttonTextLower}</span>
+                          style="font-size: {buttonTextUpper ? subTextSize : textSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px; ">{buttonTextLower}</span>
                 {/if}
             </span>
         {/if}

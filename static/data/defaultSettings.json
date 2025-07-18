@@ -131,5 +131,19 @@
       "Auto-scroll on hover",
       "Do nothing"
     ]
+  },
+  "pieButtonBorderThickness": {
+    "index": 16,
+    "label": "Thickness of Pie Button Border",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Medium",
+    "defaultValue": "Medium",
+    "options": [
+      "None",
+      "Thin",
+      "Medium",
+      "Thick"
+    ]
   }
 }
