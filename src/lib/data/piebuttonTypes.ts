@@ -22,6 +22,7 @@ export interface ShowAnyWindowProperties {
     button_text_lower: string; // app name
     icon_path: string;
     window_handle: number;
+    instance: number;
 }
 
 export interface ShowProgramWindowProperties {
@@ -29,6 +30,7 @@ export interface ShowProgramWindowProperties {
     button_text_lower: string; // app name
     icon_path: string;
     window_handle: number;
+    instance: number;
 }
 
 

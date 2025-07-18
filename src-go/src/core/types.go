@@ -32,6 +32,7 @@ type ShowAnyWindowProperties struct {
 	ButtonTextLower string `json:"button_text_lower"` // AppName
 	IconPath        string `json:"icon_path"`
 	WindowHandle    int    `json:"window_handle"`
+	Instance        int    `json:"instance"`
 }
 
 type ShowProgramWindowProperties struct {
@@ -39,6 +40,7 @@ type ShowProgramWindowProperties struct {
 	ButtonTextLower string `json:"button_text_lower"` // AppName
 	IconPath        string `json:"icon_path"`
 	WindowHandle    int    `json:"window_handle"`
+	Instance        int    `json:"instance"`
 }
 
 type LaunchProgramProperties struct {

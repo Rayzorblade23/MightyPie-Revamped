@@ -102,13 +102,16 @@
     function handleMouseEnter() {
         hovered = true;
     }
+
     function handleMouseLeave() {
         hovered = false;
         pressedLeft = false;
     }
+
     function handleMouseDown(e: MouseEvent) {
         if (e.button === 0) pressedLeft = true;
     }
+
     function handleMouseUp(e: MouseEvent) {
         if (e.button === 0) pressedLeft = false;
     }
@@ -158,6 +161,8 @@
         setTimeout(() => textKey = (textKey + 1) % 1000, 0);
     });
 
+    const instanceNum = $derived.by(() => properties?.instance ?? 0);
+
 </script>
 
 <style>
@@ -180,7 +185,7 @@
         <button
                 bind:this={buttonElement}
                 type="button"
-                class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses}"
+                class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses} overflow-hidden relative"
                 class:hovered={isHovered}
                 class:pressed-left={isPressedLeft}
                 class:pressed-right={isPressedRight}
@@ -194,6 +199,21 @@
                 onmousedown={isDefined(forceHovered) ? undefined : handleMouseDown}
                 onmouseup={isDefined(forceHovered) ? undefined : handleMouseUp}
         >
+
+            {#if typeof instanceNum === 'number'
+                && instanceNum !== 0
+                && taskType !== ButtonType.Disabled
+                && properties?.window_handle !== -1}
+                <svg class="absolute -top-4 -right-4 z-20 pointer-events-none select-none" width="3.5em" height="3.5em"
+                     viewBox="0 0 100 100">
+                    <polygon points="100,0 100,100 0,0" fill="currentColor"
+                             class="text-purple-500"/>
+                    <text x="60" y="45" text-anchor="middle" alignment-baseline="middle" font-size="1.4em"
+                          class="fill-white">
+                        {instanceNum}
+                    </text>
+                </svg>
+            {/if}
             {#if buttonContent}
                 {@render buttonContent()}
             {:else}
@@ -215,7 +235,8 @@
                             </div>
                         {/await}
                     {:else if properties.icon_path}
-                        <img src={properties.icon_path} alt="button icon" class="h-full flex-shrink-0 object-contain p-1"
+                        <img src={properties.icon_path} alt="button icon"
+                             class="h-full flex-shrink-0 object-contain p-1"
                              style="aspect-ratio: 1/1;"/>
                     {/if}
                 {/if}
@@ -223,11 +244,11 @@
                 <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
                       style="font-size: {textSize}rem;">
                     <AutoScrollText
-                        text={buttonTextUpper}
-                        enabled={autoScrollOverflow}
-                        mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
-                        className="w-full"
-                        style="min-width:0;"
+                            text={buttonTextUpper}
+                            enabled={autoScrollOverflow}
+                            mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                            className="w-full"
+                            style="min-width:0;"
                     />
                     {#if buttonTextLower}
                         <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
@@ -242,7 +263,7 @@
     <button
             bind:this={buttonElement}
             type="button"
-            class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses}"
+            class="flex items-center p-0.5 min-w-0 border-solid border rounded-lg {finalButtonClasses} overflow-hidden relative"
             class:hovered={isHovered}
             class:pressed-left={isPressedLeft}
             class:pressed-right={isPressedRight}
@@ -285,11 +306,11 @@
             <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
                   style="font-size: {textSize}rem;">
                 <AutoScrollText
-                    text={buttonTextUpper}
-                    enabled={autoScrollOverflow}
-                    mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
-                    className="w-full"
-                    style="min-width:0;"
+                        text={buttonTextUpper}
+                        enabled={autoScrollOverflow}
+                        mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                        className="w-full"
+                        style="min-width:0;"
                 />
                 {#if buttonTextLower}
                     <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"

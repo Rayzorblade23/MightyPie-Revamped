@@ -391,6 +391,7 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 			return fmt.Errorf("get_props: %w", err)
 		}
 		props.WindowHandle = newHandle
+		props.Instance = winInfo.Instance
 
 		isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
 		if isEdge {
@@ -411,6 +412,7 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 			return fmt.Errorf("get_props: %w", err)
 		}
 		props.WindowHandle = newHandle
+		props.Instance = winInfo.Instance
 		props.ButtonTextUpper = winInfo.Title
 		props.ButtonTextLower = winInfo.AppName
 		if winInfo.IconPath != "" {

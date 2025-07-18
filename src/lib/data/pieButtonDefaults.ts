@@ -18,6 +18,7 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: "",
             icon_path: "",
             window_handle: -1,
+            instance: 0 as number,
         } as ShowAnyWindowProperties,
         dropdownFields: []
     },
@@ -28,6 +29,7 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: "Windows Explorer",
             icon_path: "",
             window_handle: -1,
+            instance: 0 as number,
         } as ShowProgramWindowProperties,
         dropdownFields: ["button_text_lower"]
     },
