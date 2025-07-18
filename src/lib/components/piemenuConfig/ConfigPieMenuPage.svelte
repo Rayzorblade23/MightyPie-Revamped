@@ -274,6 +274,7 @@
     </div>
 </div>
 
+{#if showConfirmDialog}
 <ConfirmationDialog
         bind:isOpen={showConfirmDialog}
         cancelText="Cancel"
@@ -282,4 +283,5 @@
         onCancel={handleCancel}
         onConfirm={handleConfirm}
         title="Remove Page"
-/>.
+/>
+{/if}
