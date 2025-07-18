@@ -39,8 +39,9 @@
             for (const [pageId, buttons] of pages) {
                 for (const [buttonId, button] of buttons) {
                     if (
-                        button.button_type === ButtonType.ShowProgramWindow ||
-                        button.button_type === ButtonType.ShowAnyWindow
+                        (button.button_type === ButtonType.ShowProgramWindow ||
+                            button.button_type === ButtonType.ShowAnyWindow) &&
+                        button.properties.button_text_upper.trim() !== ''
                     ) {
                         arr.push({button, menuId, pageId, buttonId});
                     }
