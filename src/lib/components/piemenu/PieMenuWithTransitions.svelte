@@ -128,32 +128,31 @@
         }
     });
 
+    let downTimerId: ReturnType<typeof setTimeout> | undefined;
+    let upTimerId: ReturnType<typeof setTimeout> | undefined;
+    let destroyed = false;
+
     const handleShortcutReleasedMessage = async (message: string) => {
         console.log('[NATS] Shortcut released message received:', message);
         if (activeSlice !== -1) {
-            // First trigger left_down
             currentMouseEvent = mouseEvents.left_down;
 
-            // Wait for the DOM/reactivity to process the left_down state change
-            setTimeout(() => {
+            downTimerId = setTimeout(() => {
+                if (destroyed) return;
                 if (activeSlice !== -1) {
-
-                    // Then trigger left_up which will execute the button via PieButton's effect
                     currentMouseEvent = mouseEvents.left_up;
                     console.log(`Left drag released in Slice: ${activeSlice}!`);
 
-                    // Delay hiding to ensure the button click is processed
-                    setTimeout(() => {
-                        // Optionally close the menu here
+                    upTimerId = setTimeout(() => {
+                        if (destroyed) return;
                         publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
-                        // Set opacity to 0 before hiding the window
                         opacity = 0;
-                        // Hide buttons before hiding window, but after click is processed
                         showButtons = false;
                         getCurrentWindow().hide();
-                    }, 100); // Add delay to ensure button action is processed
+                        console.log(`[NATS] Shortcut released: Hide.`);
+                    }, 100);
                 }
-            }, 50); // Increased delay between down and up events
+            }, 50);
         }
     };
 
@@ -167,6 +166,12 @@
         if (subscription_shortcut_released.error) {
             console.error("subscription_shortcut_released Error:", subscription_shortcut_released.error);
         }
+    });
+
+    onDestroy(() => {
+        destroyed = true;
+        clearTimeout(downTimerId);
+        clearTimeout(upTimerId);
     });
 
     function startAnimationLoop() {

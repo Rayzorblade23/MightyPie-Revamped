@@ -19,6 +19,7 @@ var (
 	natsSubjectShortcutPressed     = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	natsSubjectWindowManagerUpdate = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
 	natsSubjectInstalledAppsInfo   = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
+	natsSubjectPieMenuNavigate     = env.Get("PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE")
 )
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.
@@ -65,6 +66,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 		"Most Recent Explorer Window":  NoArgButtonFunctionExecutor{fn: a.BringLastExplorerWindowToForeground},
 		"Show All Explorer Windows":    NoArgButtonFunctionExecutor{fn: a.BringAllExplorerWindowsToForeground},
 		"Restart Explorer": NoArgButtonFunctionExecutor{fn: a.RestartAndRestoreExplorerWindows},
+		// New functions
+		"Open Settings":  NoArgButtonFunctionExecutor{fn: a.OpenSettings},
+		"Open Config":    NoArgButtonFunctionExecutor{fn: a.OpenConfig},
+		"Fuzzy Search":   NoArgButtonFunctionExecutor{fn: a.FuzzySearch},
 		// Add more function handlers here as needed
 	}
 

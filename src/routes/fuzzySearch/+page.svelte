@@ -76,8 +76,11 @@
     }
 
     onMount(() => {
+        console.log('FUZZY SEARCH Mounted');
+
         const initialize = async () => {
             const window = getCurrentWindow();
+            await window.show();
             await window.setFocus();
             await window.setSize(new LogicalSize(Number(PUBLIC_QUICKMENU_SIZE_X), Number(PUBLIC_QUICKMENU_SIZE_Y)));
             await ensureWindowWithinMonitorBounds();

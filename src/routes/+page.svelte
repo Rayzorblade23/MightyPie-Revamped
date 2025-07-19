@@ -5,6 +5,7 @@
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
+        PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
         PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
         PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
         PUBLIC_PIEMENU_SIZE_X,
@@ -166,6 +167,30 @@
         }
         if (subscription_shortcut_pressed.error) {
             console.error("NATS subscription error:", subscription_shortcut_pressed.error);
+        }
+    });
+
+    const subscription_navigate_to_page = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
+        async (message: string) => {
+            const navigateToPageMsg: string = JSON.parse(message);
+
+            console.log(`[NATS] Navigate to page: ${navigateToPageMsg}`);
+            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+
+            setTimeout(() => {
+                goto(`/${navigateToPageMsg}`, {replaceState: true});
+            }, 0);
+        }
+    );
+
+    $effect(() => {
+        if (subscription_navigate_to_page.status === "subscribed" && !isNatsReady) {
+            isNatsReady = true;
+            console.log("NATS subscription ready.");
+        }
+        if (subscription_navigate_to_page.error) {
+            console.error("NATS subscription error:", subscription_navigate_to_page.error);
         }
     });
 

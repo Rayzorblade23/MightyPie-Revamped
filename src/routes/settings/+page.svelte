@@ -57,6 +57,7 @@
                     Number(PUBLIC_SETTINGS_SIZE_X),
                     Number(PUBLIC_SETTINGS_SIZE_Y)
                 );
+                await currentWindow.show();
             } catch (e) {
                 console.error(e);
             }

@@ -70,5 +70,17 @@
   "Restart Explorer": {
     "icon_path": "/tabler_icons/restore.svg",
     "description": "Restarts Explorer while keeping all open windows."
+  },
+  "Open Settings": {
+    "icon_path": "/tabler_icons/settings.svg",
+    "description": "Opens the settings window."
+  },
+  "Open Config": {
+    "icon_path": "/tabler_icons/brand-cakephp.svg",
+    "description": "Opens the Pie Menu configuration window."
+  },
+  "Fuzzy Search": {
+    "icon_path": "/tabler_icons/search.svg",
+    "description": "Opens the Fuzzy Search window."
   }
 }
