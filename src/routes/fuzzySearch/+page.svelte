@@ -78,6 +78,14 @@
     onMount(() => {
         console.log('FUZZY SEARCH Mounted');
 
+        allButtons = extractButtons();
+
+        // Initialize Fuse instance once
+        fuse = new Fuse(allButtons, {
+            keys: ["button.properties.button_text_upper", "button.properties.button_text_lower"],
+            threshold: 0.4,
+        });
+
         const initialize = async () => {
             const window = getCurrentWindow();
             await window.show();
@@ -94,7 +102,10 @@
         };
     });
 
-    // --- Reactivity
+    $effect(() => {
+        results = search.trim().length > 0 ? fuse.search(search).map(r => r.item) : [];
+    });
+
     $effect(() => {
         if (search !== lastSearch) {
             selectedIndex = 0;
@@ -107,15 +118,6 @@
             };
             window.addEventListener('mousemove', onFirstMove);
         }
-    });
-
-    $effect(() => {
-        allButtons = extractButtons();
-        fuse = new Fuse(allButtons, {
-            keys: ["button.properties.button_text_upper", "button.properties.button_text_lower"],
-            threshold: 0.4,
-        });
-        results = search.trim().length > 0 ? fuse.search(search).map(r => r.item) : [];
     });
 
     // Always keep input focused when results change
