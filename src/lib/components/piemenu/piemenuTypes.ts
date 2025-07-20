@@ -26,8 +26,8 @@ export interface IPiemenuClickMessage {
 
 export interface IShortcutPressedMessage {
     shortcutPressed: number;
-    mouseX: number;
-    mouseY: number;
+    mouseX: number; // not used for now
+    mouseY: number; // not used for now
     openSpecificPage: boolean;
     pageID: number;
 }

@@ -110,10 +110,11 @@
         const settings = getSettings();
         if (!settings) return;
         const map = {
-            colorAccentAnywin: '--color-accent-anywin',
-            colorAccentProgramwin: '--color-accent-programwin',
+            colorAccentAnyWin: '--color-accent-anywin',
+            colorAccentProgramWin: '--color-accent-programwin',
             colorAccentLaunch: '--color-accent-launch',
             colorAccentFunction: '--color-accent-function',
+            colorAccentOpenPage: '--color-accent-openpage',
             colorPieButtonHighlight: '--color-button-hover-bg',
         };
         for (const [key, cssVar] of Object.entries(map)) {

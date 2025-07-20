@@ -13,6 +13,7 @@ export enum ButtonType {
     ShowAnyWindow = 'show_any_window',
     CallFunction = 'call_function',
     LaunchProgram = 'launch_program',
+    OpenSpecificPieMenuPage = 'open_page_in_menu',
     Disabled = 'disabled',
 }
 
@@ -46,24 +47,35 @@ export interface CallFunctionProperties {
     icon_path?: string;
 }
 
+export interface OpenSpecificPieMenuPageProperties {
+    button_text_upper: string; // display name
+    button_text_lower: string; // always empty string
+    icon_path: string;
+    menu_id: number;
+    page_id: number;
+}
+
 export interface DisabledProperties {
     button_text_upper: string; // always empty string
     button_text_lower: string; // always empty string
     icon_path?: string; // always empty string
 }
 
+
 export type Button =
     | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
     | { button_type: ButtonType.ShowAnyWindow; properties: ShowAnyWindowProperties }
     | { button_type: ButtonType.CallFunction; properties: CallFunctionProperties }
     | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
-    | { button_type: ButtonType.Disabled; properties: DisabledProperties };
+    | { button_type: ButtonType.Disabled; properties: DisabledProperties }
+    | { button_type: ButtonType.OpenSpecificPieMenuPage; properties: OpenSpecificPieMenuPageProperties };
 
 export type ButtonPropertiesUnion =
     | ShowProgramWindowProperties
     | ShowAnyWindowProperties
     | CallFunctionProperties
     | LaunchProgramProperties
+    | OpenSpecificPieMenuPageProperties
     | DisabledProperties;
 
 // Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }

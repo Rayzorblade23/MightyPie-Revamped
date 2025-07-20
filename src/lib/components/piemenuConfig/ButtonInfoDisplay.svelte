@@ -11,11 +11,13 @@
     import CallFunctionConfig from './CallFunctionConfig.svelte'; // New
     import ProgramButtonConfig from './ProgramButtonConfig.svelte'; // New
     import GenericPropertiesDisplay from './GenericPropertiesDisplay.svelte';
+    import OpenPageButtonConfig from './OpenPageButtonConfig.svelte';
     import {PUBLIC_DIR_BUTTONFUNCTIONS} from "$env/static/public";
 
     let {
         selectedButtonDetails,
-        onConfigChange // This is the prop to notify the page of any change
+        onConfigChange,
+        menuConfig
     } = $props<{
         selectedButtonDetails: {
             menuID: number; pageID: number; buttonID: number; slotIndex: number; button: Button;
@@ -23,6 +25,7 @@
         onConfigChange: (payload: {
             menuID: number; pageID: number; buttonID: number; newButton: Button;
         }) => void;
+        menuConfig: any;
     }>();
 
     // Data sources, passed down
@@ -41,6 +44,7 @@
         [ButtonType.ShowAnyWindow]: "Show Any Window",
         [ButtonType.CallFunction]: "Call Function",
         [ButtonType.LaunchProgram]: "Launch Program",
+        [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
         [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
@@ -68,7 +72,6 @@
 
     // Helper functions needed by GenericPropertiesDisplay or this component
     function getPropertyFriendlyName(propertyKey: string, buttonType: ButtonType): string {
-        // ... (full implementation as before)
         switch (buttonType) {
             case ButtonType.ShowProgramWindow:
                 if (propertyKey === 'button_text_upper') return 'Window Title';
@@ -184,6 +187,12 @@
         onConfigChange({menuID: menuID, pageID: pageID, buttonID: buttonID, newButton: updatedButton});
     }
 
+    function handleButtonChange(updatedButton: Button) {
+        if (!selectedButtonDetails) return;
+        const {menuID, pageID, buttonID} = selectedButtonDetails;
+        onConfigChange({menuID: menuID, pageID: pageID, buttonID: buttonID, newButton: updatedButton});
+    }
+
 </script>
 
 {#if selectedButtonDetails && currentButtonLocal} <!-- Ensure currentButtonLocal is defined -->
@@ -224,10 +233,12 @@
                         {installedAppsMap}
                         onUpdate={handleSpecificConfigUpdate}
                 />
+            {:else if currentButtonTypeValue === ButtonType.OpenSpecificPieMenuPage}
+                <OpenPageButtonConfig button={button} menuConfig={menuConfig} onUpdate={handleButtonChange}/>
             {/if}
 
             <!-- Generic Properties Display Section -->
-            {#if !(isTrulyEmptySlot && button.button_type === ButtonType.Disabled) && button.button_type !== ButtonType.Disabled}
+            {#if !(isTrulyEmptySlot && button.button_type === ButtonType.Disabled) && button.button_type !== ButtonType.Disabled && button.button_type !== ButtonType.OpenSpecificPieMenuPage}
                 {#if button.properties}
                     {@const hasSpecializedUI =
                     button.button_type === ButtonType.CallFunction ||
@@ -240,7 +251,7 @@
                                 buttonType={button.button_type}
                                 getPropertyFriendlyNameFn={getPropertyFriendlyName}
                                 dropdownPropertyKeys={genericDropdownPropertyKeys}
-                                {friendlyButtonTypeName}
+                                friendlyButtonTypeName={friendlyButtonTypeName}
                         />
                     {:else if !hasSpecializedUI}
                         <p class="text-zinc-600 dark:text-zinc-400 mt-2">

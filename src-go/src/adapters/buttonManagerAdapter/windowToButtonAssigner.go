@@ -1,5 +1,7 @@
 package buttonManagerAdapter
 
+
+
 import (
 	"fmt"
 	"log"
@@ -176,7 +178,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 			for _, bID := range btnIDs {
 				button := bMap[bID]
 				buttonKey := fmt.Sprintf("%s:%s:%s", pID, mID, bID)
-				if ButtonType(button.ButtonType) != ButtonTypeShowProgramWindow || processedButtons[buttonKey] {
+				if core.ButtonType(button.ButtonType) != core.ButtonTypeShowProgramWindow || processedButtons[buttonKey] {
 					continue
 				}
 
@@ -280,7 +282,7 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 				if errB != nil {
 					continue
 				}
-				if ButtonType(button.ButtonType) != ButtonTypeShowAnyWindow {
+				if core.ButtonType(button.ButtonType) != core.ButtonTypeShowAnyWindow {
 					continue
 				}
 				currentButtonKey := fmt.Sprintf("%s:%s:%s", pID, mID, bID)
@@ -384,8 +386,8 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 // updateButtonWithWindowInfo (Cleaned)
 func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHandle int) error {
 	// log.Printf("DEBUG: updateButtonWithWindowInfo called for button type %s with handle %d", button.ButtonType, newHandle) // Removed DEBUG
-	switch ButtonType(button.ButtonType) {
-	case ButtonTypeShowProgramWindow:
+	switch core.ButtonType(button.ButtonType) {
+	case core.ButtonTypeShowProgramWindow:
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](*button)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
@@ -406,7 +408,7 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 			props.IconPath = winInfo.IconPath
 		}
 		return SetButtonProperties(button, props) // Returns error from SetButtonProperties
-	case ButtonTypeShowAnyWindow:
+	case core.ButtonTypeShowAnyWindow:
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](*button)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
@@ -425,8 +427,8 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 
 // clearButtonWindowProperties (Cleaned)
 func clearButtonWindowProperties(button *Button) error {
-	switch ButtonType(button.ButtonType) {
-	case ButtonTypeShowProgramWindow:
+	switch core.ButtonType(button.ButtonType) {
+	case core.ButtonTypeShowProgramWindow:
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](*button)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)
@@ -446,7 +448,7 @@ func clearButtonWindowProperties(button *Button) error {
 
 		return SetButtonProperties(button, props)
 
-	case ButtonTypeShowAnyWindow:
+	case core.ButtonTypeShowAnyWindow:
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](*button)
 		if err != nil {
 			return fmt.Errorf("get_props: %w", err)

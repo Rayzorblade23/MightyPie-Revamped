@@ -14,18 +14,15 @@ import (
 // 3. Return the config (processWindowUpdate should be called separately).
 func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 
-	types := []struct {
-		TypeStr string
-		Type    ButtonType
-	}{
-		{"show_any_window", ButtonTypeShowAnyWindow},
-		{"show_program_window", ButtonTypeShowProgramWindow},
+	typesToProcess := []core.ButtonType{
+		core.ButtonTypeShowAnyWindow,
+		core.ButtonTypeShowProgramWindow,
 	}
 
 	totalMoves := 0
 	// Debug: dump Menu 0, Pages 0 and 1 BEFORE ALL GAP-FILL
 	dumpFirstMenuPages(config)
-	for _, t := range types {
+	for _, buttonType := range typesToProcess {
 		// Collect all keys for buttons of this type, in config order (across ALL menus/pages)
 		type btnKey struct{ menuID, pageID, btnID string }
 		var keys []btnKey
@@ -43,7 +40,7 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 				})
 				for _, btnID := range btnIDs {
 					btn := pageConfig[btnID]
-					if btn.ButtonType == string(t.Type) {
+					if btn.ButtonType == string(buttonType) {
 						keys = append(keys, btnKey{menuID, pageID, btnID})
 					}
 				}
@@ -86,7 +83,7 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 			for i := len(keys) - 1; i > gapIdx; i-- {
 				srcBtn := config[keys[i].menuID][keys[i].pageID][keys[i].btnID]
 				if !isButtonEmpty(&srcBtn) {
-					if t.Type == ButtonTypeShowProgramWindow {
+					if buttonType == core.ButtonTypeShowProgramWindow {
 						gapBtn := config[keys[gapIdx].menuID][keys[gapIdx].pageID][keys[gapIdx].btnID]
 						propsGap, errGap := GetButtonProperties[core.ShowProgramWindowProperties](gapBtn)
 						propsSrc, errSrc := GetButtonProperties[core.ShowProgramWindowProperties](srcBtn)
@@ -107,17 +104,17 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 			// Move assignment from srcIdx to gapIdx
 			srcKey := keys[srcIdx]
 			gapKey := keys[gapIdx]
-			log.Printf("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", t.TypeStr, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
+			log.Printf("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", buttonType, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
 			srcBtn := config[srcKey.menuID][srcKey.pageID][srcKey.btnID]
 			gapBtn := config[gapKey.menuID][gapKey.pageID][gapKey.btnID]
-			switch t.Type {
-			case ButtonTypeShowAnyWindow:
+			switch buttonType {
+			case core.ButtonTypeShowAnyWindow:
 				props, _ := GetButtonProperties[core.ShowAnyWindowProperties](srcBtn)
 				SetButtonProperties(&gapBtn, props)
 				clearButtonWindowProperties(&srcBtn)
 				config[gapKey.menuID][gapKey.pageID][gapKey.btnID] = gapBtn
 				config[srcKey.menuID][srcKey.pageID][srcKey.btnID] = srcBtn
-			case ButtonTypeShowProgramWindow:
+			case core.ButtonTypeShowProgramWindow:
 				propsGap, errGap := GetButtonProperties[core.ShowProgramWindowProperties](gapBtn)
 				propsSrc, errSrc := GetButtonProperties[core.ShowProgramWindowProperties](srcBtn)
 				if errGap != nil || errSrc != nil {
@@ -157,20 +154,20 @@ func dumpFirstMenuPages(config ConfigData) {
 		if !ok {
 			continue
 		}
-		for btnIdx := 0; btnIdx < 8; btnIdx++ {
+		for btnIdx := range 8 {
 			btnID := strconv.Itoa(btnIdx)
 			btn, ok := pageConfig[btnID]
 			if !ok {
 				continue
 			}
 			var title string
-			switch ButtonType(btn.ButtonType) {
-			case ButtonTypeShowAnyWindow:
+			switch core.ButtonType(btn.ButtonType) {
+			case core.ButtonTypeShowAnyWindow:
 				props, err := GetButtonProperties[core.ShowAnyWindowProperties](btn)
 				if err == nil {
 					title = props.ButtonTextUpper
 				}
-			case ButtonTypeShowProgramWindow:
+			case core.ButtonTypeShowProgramWindow:
 				props, err := GetButtonProperties[core.ShowProgramWindowProperties](btn)
 				if err == nil {
 					title = "handle=" + handleToStr(props.WindowHandle)
@@ -182,11 +179,11 @@ func dumpFirstMenuPages(config ConfigData) {
 }
 
 func isButtonEmpty(btn *Button) bool {
-	switch ButtonType(btn.ButtonType) {
-	case ButtonTypeShowProgramWindow:
+	switch core.ButtonType(btn.ButtonType) {
+	case core.ButtonTypeShowProgramWindow:
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](*btn)
 		return err == nil && props.WindowHandle == InvalidHandle
-	case ButtonTypeShowAnyWindow:
+	case core.ButtonTypeShowAnyWindow:
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](*btn)
 		return err == nil && props.WindowHandle == InvalidHandle
 	}

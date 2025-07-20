@@ -59,17 +59,17 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 		"Clipboard":              NoArgButtonFunctionExecutor{fn: a.OpenClipboard},
 		"Fullscreen (F11)":       NoArgButtonFunctionExecutor{fn: a.Fullscreen_F11},
 		// Media
-		"Previous Track":               NoArgButtonFunctionExecutor{fn: a.MediaPrev},
-		"Next Track":                   NoArgButtonFunctionExecutor{fn: a.MediaNext},
-		"Play/Pause":                   NoArgButtonFunctionExecutor{fn: a.MediaPlayPause},
-		"Mute":                         NoArgButtonFunctionExecutor{fn: a.MediaToggleMute},
-		"Most Recent Explorer Window":  NoArgButtonFunctionExecutor{fn: a.BringLastExplorerWindowToForeground},
-		"Show All Explorer Windows":    NoArgButtonFunctionExecutor{fn: a.BringAllExplorerWindowsToForeground},
-		"Restart Explorer": NoArgButtonFunctionExecutor{fn: a.RestartAndRestoreExplorerWindows},
+		"Previous Track":              NoArgButtonFunctionExecutor{fn: a.MediaPrev},
+		"Next Track":                  NoArgButtonFunctionExecutor{fn: a.MediaNext},
+		"Play/Pause":                  NoArgButtonFunctionExecutor{fn: a.MediaPlayPause},
+		"Mute":                        NoArgButtonFunctionExecutor{fn: a.MediaToggleMute},
+		"Most Recent Explorer Window": NoArgButtonFunctionExecutor{fn: a.BringLastExplorerWindowToForeground},
+		"Show All Explorer Windows":   NoArgButtonFunctionExecutor{fn: a.BringAllExplorerWindowsToForeground},
+		"Restart Explorer":            NoArgButtonFunctionExecutor{fn: a.RestartAndRestoreExplorerWindows},
 		// New functions
-		"Open Settings":  NoArgButtonFunctionExecutor{fn: a.OpenSettings},
-		"Open Config":    NoArgButtonFunctionExecutor{fn: a.OpenConfig},
-		"Fuzzy Search":   NoArgButtonFunctionExecutor{fn: a.FuzzySearch},
+		"Open Settings": NoArgButtonFunctionExecutor{fn: a.OpenSettings},
+		"Open Config":   NoArgButtonFunctionExecutor{fn: a.OpenConfig},
+		"Fuzzy Search":  NoArgButtonFunctionExecutor{fn: a.FuzzySearch},
 		// Add more function handlers here as needed
 	}
 
@@ -93,16 +93,18 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 	log.Printf("Executing command for button %d: ButtonType=%s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 
 	switch executionInfo.ButtonType {
-	case ButtonTypeShowProgramWindow:
+	case core.ButtonTypeShowProgramWindow:
 		return a.handleShowProgramWindow(executionInfo)
-	case ButtonTypeShowAnyWindow:
+	case core.ButtonTypeShowAnyWindow:
 		return a.handleShowAnyWindow(executionInfo)
-	case ButtonTypeCallFunction:
+	case core.ButtonTypeCallFunction:
 		return a.handleCallFunction(executionInfo)
-	case ButtonTypeLaunchProgram:
+	case core.ButtonTypeOpenPageInMenu:
+		return a.handleOpenPageInMenu(executionInfo)
+	case core.ButtonTypeLaunchProgram:
 		log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 		return a.handleLaunchProgram(executionInfo)
-	case ButtonTypeDisabled:
+	case core.ButtonTypeDisabled:
 		log.Printf("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
 		return nil // Nothing to do for disabled buttons
 	default:

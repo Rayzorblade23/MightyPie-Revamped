@@ -18,13 +18,6 @@ type WindowManagementAdapter struct {
 	windowWatcher *WindowWatcher
 }
 
-// shortcutPressed_Message represents a shortcut key press event
-type shortcutPressed_Message struct {
-	ShortcutPressed int `json:"shortcutPressed"`
-	MouseX          int `json:"mouseX"`
-	MouseY          int `json:"mouseY"`
-}
-
 // WindowMapping maps window handles to window information
 type WindowMapping map[win.HWND]core.WindowInfo
 

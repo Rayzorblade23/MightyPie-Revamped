@@ -6,6 +6,7 @@ import {
     type CallFunctionProperties,
     type DisabledProperties,
     type LaunchProgramProperties,
+    type OpenSpecificPieMenuPageProperties,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
 } from "$lib/data/piebuttonTypes.ts";
@@ -50,6 +51,17 @@ const BUTTON_PROPERTIES_MAP = {
             icon_path: "",
         } as CallFunctionProperties,
         dropdownFields: ["button_text_upper"]
+    },
+    [ButtonType.OpenSpecificPieMenuPage]: {
+        button_type: ButtonType.OpenSpecificPieMenuPage,
+        properties: {
+            button_text_upper: "Give your button a name ...",
+            button_text_lower: "",
+            icon_path: "",
+            menu_id: 0,
+            page_id: 0,
+        } as OpenSpecificPieMenuPageProperties,
+        dropdownFields: ["menu_id", "page_id"]
     },
     [ButtonType.Disabled]: {
         button_type: ButtonType.Disabled,

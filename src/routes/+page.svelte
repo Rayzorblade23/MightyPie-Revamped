@@ -106,7 +106,6 @@
                 if (shortcutDetectedMsg.openSpecificPage) {
                     menuID = shortcutDetectedMsg.shortcutPressed;
                     newPageID = shortcutDetectedMsg.pageID;
-                    monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 } else if (isChangingPage) {
                     // Cycle to the next page
                     const nextPotentialPageID = pageID + 1;

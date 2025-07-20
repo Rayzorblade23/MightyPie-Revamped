@@ -107,7 +107,7 @@ func NewDefaultConfig() ConfigData {
 			for btnIdx := range numButtons {
 				btnID := fmt.Sprintf("%d", btnIdx)
 				button := Button{
-					ButtonType: string(ButtonTypeShowAnyWindow),
+					ButtonType: string(core.ButtonTypeShowAnyWindow),
 					Properties: mustMarshalProperties(core.ShowAnyWindowProperties{
 						ButtonTextUpper: "",
 						ButtonTextLower: "",

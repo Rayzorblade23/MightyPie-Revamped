@@ -1,5 +1,7 @@
 package buttonManagerAdapter
 
+
+
 import (
 	"bytes"
 	"encoding/json"
@@ -42,7 +44,7 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			showProgramButtons, _, _, _ := a.separateButtonsByType(pageConfig)
+			showProgramButtons, _, _, _, _ := a.separateButtonsByType(pageConfig)
 			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, pageConfig)
 		}
 	}
@@ -55,7 +57,7 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			_, showAnyButtons, _, _ := a.separateButtonsByType(pageConfig)
+			_, showAnyButtons, _, _, _ := a.separateButtonsByType(pageConfig)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, pageConfig)
 		}
@@ -108,26 +110,30 @@ func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 	showProgram map[string]*Button,
 	showAny map[string]*Button,
 	launchProgram map[string]*Button,
-	functionCall map[string]*Button) {
+	functionCall map[string]*Button,
+	openPageInMenu map[string]*Button) {
 
 	showProgram = make(map[string]*Button)
 	showAny = make(map[string]*Button)
 	launchProgram = make(map[string]*Button)
 	functionCall = make(map[string]*Button)
+	openPageInMenu = make(map[string]*Button)
 
 	for btnID := range pageConfig {
 		// Create a pointer to the button *in the map* to allow modification by callers
 		buttonPtr := pageConfig[btnID] // Get pointer to map value directly
 
-		switch ButtonType(buttonPtr.ButtonType) { // Check type via pointer
-		case ButtonTypeShowProgramWindow:
+		switch core.ButtonType(buttonPtr.ButtonType) { // Check type via pointer
+		case core.ButtonTypeShowProgramWindow:
 			showProgram[btnID] = &buttonPtr // Store pointer
-		case ButtonTypeShowAnyWindow:
+		case core.ButtonTypeShowAnyWindow:
 			showAny[btnID] = &buttonPtr // Store pointer
-		case ButtonTypeLaunchProgram:
+		case core.ButtonTypeLaunchProgram:
 			launchProgram[btnID] = &buttonPtr // Store pointer
-		case ButtonTypeCallFunction:
+		case core.ButtonTypeCallFunction:
 			functionCall[btnID] = &buttonPtr // Store pointer
+		case core.ButtonTypeOpenPageInMenu:
+			openPageInMenu[btnID] = &buttonPtr // Store pointer
 		}
 	}
 	return

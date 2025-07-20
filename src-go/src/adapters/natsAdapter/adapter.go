@@ -35,7 +35,6 @@ func New() (*NatsAdapter, error) {
 		return nil, err
 	}
 
-
 	// // Print stream overview after 10 seconds
 	// go func(adapter *NatsAdapter) {
 	// 	for {
@@ -148,7 +147,7 @@ func (a *NatsAdapter) StreamOverview() error {
 	}
 
 	js, err := a.Connection.JetStream()
-	
+
 	if err != nil {
 		log.Printf("Error getting JetStream context: %v", err)
 		return err

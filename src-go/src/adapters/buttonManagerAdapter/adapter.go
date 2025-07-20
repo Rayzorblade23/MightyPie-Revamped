@@ -47,7 +47,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 	updateButtonConfig(config)
 	log.Println("INFO: Initial button configuration loaded.")
-	// Removed: PrintConfig(config) // Removed debug print on startup
+	// PrintConfig(config, true)
 
 	a.natsAdapter.PublishMessage(baseConfigSubject, config)
 

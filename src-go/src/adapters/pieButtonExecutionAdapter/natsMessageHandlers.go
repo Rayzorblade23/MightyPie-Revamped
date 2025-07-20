@@ -27,7 +27,7 @@ func (a *PieButtonExecutionAdapter) handlePieButtonExecuteMessage(msg *nats.Msg)
 
 // handleShortcutPressedMessage stores the mouse coordinates when a shortcut is detected.
 func (a *PieButtonExecutionAdapter) handleShortcutPressedMessage(msg *nats.Msg) {
-	var message shortcutPressed_Message
+	var message core.ShortcutPressed_Message
 	if err := json.Unmarshal(msg.Data, &message); err != nil {
 		log.Printf("Failed to decode shortcutPressed message: %v. Data: %s", err, string(msg.Data))
 		return

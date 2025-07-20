@@ -271,10 +271,11 @@
                 (pagesContainer as any).lockMomentum();
             }
             requestAnimationFrame(() => {
-                const pageEl = pagesContainer!.querySelector(`[data-page-id='${pageID}']`);
+                if (!pagesContainer) return;
+                const pageEl = pagesContainer.querySelector(`[data-page-id='${pageID}']`);
                 if (pageEl) {
                     const rect = (pageEl as HTMLElement).getBoundingClientRect();
-                    const containerRect = pagesContainer!.getBoundingClientRect();
+                    const containerRect = pagesContainer.getBoundingClientRect();
                     if (rect.left < containerRect.left || rect.right > containerRect.right) {
                         (pageEl as HTMLDivElement).scrollIntoView({
                             behavior: 'smooth',
@@ -539,6 +540,7 @@
         [ButtonType.ShowAnyWindow]: "Show Any Window",
         [ButtonType.CallFunction]: "Call Function",
         [ButtonType.LaunchProgram]: "Launch Program",
+        [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
         [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
@@ -738,6 +740,7 @@
                                 <ButtonInfoDisplay
                                         selectedButtonDetails={selectedButtonDetails}
                                         onConfigChange={handleButtonConfigUpdate}
+                                        menuConfig={baseMenuConfig}
                                 />
                             {:else}
                                 <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">

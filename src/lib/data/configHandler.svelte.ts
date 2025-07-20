@@ -9,6 +9,7 @@ import {
     type ConfigData,
     type LaunchProgramProperties,
     type MenuConfiguration,
+    type OpenSpecificPieMenuPageProperties,
     type PagesInMenuMap,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
@@ -228,6 +229,13 @@ function convertToButton(
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as CallFunctionProperties};
+
+        case ButtonType.OpenSpecificPieMenuPage:
+            if (!properties) {
+                console.warn(createLogMessage("Properties missing"));
+                return getDefaultButton(ButtonType.Disabled);
+            }
+            return {button_type, properties: properties as OpenSpecificPieMenuPageProperties};
 
         case ButtonType.Disabled:
             return getDefaultButton(ButtonType.Disabled);

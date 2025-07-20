@@ -42,7 +42,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 	// NATS Subscription for shortcut pressed events
 	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
-		var message shortcutPressed_Message
+		var message core.ShortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			logger.Printf("Failed to decode command on subject '%s': %v\n", shortcutSubject, err)
 			return

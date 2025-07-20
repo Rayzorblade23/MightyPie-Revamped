@@ -80,10 +80,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		fmt.Printf("Error: Failed to subscribe to JetStream subject: %v\n", err)
 	}
 
-
 	pressedEventSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
-		var eventData shortcutPressed_Message
+		var eventData core.ShortcutPressed_Message
 		if err := json.Unmarshal(natsMessage.Data, &eventData); err != nil {
 			fmt.Printf("Error (NATS Listener): Failed to decode pressed event: %v\n", err)
 		}
@@ -178,14 +177,6 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 	return 0
 }
 
-type shortcutPressed_Message struct {
-	ShortcutPressed    int  `json:"shortcutPressed"`
-	MouseX             int  `json:"mouseX"`
-	MouseY             int  `json:"mouseY"`
-	OpenSpecificPage   bool `json:"openSpecificPage"`
-	PageID             int  `json:"pageID"`
-}
-
 func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, isPressedEvent bool) {
 	xPos, yPos, errMouse := core.GetMousePosition()
 	if errMouse != nil {
@@ -197,7 +188,7 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	if shortcutDetails, found := adapter.shortcuts[stringifiedIndex]; found {
 		shortcutLabel = shortcutDetails.Label
 	}
-	outgoingMessage := shortcutPressed_Message{ShortcutPressed: shortcutIndexInt, MouseX: xPos, MouseY: yPos, OpenSpecificPage: false, PageID: 0}
+	outgoingMessage := core.ShortcutPressed_Message{ShortcutPressed: shortcutIndexInt, MouseX: xPos, MouseY: yPos, OpenSpecificPage: false, PageID: 0}
 	actionString := "RELEASED"
 	if isPressedEvent {
 		actionString = "PRESSED"
@@ -208,6 +199,6 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	} else {
 		natsSubject = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
-	fmt.Printf("Publishing %s for shortcut %d (%s) at (%d, %d)\n", actionString, shortcutIndexInt, shortcutLabel, xPos, yPos)
+	fmt.Printf("Publishing %s for shortcut %d (%s) at (%d, %d)\n", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
 	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 }

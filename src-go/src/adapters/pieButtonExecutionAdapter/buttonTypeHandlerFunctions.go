@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
@@ -211,6 +212,44 @@ func (a *PieButtonExecutionAdapter) handleCallFunction(executionInfo *pieButtonE
 			executionInfo.ClickType, displayName)
 		return nil
 	}
+}
+
+func (a *PieButtonExecutionAdapter) handleOpenPageInMenu(executionInfo *pieButtonExecute_Message) error {
+	var props core.OpenSpecificPieMenuPage
+	if err := unmarshalProperties(executionInfo.Properties, &props); err != nil {
+		return fmt.Errorf("failed to process properties for open_page_in_menu: %w", err)
+	}
+
+	log.Printf("Button %d - Action: OpenPageInMenu, Target MenuID: %d, PageID: %d, ClickType: %s",
+		executionInfo.ButtonIndex, props.MenuID, props.PageID, executionInfo.ClickType)
+
+	if executionInfo.ClickType != ClickTypeLeftUp {
+		log.Printf("OpenPageInMenu: Unhandled click type '%s'. No action taken.", executionInfo.ClickType)
+		return nil
+	}
+
+	menuID := props.MenuID
+	pageID := props.PageID
+
+	xPos, yPos, errMouse := core.GetMousePosition()
+	if errMouse != nil {
+		log.Printf("Error: Failed to get mouse position: %v", errMouse)
+		xPos, yPos = 0, 0
+	}
+
+	outgoingMessage := core.ShortcutPressed_Message{
+		ShortcutPressed:  menuID,
+		MouseX:           xPos,
+		MouseY:           yPos,
+		OpenSpecificPage: true,
+		PageID:           pageID,
+	}
+
+	natsSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	log.Printf("Publishing OpenPageInMenu for Menu %d, Page %d at (%d, %d)", menuID, pageID, xPos, yPos)
+	a.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
+
+	return nil
 }
 
 // unmarshalProperties safely converts the generic properties map into a specific struct.

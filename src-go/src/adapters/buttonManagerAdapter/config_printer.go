@@ -39,7 +39,7 @@ func PrintButton(button Button) {
 	fmt.Printf("Button Type: %s\n", button.ButtonType)
 
 	switch button.ButtonType {
-	case string(ButtonTypeShowProgramWindow):
+	case string(core.ButtonTypeShowProgramWindow):
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
@@ -51,7 +51,7 @@ func PrintButton(button Button) {
 		fmt.Printf("  Icon Path: %s\n", props.IconPath)
 		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
 
-	case string(ButtonTypeShowAnyWindow):
+	case string(core.ButtonTypeShowAnyWindow):
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 		if err != nil {
 			fmt.Printf("Error parsing properties: %v\n", err)
@@ -147,8 +147,8 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				fmt.Fprintf(&sb, "    Btn %2d: [%-20s] ", buttonID, button.ButtonType)
 
 				buttonSpecificDetails := ""
-				switch ButtonType(button.ButtonType) {
-				case ButtonTypeShowAnyWindow:
+				switch core.ButtonType(button.ButtonType) {
+				case core.ButtonTypeShowAnyWindow:
 					props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
@@ -163,7 +163,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
-				case ButtonTypeShowProgramWindow:
+				case core.ButtonTypeShowProgramWindow:
 					props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
@@ -178,21 +178,30 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.WindowHandle != InvalidHandle, fmt.Sprintf("HWND: %d", props.WindowHandle)),
 						)
 					}
-				case ButtonTypeCallFunction:
+				case core.ButtonTypeCallFunction:
 					props, err := GetButtonProperties[core.CallFunctionProperties](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
-						buttonSpecificDetails = "<Error reading props>"
+						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
+						buttonSpecificDetails = "[ERR]"
 					} else {
 						buttonSpecificDetails = formatProperties(
-							// Use shortenString for text fields
-							fmt.Sprintf("Upper: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
-							fmt.Sprintf("Lower: '%s'", shortenString(props.ButtonTextLower, maxTextDisplayLength, shorten)),
-							// Use shortenPath for icon path
+							fmt.Sprintf("Func: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
 						)
 					}
-				case ButtonTypeLaunchProgram:
+				case core.ButtonTypeOpenPageInMenu:
+					props, err := GetButtonProperties[core.OpenSpecificPieMenuPage](button)
+					if err != nil {
+						log.Printf("ERROR: Failed to get props for OpenPageInMenu (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
+						buttonSpecificDetails = "[ERR]"
+					} else {
+						buttonSpecificDetails = formatProperties(
+							fmt.Sprintf("Name: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
+							fmt.Sprintf("Target: M:%v, P:%v", props.MenuID, props.PageID),
+							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
+						)
+					}
+				case core.ButtonTypeLaunchProgram:
 					props, err := GetButtonProperties[core.LaunchProgramProperties](button)
 					if err != nil {
 						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
@@ -206,7 +215,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
 						)
 					}
-				case ButtonTypeDisabled:
+				case core.ButtonTypeDisabled:
 					buttonSpecificDetails = "(Disabled)"
 				default:
 					buttonSpecificDetails = fmt.Sprintf("(Unknown Button Type: %s)", button.ButtonType)

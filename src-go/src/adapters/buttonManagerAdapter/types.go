@@ -6,16 +6,6 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
-type ButtonType string
-
-const (
-	ButtonTypeShowProgramWindow ButtonType = "show_program_window"
-	ButtonTypeShowAnyWindow     ButtonType = "show_any_window"
-	ButtonTypeCallFunction      ButtonType = "call_function"
-	ButtonTypeLaunchProgram     ButtonType = "launch_program"
-	ButtonTypeDisabled          ButtonType = "disabled"
-)
-
 // Use -1 consistently for null/invalid handle
 const InvalidHandle = -1
 

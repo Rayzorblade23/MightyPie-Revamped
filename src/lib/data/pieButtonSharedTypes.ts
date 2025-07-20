@@ -8,7 +8,8 @@ export type ButtonPropertiesUnion =
     | import('./piebuttonTypes').ShowProgramWindowProperties
     | import('./piebuttonTypes').ShowAnyWindowProperties
     | import('./piebuttonTypes').CallFunctionProperties
-    | import('./piebuttonTypes').LaunchProgramProperties;
+    | import('./piebuttonTypes').LaunchProgramProperties
+    | import('./piebuttonTypes').OpenSpecificPieMenuPageProperties;
 
 /**
  * Base props shared by all pie button components

@@ -21,11 +21,9 @@ type WindowInfo struct {
 	IconPath string `json:"IconPath"`
 }
 
-
 // --------------------------------------------
 // --------- Button Type properties -----------
 // --------------------------------------------
-
 
 type ShowAnyWindowProperties struct {
 	ButtonTextUpper string `json:"button_text_upper"` // Window Title
@@ -53,4 +51,34 @@ type CallFunctionProperties struct {
 	ButtonTextUpper string `json:"button_text_upper"` // function name
 	ButtonTextLower string `json:"button_text_lower"` // empty string
 	IconPath        string `json:"icon_path"`
+}
+
+type OpenSpecificPieMenuPage struct {
+	ButtonTextUpper string `json:"button_text_upper"` // display name
+	ButtonTextLower string `json:"button_text_lower"` // empty string
+	IconPath        string `json:"icon_path"`
+	MenuID          int    `json:"menu_id"`
+	PageID          int    `json:"page_id"`
+}
+
+// ShortcutPressed_Message is a NATS message published when a shortcut is pressed or released.
+// It is also used for opening a specific page in a pie menu.
+// ButtonType represents the type of a button in a pie menu.
+type ButtonType string
+
+const (
+	ButtonTypeShowProgramWindow ButtonType = "show_program_window"
+	ButtonTypeShowAnyWindow     ButtonType = "show_any_window"
+	ButtonTypeCallFunction      ButtonType = "call_function"
+	ButtonTypeLaunchProgram     ButtonType = "launch_program"
+	ButtonTypeOpenPageInMenu    ButtonType = "open_page_in_menu"
+	ButtonTypeDisabled          ButtonType = "disabled"
+)
+
+type ShortcutPressed_Message struct {
+	ShortcutPressed  int  `json:"shortcutPressed"`
+	MouseX           int  `json:"mouseX"`
+	MouseY           int  `json:"mouseY"`
+	OpenSpecificPage bool `json:"openSpecificPage"`
+	PageID           int  `json:"pageID"`
 }

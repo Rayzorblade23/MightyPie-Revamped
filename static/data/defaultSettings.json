@@ -1,5 +1,5 @@
 {
-  "colorAccentAnywin": {
+  "colorAccentAnyWin": {
     "index": 0,
     "label": "Show-Any-Window Button Accent",
     "isExposed": true,
@@ -23,7 +23,7 @@
     "value": "#f37fc0",
     "defaultValue": "#f37fc0"
   },
-  "colorAccentProgramwin": {
+  "colorAccentProgramWin": {
     "index": 3,
     "label": "Show-Program-Window Button Accent",
     "isExposed": true,
@@ -31,8 +31,16 @@
     "value": "#fa9fa4",
     "defaultValue": "#fa9fa4"
   },
-  "pieMenuDeadzoneFunction": {
+  "colorAccentOpenPage": {
     "index": 4,
+    "label": "Open-Page Button Accent",
+    "isExposed": true,
+    "type": "color",
+    "value": "#abf7ab",
+    "defaultValue": "#abf7ab"
+  },
+  "pieMenuDeadzoneFunction": {
+    "index": 5,
     "label": "Pie Menu Center function (left-click)",
     "isExposed": true,
     "type": "enum",
@@ -40,7 +48,7 @@
     "defaultValue": "Forwards"
   },
   "colorPieButtonHighlight": {
-    "index": 5,
+    "index": 6,
     "label": "Pie Menu Button Highlight color",
     "isExposed": true,
     "type": "color",
@@ -48,7 +56,7 @@
     "defaultValue": "#5f3c8e"
   },
   "colorIndicator": {
-    "index": 6,
+    "index": 7,
     "label": "Pie Menu Indicator color",
     "isExposed": true,
     "type": "color",
@@ -56,7 +64,7 @@
     "defaultValue": "#5f3c8e"
   },
   "colorRingFill": {
-    "index": 7,
+    "index": 8,
     "label": "Center Ring Fill color",
     "isExposed": true,
     "type": "color",
@@ -64,7 +72,7 @@
     "defaultValue": "#202020"
   },
   "colorRingStroke": {
-    "index": 8,
+    "index": 9,
     "label": "Center Ring Outline color",
     "isExposed": true,
     "type": "color",
@@ -72,7 +80,7 @@
     "defaultValue": "#303030"
   },
   "configPath": {
-    "index": 9,
+    "index": 10,
     "label": "Config Path",
     "isExposed": false,
     "type": "string",
@@ -80,7 +88,7 @@
     "defaultValue": "C:\\Users\\raimo\\AppData\\Local\\MightyPieRevamped"
   },
   "darkMode": {
-    "index": 10,
+    "index": 11,
     "label": "Dark Mode",
     "isExposed": false,
     "type": "bool",
@@ -88,7 +96,7 @@
     "defaultValue": true
   },
   "startInPieMenuConfig": {
-    "index": 11,
+    "index": 12,
     "label": "On program start show Pie Menu Config",
     "isExposed": true,
     "type": "bool",
@@ -96,7 +104,7 @@
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 12,
+    "index": 13,
     "label": "Keep open Pie Menu in place",
     "isExposed": true,
     "type": "bool",
@@ -104,7 +112,7 @@
     "defaultValue": false
   },
   "exampleFloat": {
-    "index": 13,
+    "index": 14,
     "label": "Example Float",
     "isExposed": false,
     "type": "float",
@@ -112,7 +120,7 @@
     "defaultValue": 0
   },
   "exampleInt": {
-    "index": 14,
+    "index": 15,
     "label": "Example Integer",
     "isExposed": false,
     "type": "int",
@@ -120,7 +128,7 @@
     "defaultValue": 0
   },
   "autoScrollOverflow": {
-    "index": 15,
+    "index": 16,
     "label": "When text is too long for button",
     "isExposed": true,
     "type": "enum",
@@ -133,7 +141,7 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 16,
+    "index": 17,
     "label": "Thickness of Pie Button Border",
     "isExposed": true,
     "type": "enum",
