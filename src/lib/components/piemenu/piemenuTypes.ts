@@ -1,4 +1,4 @@
-﻿interface MouseEvent {
+interface MouseEvent {
     left_down: string;
     left_up: string;
     right_down: string;
@@ -26,6 +26,8 @@ export interface IPiemenuClickMessage {
 
 export interface IShortcutPressedMessage {
     shortcutPressed: number;
-    mouseX : number;
-    mouseY : number;
+    mouseX: number;
+    mouseY: number;
+    openSpecificPage: boolean;
+    pageID: number;
 }

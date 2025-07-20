@@ -179,9 +179,11 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 }
 
 type shortcutPressed_Message struct {
-	ShortcutPressed int `json:"shortcutPressed"`
-	MouseX          int `json:"mouseX"`
-	MouseY          int `json:"mouseY"`
+	ShortcutPressed    int  `json:"shortcutPressed"`
+	MouseX             int  `json:"mouseX"`
+	MouseY             int  `json:"mouseY"`
+	OpenSpecificPage   bool `json:"openSpecificPage"`
+	PageID             int  `json:"pageID"`
 }
 
 func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, isPressedEvent bool) {
@@ -195,7 +197,7 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	if shortcutDetails, found := adapter.shortcuts[stringifiedIndex]; found {
 		shortcutLabel = shortcutDetails.Label
 	}
-	outgoingMessage := shortcutPressed_Message{ShortcutPressed: shortcutIndexInt, MouseX: xPos, MouseY: yPos}
+	outgoingMessage := shortcutPressed_Message{ShortcutPressed: shortcutIndexInt, MouseX: xPos, MouseY: yPos, OpenSpecificPage: false, PageID: 0}
 	actionString := "RELEASED"
 	if isPressedEvent {
 		actionString = "PRESSED"

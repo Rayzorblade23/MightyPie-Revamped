@@ -115,6 +115,8 @@
 
     const handleShortcutReleasedMessage = async (message: string) => {
         console.log('[NATS] Shortcut released message received:', message);
+        // If in the future we want to use pageID from shortcut messages, parse it here
+        // Currently, we do nothing with it
         if (activeSlice !== -1) {
             currentMouseEvent = mouseEvents.left_down;
             // Wait for the DOM/reactivity to process the state change

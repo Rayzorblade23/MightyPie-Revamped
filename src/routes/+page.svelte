@@ -81,6 +81,7 @@
         try {
             const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
+            // The new backend message now includes pageID. We parse it, but do not use it yet.
             if (shortcutDetectedMsg.shortcutPressed >= 0) {
                 console.log("[NATS] Shortcut (" + shortcutDetectedMsg.shortcutPressed + "): Show/Cycle.");
                 // Only cycle if the same menu shortcut is pressed
@@ -102,7 +103,11 @@
                 // Small delay to ensure DOM updates
                 await new Promise(resolve => setTimeout(resolve, 20));
 
-                if (isChangingPage) {
+                if (shortcutDetectedMsg.openSpecificPage) {
+                    menuID = shortcutDetectedMsg.shortcutPressed;
+                    newPageID = shortcutDetectedMsg.pageID;
+                    monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
+                } else if (isChangingPage) {
                     // Cycle to the next page
                     const nextPotentialPageID = pageID + 1;
                     newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
@@ -112,7 +117,7 @@
                 } else {
                     // Open the menu
                     menuID = shortcutDetectedMsg.shortcutPressed;
-                    newPageID = 0;  // Always start with page 0 when switching menus or opening initially
+                    newPageID = 0; // Always start with page 0 when switching menus or opening initially
                     monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
                 await moveCursorToWindowCenter();
