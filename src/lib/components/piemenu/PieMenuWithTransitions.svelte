@@ -28,6 +28,8 @@
     import {getCurrentWindow} from "@tauri-apps/api/window";
     import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
+    import {getButtonType} from "$lib/data/configManager.svelte.ts";
+    import {ButtonType} from "$lib/data/types/pieButtonTypes.ts";
 
     const numButtons = 8;
     const radius = Number(RADIUS);
@@ -143,6 +145,13 @@
                     currentMouseEvent = mouseEvents.left_up;
                     console.log(`Left drag released in Slice: ${activeSlice}!`);
 
+                    const buttonType = getButtonType(menuID, pageID, activeSlice);
+                    if (buttonType === ButtonType.OpenSpecificPieMenuPage) {
+                        console.log("[NATS] Shortcut released: OpenPage button active, not hiding.");
+                        return;
+                    }
+
+                    // For all other button types, schedule the hide action
                     upTimerId = setTimeout(() => {
                         if (destroyed) return;
                         publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
