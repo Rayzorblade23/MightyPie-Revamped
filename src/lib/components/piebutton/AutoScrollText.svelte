@@ -2,15 +2,17 @@
     const {
         text = '',
         enabled = false,
-        mode = 'normal', // 'normal' (pause at start/end) or 'hover' (pause only at end)
+        mode = 'normal',
         className = '',
-        style = ''
+        style = '',
+        isButtonHovered = false
     } = $props<{
         text?: string;
         enabled?: boolean;
         mode?: 'normal' | 'hover';
         className?: string;
         style?: string;
+        isButtonHovered?: boolean;
     }>();
 
     let textEl = $state<HTMLSpanElement | null>(null);
@@ -21,6 +23,11 @@
         void text;
         void enabled;
         setTimeout(() => textKey = (textKey + 1) % 1000, 0);
+    });
+
+    let animate = $derived.by(() => {
+        if (mode === 'hover') return enabled && isButtonHovered && shouldScroll;
+        return enabled && shouldScroll;
     });
 
     let shouldScroll = $derived.by(() => {
@@ -96,17 +103,14 @@
 </svelte:head>
 
 <span bind:this={containerEl} class="scroll-clip {className}" style={style}>
-    {#if enabled && shouldScroll}
-        {#key textKey}
-            <span class="scrolling-text"
-                  bind:this={textEl}
-                  style="font-size: inherit; --scroll-distance: {scrollDistance}px; --scroll-duration: {scrollDuration}s; animation-name: {animationName}; animation-duration: {scrollDuration}s; animation-timing-function: linear; animation-iteration-count: infinite;">
-                {text}
-            </span>
-        {/key}
-    {:else}
-        <span class="truncate-text" bind:this={textEl} style="font-size: inherit;">{text}</span>
-    {/if}
+    <span
+            bind:this={textEl}
+            class:scrolling-text={animate}
+            class:truncate-text={!animate}
+            style="font-size: inherit; --scroll-distance: {scrollDistance}px; --scroll-duration: {scrollDuration}s; animation-name: {animate ? animationName : 'none'}; animation-duration: {scrollDuration}s; animation-timing-function: linear; animation-iteration-count: infinite;"
+    >
+        {text}
+    </span>
 </span>
 
 <style>

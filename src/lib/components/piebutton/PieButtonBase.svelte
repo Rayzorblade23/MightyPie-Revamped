@@ -63,14 +63,6 @@
     let svgPromise = $state<Promise<string> | undefined>(undefined);
     let autoScrollOverflow = $state(false);
 
-    function getAutoScrollOverflowMode(idx: number, isHovered: boolean): boolean {
-        switch (idx) {
-            case 0: return true; // Auto-scroll
-            case 1: return isHovered; // Auto-scroll on hover
-            case 2: default: return false; // Do nothing or unknown
-        }
-    }
-
     $effect(() => {
         const settings = getSettings();
 
@@ -86,7 +78,8 @@
             return;
         }
         const idx = autoScrollSetting.options.indexOf(value);
-        autoScrollOverflow = getAutoScrollOverflowMode(idx, isHovered);
+        // Always enable for "always" and "hover" modes
+        autoScrollOverflow = idx === 0 || idx === 1;
     });
 
     $effect(() => {
@@ -263,6 +256,7 @@
                             text={buttonTextUpper}
                             enabled={autoScrollOverflow}
                             mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                            isButtonHovered={isHovered}
                             className="w-full"
                             style="min-width:0;"
                     />
@@ -325,6 +319,7 @@
                         text={buttonTextUpper}
                         enabled={autoScrollOverflow}
                         mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                        isButtonHovered={isHovered}
                         className="w-full"
                         style="min-width:0;"
                 />
