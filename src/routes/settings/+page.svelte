@@ -2,7 +2,7 @@
 
 <script lang="ts">
     import {onDestroy, onMount} from 'svelte';
-    import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsHandler.svelte.ts';
+    import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";

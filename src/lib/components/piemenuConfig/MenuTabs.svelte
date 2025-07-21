@@ -1,6 +1,6 @@
 <!-- MenuTabs.svelte -->
 <script lang="ts">
-    import RemovePageButton from "$lib/components/piemenuConfig/elements/RemovePageButton.svelte";
+    import RemovePageButton from "$lib/components/piemenuConfig/buttons/RemovePageButton.svelte";
     import {horizontalScroll} from "$lib/generalUtil.ts";
 
     // Define prop types

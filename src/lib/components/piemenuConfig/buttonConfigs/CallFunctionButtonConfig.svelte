@@ -1,8 +1,8 @@
 ﻿<!-- src/lib/components/piemenuConfig/CallFunctionConfig.svelte -->
 <script lang="ts">
-    import {type Button, ButtonType, type CallFunctionProperties} from '$lib/data/piebuttonTypes.ts';
-    import {getDefaultButton} from '$lib/data/pieButtonDefaults.ts';
-    import FunctionSelector from './FunctionSelector.svelte';
+    import {type Button, ButtonType, type CallFunctionProperties} from '$lib/data/types/pieButtonTypes.ts';
+    import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
+    import FunctionSelector from '../selectors/FunctionSelector.svelte';
 
     // Data for function definitions
     interface FunctionDefinition {

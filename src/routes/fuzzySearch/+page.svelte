@@ -7,9 +7,9 @@
         PUBLIC_QUICKMENU_SIZE_Y
     } from "$env/static/public";
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
-    import {getMenuConfiguration} from "$lib/data/configHandler.svelte.ts";
-    import type {IPieButtonExecuteMessage} from '$lib/data/piebuttonTypes.ts';
-    import {type Button, ButtonType} from "$lib/data/piebuttonTypes.ts";
+    import {getMenuConfiguration} from "$lib/data/configManager.svelte.ts";
+    import type {IPieButtonExecuteMessage} from '$lib/data/types/pieButtonTypes.ts';
+    import {type Button, ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import Fuse from "fuse.js";
     // --- NATS Integration ---
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';

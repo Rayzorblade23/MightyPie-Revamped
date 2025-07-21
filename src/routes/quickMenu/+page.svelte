@@ -11,8 +11,8 @@
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS} from "$env/static/public";
     import QuickMenuPieButton from '$lib/components/quickMenu/QuickMenuPieButton.svelte';
-    import {getMenuConfiguration} from '$lib/data/configHandler.svelte.ts';
-    import type {Button, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts';
+    import {getMenuConfiguration} from '$lib/data/configManager.svelte.ts';
+    import type {Button, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
 
     // --- THEME TOGGLE LOGIC ---

@@ -1,6 +1,6 @@
 <!-- ConfigPieButton.svelte -->
 <script lang="ts">
-    import type {ButtonPropertiesUnion} from '$lib/data/pieButtonSharedTypes';
+    import type {ButtonPropertiesUnion} from '$lib/data/types/pieButtonSharedTypes.ts';
     import PieButtonBase from '$lib/components/piebutton/PieButtonBase.svelte';
 
     let {

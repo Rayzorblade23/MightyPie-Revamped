@@ -1,7 +1,7 @@
 <!-- Modern selector-based UI for OpenSpecificPieMenuPage, styled to match FunctionSelector/ProgramButtonConfig -->
 <script lang="ts">
-    import {type Button, ButtonType, type OpenSpecificPieMenuPageProperties} from '$lib/data/piebuttonTypes.ts';
-    import {getDefaultButton} from "$lib/data/pieButtonDefaults.ts";
+    import {type Button, ButtonType, type OpenSpecificPieMenuPageProperties} from '$lib/data/types/pieButtonTypes.ts';
+    import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
 
     const PAGE_ID_KEY: keyof OpenSpecificPieMenuPageProperties = "page_id";
     const MENU_ID_KEY: keyof OpenSpecificPieMenuPageProperties = "menu_id";

@@ -1,12 +1,12 @@
 <!--PieButton.svelte-->
 <script lang="ts">
-    import {getButtonProperties, getButtonType,} from "$lib/data/configHandler.svelte.ts";
-    import type {IPieButtonExecuteMessage} from "$lib/data/piebuttonTypes.ts";
-    import {ButtonType} from "$lib/data/piebuttonTypes.ts";
+    import {getButtonProperties, getButtonType,} from "$lib/data/configManager.svelte.ts";
+    import type {IPieButtonExecuteMessage} from "$lib/data/types/pieButtonTypes.ts";
+    import {ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
     import PieButtonBase from './PieButtonBase.svelte';
-    import type { MouseState } from '$lib/data/pieButtonSharedTypes';
+    import type {MouseState} from '$lib/data/types/pieButtonSharedTypes.ts';
 
     let {menuID, pageID, buttonID, x, y, width, height, mouseState}: {
         menuID: number,
@@ -28,7 +28,7 @@
         }
         if (
             taskType === ButtonType.ShowAnyWindow &&
-            (properties as import('$lib/data/piebuttonTypes').ShowAnyWindowProperties)?.window_handle === -1
+            (properties as import('$lib/data/types/pieButtonTypes.ts').ShowAnyWindowProperties)?.window_handle === -1
         ) {
             return "Unassigned";
         }
@@ -40,7 +40,7 @@
     // Function to publish click events to NATS
     function publishButtonClick(clickType: string) {
         if (!properties || !taskType) return;
-        
+
         const message: IPieButtonExecuteMessage = {
             page_index: pageID,
             button_index: buttonID,
@@ -48,7 +48,7 @@
             properties: properties,
             click_type: clickType,
         };
-        
+
         publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
     }
 
@@ -56,13 +56,13 @@
     // We maintain this logic here because it's more complex than what PieButtonBase handles
     type MouseButtonType = "left" | "middle" | "right";
     const clickState = {
-        left: { prevUp: false, wasDown: false },
-        middle: { prevUp: false, wasDown: false },
-        right: { prevUp: false, wasDown: false },
+        left: {prevUp: false, wasDown: false},
+        middle: {prevUp: false, wasDown: false},
+        right: {prevUp: false, wasDown: false},
     };
 
     $effect(() => {
-        const { leftDown, leftUp, middleDown, middleUp, rightDown, rightUp, hovered } = mouseState;
+        const {leftDown, leftUp, middleDown, middleUp, rightDown, rightUp, hovered} = mouseState;
 
         const processClick = (button: MouseButtonType, isDown: boolean, isUp: boolean) => {
             const state = clickState[button];
@@ -80,22 +80,22 @@
         processClick("middle", middleDown, middleUp);
         processClick("right", rightDown, rightUp);
     });
-    
+
     // Compute states to pass to the base component
     const isHovered = $derived(mouseState.hovered && !mouseState.leftDown && !mouseState.middleDown && !mouseState.rightDown);
 </script>
 
 <PieButtonBase
-    {x}
-    {y}
-    {width}
-    {height}
-    taskType={taskType || 'empty'}
-    {properties}
-    {buttonTextUpper}
-    {buttonTextLower}
-    forceHovered={isHovered}
-    forcePressedLeft={mouseState.leftDown}
-    forcePressedRight={mouseState.rightDown}
-    forcePressedMiddle={mouseState.middleDown}
+        {x}
+        {y}
+        {width}
+        {height}
+        taskType={taskType || 'empty'}
+        {properties}
+        {buttonTextUpper}
+        {buttonTextLower}
+        forceHovered={isHovered}
+        forcePressedLeft={mouseState.leftDown}
+        forcePressedRight={mouseState.rightDown}
+        forcePressedMiddle={mouseState.middleDown}
 />

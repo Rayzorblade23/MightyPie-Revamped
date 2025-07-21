@@ -1,13 +1,13 @@
 <!-- src/lib/components/piemenuConfig/ConfigPieMenuPage.svelte -->
 <script lang="ts">
-    import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/piebuttonTypes.ts'; // Assuming you add this to your types file
-    import {ButtonType} from '$lib/data/piebuttonTypes.ts';
-    import {getDefaultButton} from "$lib/data/pieButtonDefaults";
+    import type {Button, ButtonPropertiesUnion, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts'; // Assuming you add this to your types file
+    import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
+    import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
     import {onMount} from 'svelte';
     import {PUBLIC_PIEBUTTON_HEIGHT, PUBLIC_PIEBUTTON_WIDTH, PUBLIC_PIEMENU_RADIUS} from "$env/static/public";
     import {calculatePieButtonOffsets, calculatePieButtonPosition} from "$lib/components/piemenu/piemenuUtils.ts";
-    import ConfigPieButton from "$lib/components/piemenuConfig/ConfigPieButton.svelte";
-    import RemovePageButton from "$lib/components/piemenuConfig/elements/RemovePageButton.svelte";
+    import ConfigPieButton from "$lib/components/piemenuConfig/configPieMenuElements/ConfigPieButton.svelte";
+    import RemovePageButton from "$lib/components/piemenuConfig/buttons/RemovePageButton.svelte";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
     import { getIndicatorSVG } from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
 
@@ -128,7 +128,7 @@
             buttonTextUpper = buttonTextUpper || "Disabled";
             buttonTextLower = buttonTextLower || "";
         } else if (currentButton.button_type === ButtonType.CallFunction) {
-            buttonTextUpper = buttonTextUpper || (props as import('$lib/data/piebuttonTypes.ts').CallFunctionProperties).button_text_upper || 'Function';
+            buttonTextUpper = buttonTextUpper || (props as import('$lib/data/types/pieButtonTypes.ts').CallFunctionProperties).button_text_upper || 'Function';
         } else if (currentButton.button_type === ButtonType.ShowAnyWindow) {
             buttonTextUpper = 'Show Any';
         } else if (currentButton.button_type === ButtonType.ShowProgramWindow) {

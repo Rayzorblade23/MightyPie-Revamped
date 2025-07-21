@@ -9,7 +9,7 @@ import {
     type OpenSpecificPieMenuPageProperties,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
-} from "$lib/data/piebuttonTypes.ts";
+} from "$lib/data/types/pieButtonTypes.ts";
 
 const BUTTON_PROPERTIES_MAP = {
     [ButtonType.ShowAnyWindow]: {
@@ -21,7 +21,6 @@ const BUTTON_PROPERTIES_MAP = {
             window_handle: -1,
             instance: 0 as number,
         } as ShowAnyWindowProperties,
-        dropdownFields: []
     },
     [ButtonType.ShowProgramWindow]: {
         button_type: ButtonType.ShowProgramWindow,
@@ -32,7 +31,6 @@ const BUTTON_PROPERTIES_MAP = {
             window_handle: -1,
             instance: 0 as number,
         } as ShowProgramWindowProperties,
-        dropdownFields: ["button_text_lower"]
     },
     [ButtonType.LaunchProgram]: {
         button_type: ButtonType.LaunchProgram,
@@ -41,7 +39,6 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: " - Launch - ",
             icon_path: "",
         } as LaunchProgramProperties,
-        dropdownFields: ["button_text_upper"]
     },
     [ButtonType.CallFunction]: {
         button_type: ButtonType.CallFunction,
@@ -50,7 +47,6 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: "",
             icon_path: "",
         } as CallFunctionProperties,
-        dropdownFields: ["button_text_upper"]
     },
     [ButtonType.OpenSpecificPieMenuPage]: {
         button_type: ButtonType.OpenSpecificPieMenuPage,
@@ -61,7 +57,6 @@ const BUTTON_PROPERTIES_MAP = {
             menu_id: 0,
             page_id: 0,
         } as OpenSpecificPieMenuPageProperties,
-        dropdownFields: ["menu_id", "page_id"]
     },
     [ButtonType.Disabled]: {
         button_type: ButtonType.Disabled,
@@ -70,14 +65,9 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: "",
             icon_path: "",
         } as DisabledProperties,
-        dropdownFields: [] // No dropdowns for disabled buttons
     }
 } as const;
 
 export function getDefaultButton(buttonType: ButtonType): Button {
     return BUTTON_PROPERTIES_MAP[buttonType] || BUTTON_PROPERTIES_MAP[ButtonType.Disabled];
-}
-
-export function getDropdownFields(buttonType: ButtonType): string[] {
-    return [...(BUTTON_PROPERTIES_MAP[buttonType]?.dropdownFields || [])];
 }

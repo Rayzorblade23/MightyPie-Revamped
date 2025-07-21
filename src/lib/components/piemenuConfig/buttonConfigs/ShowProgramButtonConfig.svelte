@@ -5,9 +5,9 @@
         ButtonType,
         type LaunchProgramProperties,
         type ShowProgramWindowProperties
-    } from '$lib/data/piebuttonTypes.ts';
+    } from '$lib/data/types/pieButtonTypes.ts';
     import type {InstalledAppsMap} from '$lib/data/installedAppsInfoManager.svelte.ts';
-    import ApplicationSelector from './ApplicationSelector.svelte';
+    import ApplicationSelector from '../selectors/ApplicationSelector.svelte';
 
     type ProgramButton =
         | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
@@ -60,8 +60,8 @@
 
 <div class="w-full min-w-0">
     <ApplicationSelector
-        {selectedAppName}
-        {installedAppsMap}
-        onSelect={handleAppSelect}
+            {selectedAppName}
+            {installedAppsMap}
+            onSelect={handleAppSelect}
     />
 </div>

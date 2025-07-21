@@ -1,17 +1,16 @@
 <!-- src/lib/components/piemenuConfig/ButtonInfoDisplay.svelte -->
 <script lang="ts">
-    import {type Button, ButtonType} from "$lib/data/piebuttonTypes.ts";
-    import {getMenuConfiguration} from "$lib/data/configHandler.svelte.ts";
-    import {getDefaultButton, getDropdownFields} from "$lib/data/pieButtonDefaults.ts";
+    import {type Button, ButtonType} from "$lib/data/types/pieButtonTypes.ts";
+    import {getMenuConfiguration} from "$lib/data/configManager.svelte.ts";
+    import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
 
     import {getInstalledAppsInfo} from '$lib/data/installedAppsInfoManager.svelte.ts';
 
     // Child components
-    import ButtonTypeSelector from './ButtonTypeSelector.svelte';
-    import CallFunctionConfig from './CallFunctionConfig.svelte'; // New
-    import ProgramButtonConfig from './ProgramButtonConfig.svelte'; // New
-    import GenericPropertiesDisplay from './GenericPropertiesDisplay.svelte';
-    import OpenPageButtonConfig from './OpenPageButtonConfig.svelte';
+    import ButtonTypeSelector from './selectors/ButtonTypeSelector.svelte';
+    import CallFunctionButtonConfig from './buttonConfigs/CallFunctionButtonConfig.svelte'; // New
+    import ShowProgramButtonConfig from './buttonConfigs/ShowProgramButtonConfig.svelte'; // New
+    import OpenPageButtonConfig from './buttonConfigs/OpenPageButtonConfig.svelte';
     import {PUBLIC_DIR_BUTTONFUNCTIONS} from "$env/static/public";
 
     let {
@@ -70,38 +69,6 @@
             });
     });
 
-    // Helper functions needed by GenericPropertiesDisplay or this component
-    function getPropertyFriendlyName(propertyKey: string, buttonType: ButtonType): string {
-        switch (buttonType) {
-            case ButtonType.ShowProgramWindow:
-                if (propertyKey === 'button_text_upper') return 'Window Title';
-                if (propertyKey === 'button_text_lower') return 'Selected Application';
-                if (propertyKey === 'icon_path') return 'Icon (from selected app)';
-                if (propertyKey === 'window_handle') return 'Window Handle (Internal)';
-                break;
-            case ButtonType.ShowAnyWindow:
-                if (propertyKey === 'button_text_upper') return 'Window Title';
-                if (propertyKey === 'button_text_lower') return 'Application Name';
-                if (propertyKey === 'icon_path') return 'Icon Path';
-                if (propertyKey === 'window_handle') return 'Window Handle (Internal)';
-                break;
-            case ButtonType.LaunchProgram:
-                if (propertyKey === 'button_text_upper') return 'Selected Application to Launch';
-                if (propertyKey === 'button_text_lower') return 'Display Subtext';
-                if (propertyKey === 'icon_path') return 'Icon (from selected app)';
-                break;
-            case ButtonType.CallFunction:
-                if (propertyKey === 'button_text_upper') return 'Selected Function';
-                if (propertyKey === 'button_text_lower') return 'Subtext (should be empty)';
-                if (propertyKey === 'icon_path') return 'Icon Path (from selected function)';
-                break;
-        }
-        if (propertyKey === 'button_text_upper') return 'Primary Text';
-        if (propertyKey === 'button_text_lower') return 'Secondary Text';
-        if (propertyKey === 'icon_path') return 'Icon Path';
-        return propertyKey;
-    }
-
     function getFriendlyButtonTypeName(buttonType: ButtonType | undefined): string {
         if (buttonType === undefined) {
             return "Unknown Type";
@@ -109,46 +76,9 @@
         return buttonTypeFriendlyNames[buttonType] || buttonType.toString();
     }
 
-    function getFilteredProperties(button: Button | undefined) {
-        if (!button || button.button_type === ButtonType.Disabled) {
-            let relevantKeysForType: string[] = [];
-            if (button && (button as Button).button_type !== ButtonType.Disabled) {
-                relevantKeysForType = getDropdownFields((button as Button).button_type);
-            }
-            return {props: button?.properties || {}, relevantKeys: relevantKeysForType};
-        }
-        const relevantKeys = getDropdownFields(button.button_type);
-        if (relevantKeys.length === 0) {
-            return {props: {}, relevantKeys: []};
-        }
-        const filtered = Object.fromEntries(
-            Object.entries(button.properties)
-                .filter(([key]) => relevantKeys.includes(key))
-                .filter(([key]) => {
-                    if (button.button_type === ButtonType.CallFunction) {
-                        return !['button_text_upper', 'icon_path', 'button_text_lower'].includes(key);
-                    }
-                    if (button.button_type === ButtonType.ShowProgramWindow) {
-                        return !['button_text_lower', 'icon_path'].includes(key);
-                    }
-                    if (button.button_type === ButtonType.LaunchProgram) {
-                        return !['button_text_upper', 'icon_path'].includes(key);
-                    }
-                    return true;
-                })
-        );
-        const finalRelevantKeys = relevantKeys.filter(key => filtered.hasOwnProperty(key));
-        return {props: filtered, relevantKeys: finalRelevantKeys};
-    }
-
-
     // Derived state
     let currentButtonLocal = $derived(selectedButtonDetails?.button); // The actual button object
     let currentButtonTypeValue = $derived(currentButtonLocal?.button_type); // Just the type for conditional rendering
-
-    const {props: displayableGenericProperties, relevantKeys: genericDropdownPropertyKeys} = $derived.by(() => {
-        return getFilteredProperties(currentButtonLocal);
-    });
 
     // Event Handlers
     function handleTypeChange(newType: ButtonType) {
@@ -199,7 +129,6 @@
     {@const {menuID, pageID, buttonID, slotIndex} = selectedButtonDetails}
     {@const button = currentButtonLocal}
     {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getMenuConfiguration().get(menuID)?.get(pageID)?.has(buttonID)}
-    {@const friendlyButtonTypeName = getFriendlyButtonTypeName(button.button_type)}
 
     <div class="p-4 border rounded-md shadow-sm bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 w-full min-w-0">
         <div class="flex items-center justify-between mb-3">
@@ -222,49 +151,25 @@
             />
 
             {#if currentButtonTypeValue === ButtonType.CallFunction}
-                <CallFunctionConfig
+                <CallFunctionButtonConfig
                         button={button}
                         functionDefinitions={typedAvailableFunctions}
                         onUpdate={handleSpecificConfigUpdate}
                 />
             {:else if currentButtonTypeValue === ButtonType.ShowProgramWindow || currentButtonTypeValue === ButtonType.LaunchProgram}
-                <ProgramButtonConfig
+                <ShowProgramButtonConfig
                         button={button}
                         {installedAppsMap}
                         onUpdate={handleSpecificConfigUpdate}
                 />
             {:else if currentButtonTypeValue === ButtonType.OpenSpecificPieMenuPage}
                 <OpenPageButtonConfig button={button} menuConfig={menuConfig} onUpdate={handleButtonChange}/>
+            {:else if button.button_type !== ButtonType.Disabled}
+                <p class="text-zinc-600 mt-2">
+                    {getFriendlyButtonTypeName(button.button_type)} has no other specific properties to configure here.
+                </p>
             {/if}
 
-            <!-- Generic Properties Display Section -->
-            {#if !(isTrulyEmptySlot && button.button_type === ButtonType.Disabled) && button.button_type !== ButtonType.Disabled && button.button_type !== ButtonType.OpenSpecificPieMenuPage}
-                {#if button.properties}
-                    {@const hasSpecializedUI =
-                    button.button_type === ButtonType.CallFunction ||
-                    button.button_type === ButtonType.ShowProgramWindow ||
-                    button.button_type === ButtonType.LaunchProgram}
-
-                    {#if (!hasSpecializedUI && (Object.keys(displayableGenericProperties).length > 0 || genericDropdownPropertyKeys.length > 0)) || (hasSpecializedUI && Object.keys(displayableGenericProperties).length > 0) }
-                        <GenericPropertiesDisplay
-                                displayableProperties={displayableGenericProperties}
-                                buttonType={button.button_type}
-                                getPropertyFriendlyNameFn={getPropertyFriendlyName}
-                                dropdownPropertyKeys={genericDropdownPropertyKeys}
-                                friendlyButtonTypeName={friendlyButtonTypeName}
-                        />
-                    {:else if !hasSpecializedUI}
-                        <p class="text-zinc-600 dark:text-zinc-400 mt-2">
-                            {friendlyButtonTypeName} has no other specific properties to configure here.
-                        </p>
-                    {/if}
-                {:else if button.button_type !== ButtonType.Disabled}
-                    <p class="text-zinc-600 dark:text-zinc-400 mt-2">
-                        No properties are defined for this button (type: <span
-                            class="font-medium">{friendlyButtonTypeName}</span>).
-                    </p>
-                {/if}
-            {/if}
         </div>
     </div>
 {:else}

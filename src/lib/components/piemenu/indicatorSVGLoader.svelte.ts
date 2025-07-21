@@ -1,4 +1,4 @@
-import { getSettings } from "$lib/data/settingsHandler.svelte.ts";
+import {getSettings} from "$lib/data/settingsManager.svelte.ts";
 
 /**
  * Loads and processes the indicator SVG using current settings.

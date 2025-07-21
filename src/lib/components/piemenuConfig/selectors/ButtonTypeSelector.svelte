@@ -1,6 +1,6 @@
 <!-- src/lib/components/piemenuConfig/ButtonTypeSelector.svelte -->
 <script lang="ts">
-    import type {ButtonType} from '$lib/data/piebuttonTypes.ts';
+    import type {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
 
     let {
         currentType,

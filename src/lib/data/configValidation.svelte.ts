@@ -4,13 +4,13 @@ import {
     ButtonType,
     type MenuConfiguration,
     type PagesInMenuMap
-} from './piebuttonTypes';
+} from './types/pieButtonTypes.ts';
 import {
     getBaseMenuConfiguration,
     publishBaseMenuConfiguration,
     updateBaseMenuConfiguration,
     updateButtonInMenuConfig
-} from './configHandler.svelte.ts';
+} from './configManager.svelte.ts';
 import {getInstalledAppsInfo} from './installedAppsInfoManager.svelte.ts';
 
 // Helper: get the app key for a button

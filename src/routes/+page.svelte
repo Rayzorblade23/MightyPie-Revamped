@@ -2,7 +2,7 @@
 <script lang="ts">
     // Import subscribeToSubject AND the getter for connection status
     import PieMenuWithTransitions from "$lib/components/piemenu/PieMenuWithTransitions.svelte";
-    import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/components/piemenu/piemenuTypes.ts";
+    import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/data/types/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
@@ -11,11 +11,11 @@
         PUBLIC_PIEMENU_SIZE_X,
         PUBLIC_PIEMENU_SIZE_Y
     } from "$env/static/public";
-    import {hasPageForMenu} from "$lib/data/configHandler.svelte.ts";
+    import {hasPageForMenu} from "$lib/data/configManager.svelte.ts";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
     import {onMount} from "svelte";
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
-    import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
+    import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import {goto} from "$app/navigation";
 
     // --- Core State ---

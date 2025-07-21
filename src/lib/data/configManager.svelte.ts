@@ -13,9 +13,9 @@ import {
     type PagesInMenuMap,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
-} from "$lib/data/piebuttonTypes.ts";
+} from "$lib/data/types/pieButtonTypes.ts";
 import {publishMessage} from "$lib/natsAdapter.svelte.ts";
-import {getDefaultButton} from "$lib/data/pieButtonDefaults.ts";
+import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
 import {PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE} from "$env/static/public";
 
 // --- Svelte State and Public API ---

@@ -15,7 +15,7 @@
         type IPiemenuClickMessage,
         type IPiemenuOpenedMessage,
         mouseEvents
-    } from "$lib/components/piemenu/piemenuTypes.ts";
+    } from "$lib/data/types/piemenuTypes.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE,
         PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
@@ -27,7 +27,7 @@
     } from "$env/static/public";
     import {getCurrentWindow} from "@tauri-apps/api/window";
     import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
-    import {getSettings} from "$lib/data/settingsHandler.svelte";
+    import {getSettings} from "$lib/data/settingsManager.svelte.js";
 
     const numButtons = 8;
     const radius = Number(RADIUS);

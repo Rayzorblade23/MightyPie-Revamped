@@ -1,4 +1,4 @@
-import {ButtonType} from '$lib/data/piebuttonTypes.ts';
+import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
 
 // Border class map shared by both components
 const borderClassMap: Record<ButtonType | 'default', string> = {

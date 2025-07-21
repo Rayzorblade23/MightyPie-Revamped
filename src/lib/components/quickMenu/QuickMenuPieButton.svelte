@@ -1,9 +1,9 @@
 <!-- QuickMenuPieButton.svelte -->
 <script lang="ts">
-    import { PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE } from "$env/static/public";
-    import type { ButtonPropertiesUnion } from '$lib/data/pieButtonSharedTypes';
-    import type { IPieButtonExecuteMessage } from "$lib/data/piebuttonTypes";
-    import { publishMessage } from "$lib/natsAdapter.svelte.ts";
+    import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
+    import type {ButtonPropertiesUnion} from '$lib/data/types/pieButtonSharedTypes.ts';
+    import type {IPieButtonExecuteMessage} from "$lib/data/types/pieButtonTypes.ts";
+    import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import PieButtonBase from '$lib/components/piebutton/PieButtonBase.svelte';
 
     let {
@@ -41,13 +41,13 @@
 </script>
 
 <PieButtonBase
-    {x}
-    {y}
-    {width}
-    {height}
-    {taskType}
-    {properties}
-    {buttonTextUpper}
-    {buttonTextLower}
-    onclick={publishButtonClick}
+        {x}
+        {y}
+        {width}
+        {height}
+        {taskType}
+        {properties}
+        {buttonTextUpper}
+        {buttonTextLower}
+        onclick={publishButtonClick}
 />

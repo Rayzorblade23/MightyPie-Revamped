@@ -1,8 +1,8 @@
 <!-- src/lib/components/piemenuConfig/ApplicationSelector.svelte -->
 <script lang="ts">
     import type {InstalledAppsMap} from '$lib/data/installedAppsInfoManager.svelte.ts';
-    import SvgIcon from './SvgIcon.svelte';
-    import {middleEllipsis} from './middleEllipsisAction';
+    import SelectorSvgIcon from '../SelectorSvgIcon.svelte';
+    import {middleEllipsis} from '../middleEllipsisAction.ts';
 
     let {
         selectedAppName,
@@ -29,8 +29,8 @@
     </label>
     <div class="flex items-stretch space-x-2">
         <div class="flex-shrink-0 h-[40px] w-[40px] flex items-center justify-center border border-zinc-200 dark:border-zinc-600 rounded bg-zinc-50 dark:bg-zinc-700">
-            <SvgIcon iconPath={currentAppInfo?.iconPath} svgClasses="h-6 w-6 text-zinc-700 dark:text-zinc-200"
-                     titleText={currentAppInfo?.iconPath || 'No icon'}/>
+            <SelectorSvgIcon iconPath={currentAppInfo?.iconPath} svgClasses="h-6 w-6 text-zinc-700 dark:text-zinc-200"
+                             titleText={currentAppInfo?.iconPath || 'No icon'}/>
         </div>
         <select
                 id="appNameSelect"

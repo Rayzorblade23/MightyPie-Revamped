@@ -1,9 +1,9 @@
 <!-- PieButtonBase.svelte -->
 <script lang="ts">
-    import {ButtonType} from '$lib/data/piebuttonTypes.ts';
+    import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
     import {composePieButtonClasses, fetchSvgIcon} from './pieButtonUtils';
-    import type {PieButtonBaseProps} from '$lib/data/pieButtonSharedTypes';
-    import {getSettings} from "$lib/data/settingsHandler.svelte.ts";
+    import type {PieButtonBaseProps} from '$lib/data/types/pieButtonSharedTypes.ts';
+    import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import AutoScrollText from './AutoScrollText.svelte';
 
     // Base props for pie buttons

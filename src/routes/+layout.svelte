@@ -4,7 +4,7 @@
         parseButtonConfig,
         updateBaseMenuConfiguration,
         updateMenuConfiguration
-    } from '$lib/data/configHandler.svelte.ts';
+    } from '$lib/data/configManager.svelte.ts';
     import {
         getInstalledAppsInfo,
         parseInstalledAppsInfo,
@@ -29,11 +29,11 @@
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO
     } from '$env/static/public';
-    import type {ConfigData} from '$lib/data/piebuttonTypes.ts';
+    import type {ConfigData} from '$lib/data/types/pieButtonTypes.ts';
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {goto} from '$app/navigation';
     import {listen} from '@tauri-apps/api/event';
-    import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsHandler.svelte.ts';
+    import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsManager.svelte.ts';
     import {saturateHexColor} from "$lib/colorUtils.ts";
 
     let validationHasRun = false;

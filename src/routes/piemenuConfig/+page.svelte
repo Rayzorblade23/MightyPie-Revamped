@@ -17,9 +17,9 @@
         removePageFromMenuConfiguration,
         updateBaseMenuConfiguration,
         updateButtonInMenuConfig
-    } from '$lib/data/configHandler.svelte.ts';
-    import type {Button, ButtonsOnPageMap, MenuConfiguration, PagesInMenuMap} from '$lib/data/piebuttonTypes.ts';
-    import {ButtonType} from '$lib/data/piebuttonTypes.ts';
+    } from '$lib/data/configManager.svelte.ts';
+    import type {Button, ButtonsOnPageMap, MenuConfiguration, PagesInMenuMap} from '$lib/data/types/pieButtonTypes.ts';
+    import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
     import {horizontalScroll} from "$lib/generalUtil.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     // --- Function Definitions for CallFunction Buttons ---
@@ -34,18 +34,18 @@
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE
     } from "$env/static/public";
     import {getShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
-    import {getDefaultButton} from '$lib/data/pieButtonDefaults.ts';
+    import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
-    import {getSettings} from "$lib/data/settingsHandler.svelte";
+    import {getSettings} from "$lib/data/settingsManager.svelte.js";
 
     // --- Component Imports ---
     import MenuTabs from "$lib/components/piemenuConfig/MenuTabs.svelte";
-    import ConfigPieMenuPage from "$lib/components/piemenuConfig/ConfigPieMenuPage.svelte";
+    import ConfigPieMenuPage from "$lib/components/piemenuConfig/configPieMenuElements/ConfigPieMenuPage.svelte";
     import ButtonInfoDisplay from "$lib/components/piemenuConfig/ButtonInfoDisplay.svelte";
-    import AddPageButton from "$lib/components/piemenuConfig/elements/AddPageButton.svelte";
+    import AddPageButton from "$lib/components/piemenuConfig/buttons/AddPageButton.svelte";
     import ConfirmationDialog from "$lib/components/ui/ConfirmationDialog.svelte";
-    import SetShortcutDialogue from "$lib/components/SetShortcutDialogue.svelte";
-    import ButtonTypeSelector from "$lib/components/piemenuConfig/ButtonTypeSelector.svelte";
+    import SetShortcutDialog from "$lib/components/ui/SetShortcutDialog.svelte";
+    import ButtonTypeSelector from "$lib/components/piemenuConfig/selectors/ButtonTypeSelector.svelte";
     import {goto} from "$app/navigation";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
 
@@ -919,7 +919,7 @@
                 onConfirm={confirmResetAllMenus}
                 title="Reset All Menus?"
         />
-        <SetShortcutDialogue isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
+        <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
         <ConfirmationDialog
                 confirmText="OK"
                 isOpen={showBackupCreatedDialog}
