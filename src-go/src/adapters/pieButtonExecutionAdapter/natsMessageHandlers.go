@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"maps"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
@@ -57,7 +60,6 @@ func (a *PieButtonExecutionAdapter) handleInstalledAppsInfoMessage(msg *nats.Msg
 	log.Printf("Updated discovered apps list, %d apps tracked", len(apps))
 }
 
-// handleWindowUpdateMessage updates the internal list of active windows.
 func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
 	var currentWindows core.WindowsUpdate
 	if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
@@ -71,4 +73,43 @@ func (a *PieButtonExecutionAdapter) handleWindowUpdateMessage(msg *nats.Msg) {
 	a.mu.Unlock()
 
 	// log.Printf("Updated windows list, %d windows tracked", len(currentWindows)) // Debug logging if needed
+}
+
+func (a *PieButtonExecutionAdapter) handleOpenFolder(msg *nats.Msg) {
+	var folderType string
+	if err := json.Unmarshal(msg.Data, &folderType); err != nil {
+		log.Printf("Failed to decode folderType message: %v. Data: %s", err, string(msg.Data))
+		return
+	}
+	var path string
+	var err error
+
+	switch folderType {
+	case "appdata":
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			log.Println("ERROR: LOCALAPPDATA environment variable not set.")
+			return
+		}
+		path = filepath.Join(localAppData, "MightyPieRevamped")
+	case "appfolder":
+		path, err = core.GetRootDir()
+		if err != nil {
+			log.Printf("ERROR: Failed to get root dir: %v", err)
+			return
+		}
+	default:
+		log.Printf("ERROR: Unknown folder type received: %s", folderType)
+		return
+	}
+
+	if err := openFolder(path); err != nil {
+		log.Printf("ERROR: Failed to open folder %s: %v", path, err)
+	}
+}
+
+// openFolder opens the specified path in the default file explorer.
+func openFolder(path string) error {
+	cmd := exec.Command("explorer", path)
+	return cmd.Run()
 }

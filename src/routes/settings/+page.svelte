@@ -6,8 +6,9 @@
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
-    import {PUBLIC_SETTINGS_SIZE_X, PUBLIC_SETTINGS_SIZE_Y, PUBLIC_DIR_BUTTONFUNCTIONS} from "$env/static/public";
+    import {PUBLIC_SETTINGS_SIZE_X, PUBLIC_SETTINGS_SIZE_Y, PUBLIC_DIR_BUTTONFUNCTIONS, PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER} from "$env/static/public";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
+    import {publishMessage} from '$lib/natsAdapter.svelte.ts';
 
     // Canonical deep clone for settings, matching piemenuConfig approach
     function cloneSettings(settings: SettingsMap): SettingsMap {
@@ -171,16 +172,16 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700">
+<div class="w-full h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700">
     <!-- Title Bar -->
-    <div class="title-bar relative flex items-center py-1 bg-zinc-300 dark:bg-zinc-800 rounded-t-lg border-b border-zinc-200 dark:border-zinc-700 h-8">
+    <div class="title-bar relative flex items-center py-1 bg-zinc-300 dark:bg-zinc-800 rounded-t-lg border-b border-zinc-200 dark:border-zinc-700 h-8 flex-shrink-0">
         <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
         <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
             <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Settings</span>
         </div>
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
-    <div class="flex-1 w-full p-4 space-y-6 relative">
+    <div class="flex-1 w-full p-4 space-y-6 relative overflow-y-auto horizontal-scrollbar">
         {#if Object.keys(settings).length === 0}
             <p class="text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/70 rounded-lg shadow p-6 text-center text-lg font-medium">
                 No settings available.</p>
@@ -283,17 +284,35 @@
                         </div>
                     {/if}
                 {/each}
+
+                <!-- Folder Navigation Buttons -->
+                <div class="flex flex-row gap-2 pt-4">
+                    <button
+                        class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
+                        onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appdata')}
+                    >
+                        Open App Config Folder
+                    </button>
+                    <button
+                        class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
+                        onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
+                    >
+                        Open App Folder
+                    </button>
+                </div>
             </div>
         {/if}
-        <!-- Done Button, floating at bottom right -->
-        <div class="fixed bottom-6 right-8 z-50 flex flex-row gap-2">
+    </div>
+
+    <!-- Action Buttons Footer -->
+    <div class="flex-shrink-0 w-full p-2 bg-zinc-200/50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
+        <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
             <button
                 aria-label="Undo"
                 class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
                 onclick={handleUndo}
                 type="button"
-                disabled={undoHistory.length === 0}
-            >
+                disabled={undoHistory.length === 0}>
                 Undo
             </button>
             <button
@@ -301,8 +320,7 @@
                 class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
                 onclick={() => showDiscardConfirmDialog = true}
                 type="button"
-                disabled={undoHistory.length === 0}
-            >
+                disabled={undoHistory.length === 0}>
                 Discard Changes
             </button>
             <button

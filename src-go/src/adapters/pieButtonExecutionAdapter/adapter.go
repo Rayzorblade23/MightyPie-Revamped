@@ -20,6 +20,7 @@ var (
 	natsSubjectWindowManagerUpdate = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
 	natsSubjectInstalledAppsInfo   = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
 	natsSubjectPieMenuNavigate     = env.Get("PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE")
+	natsSubjectPieButtonOpenFolder = env.Get("PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER")
 )
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.
@@ -86,6 +87,7 @@ func (a *PieButtonExecutionAdapter) subscribeToEvents() {
 	a.natsAdapter.SubscribeToSubject(natsSubjectShortcutPressed, core.GetTypeName(a), a.handleShortcutPressedMessage)
 	a.natsAdapter.SubscribeToSubject(natsSubjectWindowManagerUpdate, core.GetTypeName(a), a.handleWindowUpdateMessage)
 	a.natsAdapter.SubscribeToSubject(natsSubjectInstalledAppsInfo, core.GetTypeName(a), a.handleInstalledAppsInfoMessage)
+	a.natsAdapter.SubscribeToSubject(natsSubjectPieButtonOpenFolder, core.GetTypeName(a), a.handleOpenFolder)
 }
 
 // executeCommand dispatches the command based on the ButtonType.
