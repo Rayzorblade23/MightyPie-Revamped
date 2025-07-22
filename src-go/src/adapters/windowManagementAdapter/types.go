@@ -12,6 +12,7 @@ import (
 
 // WindowManagementAdapter is the main adapter struct
 type WindowManagementAdapter struct {
+	exclusionConfig *ExclusionConfig
 	natsAdapter   *natsAdapter.NatsAdapter
 	winManager    *WindowManager
 	stopChan      chan struct{} // Adapter's overall stop

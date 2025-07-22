@@ -5,9 +5,11 @@ import (
 	"runtime"
 	"unsafe"
 
+	"maps"
+	"slices"
+
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
-	"maps"
 )
 
 // NewWindowManager creates a new window manager
@@ -37,7 +39,7 @@ func (wm *WindowManager) GetOpenWindowsInfo() WindowMapping {
 }
 
 // GetFilteredListOfWindows returns a list of filtered windows
-func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND) WindowMapping {
+func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND, exclusionConfig *ExclusionConfig) WindowMapping {
 	tempWindowMapping := make(WindowMapping) // Target map
 
 	enumFunc := windows.NewCallback(func(hwnd win.HWND, lparam uintptr) uintptr {
@@ -66,10 +68,33 @@ func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND) Wi
 			tempIsCloaked = 0
 		} // Default to not cloaked on failure
 
-		// Call shouldIncludeWindow
-		if shouldIncludeWindow(hwnd, tempTitle, tempClassName, int(tempIsCloaked), thisWindow) {
+		// Call passesInitialFilter
+		if passesInitialFilter(hwnd, tempTitle, tempClassName, int(tempIsCloaked), thisWindow) {
 			infoMap, appName := getWindowInfo(hwnd)
-			cleanWindowTitles(tempWindowMapping, infoMap, appName)
+
+			// Create a temporary map to hold the cleaned window info
+			cleanedInfoMap := make(WindowMapping)
+			cleanWindowTitles(cleanedInfoMap, infoMap, appName)
+			cleanedInfo := cleanedInfoMap[hwnd]
+
+			// Perform exclusion check on the cleaned title
+			isExcluded := false
+			if slices.Contains(exclusionConfig.ExcludedTitles, cleanedInfo.Title) {
+				isExcluded = true
+			} else if slices.Contains(exclusionConfig.ExcludedApps, cleanedInfo.AppName) {
+				isExcluded = true
+			} else {
+				for _, specific := range exclusionConfig.SpecificExclusions {
+					if cleanedInfo.AppName == specific.App && cleanedInfo.Title == specific.Title {
+						isExcluded = true
+						break
+					}
+				}
+			}
+
+			if !isExcluded {
+				tempWindowMapping[hwnd] = cleanedInfo
+			}
 		}
 		return 1 // TRUE
 	})
@@ -83,15 +108,15 @@ func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND) Wi
 
 // PrintWindowList prints the current window list for debugging
 func PrintWindowList(mapping WindowMapping) {
-    fmt.Println("------------------ Current Window List ------------------")
-    for hwnd, info := range mapping {
-        fmt.Printf("Window Handle: %v\n", hwnd)
-        fmt.Printf("  Title: %s\n", info.Title)
-        fmt.Printf("  ExeName: %s\n", info.ExeName)
-        fmt.Printf("  AppName: %s\n", info.AppName)
-        fmt.Printf("  Instance: %d\n", info.Instance)
-        fmt.Printf("  IconPath: %s\n", info.IconPath)
-        fmt.Println()
-    }
-    fmt.Println("---------------------------------------------------------")
+	fmt.Println("------------------ Current Window List ------------------")
+	for hwnd, info := range mapping {
+		fmt.Printf("Window Handle: %v\n", hwnd)
+		fmt.Printf("  Title: %s\n", info.Title)
+		fmt.Printf("  ExeName: %s\n", info.ExeName)
+		fmt.Printf("  AppName: %s\n", info.AppName)
+		fmt.Printf("  Instance: %d\n", info.Instance)
+		fmt.Printf("  IconPath: %s\n", info.IconPath)
+		fmt.Println()
+	}
+	fmt.Println("---------------------------------------------------------")
 }

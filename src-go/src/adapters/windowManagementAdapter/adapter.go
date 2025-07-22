@@ -18,7 +18,7 @@ import (
 var subjectInstalledAppsInfo = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
 
 // New creates a new WindowManagementAdapter instance
-func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
+func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error) {
 	installedAppsInfo = FetchExecutableApplicationMap()
 	ProcessIcons()
 
@@ -29,11 +29,17 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 	windowManager := NewWindowManager()
 	windowWatcher := NewWindowWatcher()
 
+	exclusionConfig, err := loadExclusionConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load exclusion config: %w", err)
+	}
+
 	a := &WindowManagementAdapter{
-		natsAdapter:   natsAdapter,
-		winManager:    windowManager,
-		stopChan:      make(chan struct{}),
-		windowWatcher: windowWatcher,
+		exclusionConfig: exclusionConfig,
+		natsAdapter:     natsAdapter,
+		winManager:      windowManager,
+		stopChan:        make(chan struct{}),
+		windowWatcher:   windowWatcher,
 	}
 
 	shortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
@@ -57,7 +63,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *WindowManagementAdapter {
 
 	})
 
-	return a
+	return a, nil
 }
 
 // publishInstalledAppsInfo sends the current discovered apps list to the NATS subject
@@ -70,7 +76,7 @@ func (a *WindowManagementAdapter) Run() error {
 	logger.Println("Starting WindowManagementAdapter...")
 
 	// Perform initial window scan and update window info
-	initialWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0))
+	initialWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0), a.exclusionConfig)
 	a.winManager.UpdateOpenWindowsInfo(initialWindows)
 	logger.Printf("Initial window list created with %d windows.\n", len(initialWindows))
 	// PrintWindowList(initialWindows)
@@ -187,7 +193,7 @@ func (a *WindowManagementAdapter) monitorWindows() {
 		}
 
 		// Update window list if necessary
-		currentWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0))
+		currentWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0), a.exclusionConfig)
 		if !reflect.DeepEqual(currentWindows, previousWindows) {
 			a.winManager.UpdateOpenWindowsInfo(currentWindows)
 			previousWindows = currentWindows
@@ -200,7 +206,6 @@ func (a *WindowManagementAdapter) monitorWindows() {
 	}
 }
 
-// publishWindowListUpdate sends the updated window list to the NATS subject
 func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping) {
 	convertedMap := make(map[int]core.WindowInfo)
 	for hwnd, info := range windows {

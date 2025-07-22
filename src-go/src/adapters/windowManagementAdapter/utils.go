@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -49,14 +50,12 @@ func AddHwndToExclude(hwnd win.HWND) {
 	hwndToExclude = append(hwndToExclude, hwnd)
 }
 
-// shouldIncludeWindow determines if a window should be included in the window list
-func shouldIncludeWindow(hwnd win.HWND, windowTitle, className string, isCloaked int, thisWindow win.HWND) bool {
+// passesInitialFilter determines if a window should be included in the window list based on raw window properties
+func passesInitialFilter(hwnd win.HWND, windowTitle, className string, isCloaked int, thisWindow win.HWND) bool {
 
 	// Check specific HWND exclusion list
-	for _, excluded := range hwndToExclude {
-		if hwnd == excluded {
-			return false
-		}
+	if slices.Contains(hwndToExclude, hwnd) {
+		return false
 	}
 
 	// Check main properties
@@ -66,7 +65,25 @@ func shouldIncludeWindow(hwnd win.HWND, windowTitle, className string, isCloaked
 		hwnd != thisWindow
 }
 
-// cleanWindowTitles updates window titles in the mapping
+// isWindowExcluded checks if a window should be excluded from the window list based on the exclusion config
+func (a *WindowManagementAdapter) isWindowExcluded(info core.WindowInfo) bool {
+	config := a.exclusionConfig
+	logger.Println("Checking if window is excluded:", info.Title, info.AppName)
+	if slices.Contains(config.ExcludedTitles, info.Title) {
+		return true
+	}
+	if slices.Contains(config.ExcludedApps, info.AppName) {
+		return true
+	}
+	for _, specific := range config.SpecificExclusions {
+		if info.AppName == specific.App && info.Title == specific.Title {
+			return true
+		}
+	}
+	return false
+}
+
+// cleanWindowTitles cleans up window titles by removing redundant information
 func cleanWindowTitles(mapping WindowMapping, entry WindowMapping, appName string) {
 	for hwnd, info := range entry {
 		cleanTitle := info.Title
@@ -140,11 +157,11 @@ func assignInstanceNumbers(tempMapping WindowMapping, existingMapping WindowMapp
 // getParentPID returns the parent process ID for a given PID on Windows.
 func getParentPID(pid uint32) uint32 {
 	var pbi struct {
-		ExitStatus      int32
-		PebBaseAddress  uintptr
-		AffinityMask    uintptr
-		BasePriority    int32
-		UniqueProcessID uintptr
+		ExitStatus                   int32
+		PebBaseAddress               uintptr
+		AffinityMask                 uintptr
+		BasePriority                 int32
+		UniqueProcessID              uintptr
 		InheritedFromUniqueProcessID uintptr
 	}
 	h, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, pid)

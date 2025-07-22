@@ -1,0 +1,15 @@
+{
+  "excluded_titles": [
+    "RzMonitorForegroundWindow",
+    "mightypie-revamped"
+  ],
+  "excluded_apps": [
+    ""
+  ],
+  "specific_exclusions": [
+    {
+      "app": "",
+      "title": ""
+    }
+  ]
+}
