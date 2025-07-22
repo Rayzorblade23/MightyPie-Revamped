@@ -908,6 +908,7 @@
                 message="You have unsaved changes. What would you like to do?"
                 onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
                 onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+                onClose={() => { showDiscardConfirmDialog = false; }}
                 title="Unsaved Changes"
         />
         <ConfirmationDialog

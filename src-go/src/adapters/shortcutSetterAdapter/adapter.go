@@ -82,18 +82,21 @@ func (a *ShortcutSetterAdapter) ListenForShortcutAtIndex(index int) {
 	}
 
 	a.keyboardHook = newSetterKeyboardHook(func(shortcut []int) {
-		once.Do(func() {
-			if !IsValidShortcut(shortcut) {
-				fmt.Println("DEBUG: Invalid shortcut, ignoring")
-				return
-			}
-			if err := a.SaveShortcut(index, shortcut); err != nil {
-				fmt.Println("Failed to save shortcut:", err)
-			} else {
-				fmt.Printf("Shortcut detected and saved for index %d\n", index)
-			}
-			a.keyboardHook.Stop()
-		})
+			once.Do(func() {
+				// Always stop the hook after the first detected shortcut.
+				defer a.keyboardHook.Stop()
+
+				if !IsValidShortcut(shortcut) {
+					fmt.Println("DEBUG: Invalid shortcut, ignoring")
+					return
+				}
+
+				if err := a.SaveShortcut(index, shortcut); err != nil {
+					fmt.Println("Failed to save shortcut:", err)
+				} else {
+					fmt.Printf("Shortcut detected and saved for index %d\n", index)
+				}
+			})
 	})
 	go func() {
 		if err := a.keyboardHook.Run(); err != nil {

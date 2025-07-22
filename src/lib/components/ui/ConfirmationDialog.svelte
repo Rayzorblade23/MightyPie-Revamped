@@ -6,7 +6,8 @@
         confirmText = 'Confirm',
         cancelText = 'Cancel',
         onConfirm,
-        onCancel
+        onCancel,
+        onClose
     } = $props<{
         isOpen: boolean;
         title?: string;
@@ -15,6 +16,7 @@
         cancelText?: string;
         onConfirm?: () => void;
         onCancel?: () => void;
+        onClose?: () => void;
     }>();
 
     let dialogRef = $state<HTMLElement | null>(null);
@@ -31,7 +33,7 @@
         if (event.key === 'Escape') {
             event.stopPropagation();
             event.preventDefault();
-            handleCancel();
+            handleClose();
             return;
         }
         // Only confirm if dialog itself is focused
@@ -67,6 +69,15 @@
     function handleCancel() {
         isOpen = false;
         onCancel?.();
+    }
+
+    function handleClose() {
+        isOpen = false;
+        if (onClose) {
+            onClose();
+        } else {
+            onCancel?.();
+        }
     }
 </script>
 
