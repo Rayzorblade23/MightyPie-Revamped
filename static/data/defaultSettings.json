@@ -1,7 +1,7 @@
 {
   "colorAccentAnyWin": {
     "index": 0,
-    "label": "Show-Any-Window Button Accent",
+    "label": "Button Accent: Show-Any-Window",
     "isExposed": true,
     "type": "color",
     "value": "#5a14b7",
@@ -9,7 +9,7 @@
   },
   "colorAccentFunction": {
     "index": 1,
-    "label": "Function Button Accent",
+    "label": "Button Accent: Function",
     "isExposed": true,
     "type": "color",
     "value": "#71b8ed",
@@ -17,7 +17,7 @@
   },
   "colorAccentLaunch": {
     "index": 2,
-    "label": "Launch-Program Button Accent",
+    "label": "Button Accent: Launch-Program",
     "isExposed": true,
     "type": "color",
     "value": "#f37fc0",
@@ -25,7 +25,7 @@
   },
   "colorAccentProgramWin": {
     "index": 3,
-    "label": "Show-Program-Window Button Accent",
+    "label": "Button Accent: Show-Program-Window",
     "isExposed": true,
     "type": "color",
     "value": "#fa9fa4",
@@ -33,7 +33,7 @@
   },
   "colorAccentOpenPage": {
     "index": 4,
-    "label": "Open-Page Button Accent",
+    "label": "Button Accent: Open-Page",
     "isExposed": true,
     "type": "color",
     "value": "#abf7ab",

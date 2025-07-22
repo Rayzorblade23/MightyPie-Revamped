@@ -10,6 +10,11 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
+const (
+	jsonExtension           = ".json"
+	buttonFunctionsFileName = "buttonFunctions"
+)
+
 type ButtonFunctionMetadata struct {
 	IconPath    string `json:"icon_path"`
 	Description string `json:"description"`
@@ -21,7 +26,7 @@ func loadButtonFunctionMetadata() (map[string]ButtonFunctionMetadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine static dir: %w", err)
 	}
-	jsonPath := filepath.Join(staticDir, "data", "buttonFunctions.json")
+		jsonPath := filepath.Join(staticDir, "data", buttonFunctionsFileName+jsonExtension)
 	data, err := os.ReadFile(jsonPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read buttonFunctions.json: %w", err)
@@ -41,7 +46,7 @@ func ValidateFunctionHandlers(handlers map[string]ButtonFunctionExecutor) {
 	}
 	for key := range handlers {
 		if _, ok := metadataMap[key]; !ok {
-			log.Fatalf("functionHandlers key '%s' is not present in buttonFunctions.json", key)
+			log.Fatalf("functionHandlers key '%s' is not present in %s%s", key, buttonFunctionsFileName, jsonExtension)
 		}
 	}
 }

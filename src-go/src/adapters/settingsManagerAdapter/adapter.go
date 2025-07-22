@@ -2,14 +2,21 @@ package settingsManagerAdapter
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
-	"github.com/nats-io/nats.go"
 	core "github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
+	"github.com/nats-io/nats.go"
+)
+
+const (
+	jsonExtension    = ".json"
+	settingsFileName = "settings"
 )
 
 type SettingsManagerAdapter struct {
@@ -72,61 +79,31 @@ type SettingsEntry struct {
 	Options      []string `json:"options,omitempty"` // Only for enum type
 }
 
-// ReadSettings loads the settings.json as a map of string to SettingsEntry.
-const (
-	settingsDirPermission  = 0o755
-	settingsFilePermission = 0o644
-)
-
-// copyDefaultSettingsIfNeeded copies the default settings.json if it does not exist.
-func copyDefaultSettingsIfNeeded(settingsPath, configDir string) error {
-	staticDir, err := core.GetStaticDir()
-	if err != nil {
-		log.Printf("ERROR: Failed to get static dir: %v", err)
-		return err
-	}
-	defaultSettingsRel := env.Get("PUBLIC_DIR_DEFAULTSETTINGS")
-	if defaultSettingsRel == "" {
-		log.Printf("ERROR: PUBLIC_DIR_DEFAULTSETTINGS not set!")
-		return err // No default to copy from
-	}
-	defaultSettingsPath := filepath.Join(staticDir, defaultSettingsRel)
-	if err := os.MkdirAll(configDir, settingsDirPermission); err != nil {
-		log.Printf("ERROR: Failed to create config dir %q: %v", configDir, err)
-		return err
-	}
-	data, err := os.ReadFile(defaultSettingsPath)
-	if err != nil {
-		log.Printf("ERROR: Failed to read default settings from %q: %v", defaultSettingsPath, err)
-		return err
-	}
-	if err := os.WriteFile(settingsPath, data, settingsFilePermission); err != nil {
-		log.Printf("ERROR: Failed to write settings.json to %q: %v", settingsPath, err)
-		return err
-	}
-	return nil
-}
-
 func ReadSettings() (map[string]SettingsEntry, error) {
 	localAppData := os.Getenv("LOCALAPPDATA")
 	if localAppData == "" {
 		return nil, os.ErrNotExist
 	}
-	settingsPath := filepath.Join(localAppData, "MightyPieRevamped", "settings.json")
+		settingsPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
 	configDir := filepath.Dir(settingsPath)
 
-	if _, err := os.Stat(settingsPath); os.IsNotExist(err) {
-		if err := copyDefaultSettingsIfNeeded(settingsPath, configDir); err != nil {
-			return nil, err
-		}
+	// Ensure the settings file exists by copying the default if needed.
+	staticDir, err := core.GetStaticDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get static dir for default settings: %w", err)
+	}
+	defaultSettingsRel := env.Get("PUBLIC_DIR_DEFAULTSETTINGS")
+	if defaultSettingsRel == "" {
+		return nil, fmt.Errorf("environment variable PUBLIC_DIR_DEFAULTSETTINGS is not set")
+	}
+	defaultSettingsPath := filepath.Join(staticDir, defaultSettingsRel)
+
+	if err := jsonUtils.CreateFileFromDefaultIfNotExist(defaultSettingsPath, settingsPath); err != nil {
+		return nil, fmt.Errorf("failed to copy default settings if needed: %w", err)
 	}
 
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return nil, err
-	}
 	var settings map[string]SettingsEntry
-	if err := json.Unmarshal(data, &settings); err != nil {
+	if err := jsonUtils.ReadFromFile(settingsPath, &settings); err != nil {
 		return nil, err
 	}
 
@@ -158,12 +135,8 @@ func WriteSettings(settings map[string]SettingsEntry) error {
 	if localAppData == "" {
 		return os.ErrNotExist
 	}
-	settingsPath := filepath.Join(localAppData, "MightyPieRevamped", "settings.json")
-	data, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(settingsPath, data, 0644)
+		settingsPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
+	return jsonUtils.WriteToFile(settingsPath, settings)
 }
 
 // settingsEqual compares two settings maps for equality.

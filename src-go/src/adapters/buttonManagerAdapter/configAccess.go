@@ -1,25 +1,29 @@
 package buttonManagerAdapter
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
 )
 
-// GetButtonConfig (Cleaned)
+const (
+	jsonExtension    = ".json"
+	configFileName   = "buttonConfig"
+	backupFilePrefix = "buttonConfig_BACKUP"
+)
+
+// GetButtonConfig returns a deep copy of the current button configuration.
 func GetButtonConfig() ConfigData {
 	mu.RLock()
 	configToCopy := buttonConfig
 	sourceLen := len(configToCopy)
 	mu.RUnlock()
-
-	// log.Printf("DEBUG: GetButtonConfig - Source length before copy: %d", sourceLen) // Removed DEBUG
-	// log.Println("DEBUG: GetButtonConfig - Entering deepCopyConfig...") // Removed DEBUG
 
 	copiedConfig, err := deepCopyConfig(configToCopy)
 	if err != nil {
@@ -32,65 +36,24 @@ func GetButtonConfig() ConfigData {
 	}
 	if len(copiedConfig) == 0 && sourceLen > 0 {
 		log.Printf("WARN: GetButtonConfig - deepCopyConfig resulted in an EMPTY map, but source was NOT empty (len %d)! Decode likely failed inside deepCopyConfig.", sourceLen)
-		// Return the potentially problematic empty map as per deepCopyConfig's logic
 		return make(ConfigData)
 	}
 
-	// log.Printf("DEBUG: GetButtonConfig - Deep copy finished. Copied config length: %d", len(copiedConfig)) // Removed DEBUG
 	return copiedConfig
 }
 
-func ReadButtonConfig() (ConfigData, error) {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	configPath := filepath.Join(localAppData, "MightyPieRevamped", "buttonConfig.json")
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Printf("WARN: Config file not found, creating default config at '%s'", configPath)
-			defaultConfig := NewDefaultConfig()
-			if err := WriteButtonConfig(defaultConfig); err != nil {
-				return nil, fmt.Errorf("failed to write default config: %w", err)
-			}
-			return defaultConfig, nil
-		}
-		return nil, fmt.Errorf("failed to read config file '%s': %w", configPath, err)
-	}
-
-	var config ConfigData
-	if len(data) == 0 || json.Unmarshal(data, &config) != nil || len(config) == 0 {
-		log.Printf("WARN: Config file is empty, invalid, or contains an empty config. Creating default config at '%s'", configPath)
-		defaultConfig := NewDefaultConfig()
-		if err := WriteButtonConfig(defaultConfig); err != nil {
-			return nil, fmt.Errorf("failed to write default config: %w", err)
-		}
-		return defaultConfig, nil
-	}
-
-	return config, nil
-}
-
+// WriteButtonConfig saves the given configuration to the default config file path.
 func WriteButtonConfig(config ConfigData) error {
 	localAppData := os.Getenv("LOCALAPPDATA")
 	if localAppData == "" {
 		return fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
-	configPath := filepath.Join(localAppData, "MightyPieRevamped", "buttonConfig.json")
+	configPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), configFileName+jsonExtension)
 
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write config file '%s': %w", configPath, err)
-	}
-	return nil
+	return jsonUtils.WriteToFile(configPath, config)
 }
 
+// NewDefaultConfig creates a new default button configuration.
 func NewDefaultConfig() ConfigData {
 	const (
 		numMenus   = 2
@@ -124,7 +87,7 @@ func NewDefaultConfig() ConfigData {
 	return config
 }
 
-// mustMarshalProperties marshals properties or panics (for use in default config creation).
+// mustMarshalProperties marshals properties or panics.
 func mustMarshalProperties(v any) json.RawMessage {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -133,78 +96,70 @@ func mustMarshalProperties(v any) json.RawMessage {
 	return data
 }
 
-// deepCopyConfig (Cleaned)
+// deepCopyConfig performs a deep copy of the configuration.
 func deepCopyConfig(src ConfigData) (ConfigData, error) {
-	// log.Println("DEBUG: Entering deepCopyConfig...") // Removed DEBUG
 	if src == nil {
-		// log.Println("DEBUG: deepCopyConfig source is nil, returning new empty map.") // Removed DEBUG
 		return make(ConfigData), nil
 	}
-	// log.Printf("DEBUG: deepCopyConfig source map length: %d", len(src)) // Removed DEBUG
 
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	// enc.SetIndent("", "  ") // Indent not needed for production copy
-
-	if err := enc.Encode(src); err != nil {
-		log.Printf("ERROR: deepCopyConfig - FAILED TO ENCODE source: %v", err) // Keep ERROR
-		return nil, fmt.Errorf("failed to encode config for deep copy: %w", err)
+	dst := make(ConfigData)
+	if err := jsonUtils.Copy(src, &dst); err != nil {
+		log.Printf("ERROR: deepCopyConfig - failed to copy config: %v", err)
+		return nil, err
 	}
-
-	// encodedJSON := buf.String() // No need to log encoded JSON in prod
-	// log.Printf("DEBUG: deepCopyConfig - Encoded JSON (first 300 bytes):\n---\n%s\n---", limitString(encodedJSON, 300)) // Removed DEBUG
-
-	dec := json.NewDecoder(&buf)
-	var dst ConfigData
-	if err := dec.Decode(&dst); err != nil {
-		log.Printf("ERROR: deepCopyConfig - FAILED TO DECODE JSON into dst: %v", err)        // Keep ERROR
-		log.Println("WARN: deepCopyConfig - Returning NEW EMPTY MAP due to decode failure.") // Keep WARN
-		return make(ConfigData), nil                                                         // Return EMPTY MAP on decode error
-	}
-
-	// log.Printf("DEBUG: deepCopyConfig successful. Decoded map length: %d", len(dst)) // Removed DEBUG
 	return dst, nil
 }
 
-// BackupConfigToFile writes the given config to a backup file with an incrementing suffix if needed.
+// BackupConfigToFile writes the given config to a backup file.
 func BackupConfigToFile(config ConfigData) error {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	baseDir := filepath.Join(localAppData, "MightyPieRevamped")
-	baseName := "buttonConfig_BACKUP.json"
-	backupPath := filepath.Join(baseDir, baseName)
+	return BackupConfigToFileWithBaseDir(config, filepath.Join(os.Getenv("LOCALAPPDATA"), env.Get("PUBLIC_APPNAME")))
+}
 
-	// Find a non-existing backup filename
-	idx := 0
+// BackupConfigToFileWithBaseDir writes the config to a backup file in a specific directory.
+func BackupConfigToFileWithBaseDir(config ConfigData, baseDir string) error {
+	baseName := backupFilePrefix + jsonExtension
+	backupPath := filepath.Join(baseDir, baseName)
+	idx := 1
 	for {
 		if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 			break
 		}
 		idx++
-		backupPath = filepath.Join(baseDir, fmt.Sprintf("buttonConfig_BACKUP_%d.json", idx))
+		backupPath = filepath.Join(baseDir, fmt.Sprintf("%s_%d%s", backupFilePrefix, idx, jsonExtension))
 	}
 
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal config for backup: %w", err)
-	}
-
-	if err := os.WriteFile(backupPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write backup config file '%s': %w", backupPath, err)
-	}
-	return nil
+	return jsonUtils.WriteToFile(backupPath, config)
 }
 
-// LoadConfigFromFile loads a ConfigData from the specified file path.
-func LoadConfigFromFile(path string) (ConfigData, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file '%s': %w", path, err)
+// ReadButtonConfig loads the button configuration from the default path.
+func ReadButtonConfig() (ConfigData, error) {
+	localAppData := os.Getenv("LOCALAPPDATA")
+	if localAppData == "" {
+		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
+	configPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), configFileName+jsonExtension)
+
 	var config ConfigData
-	if err := json.Unmarshal(data, &config); err != nil {
+	if err := jsonUtils.ReadFromFile(configPath, &config); err != nil {
+		return nil, fmt.Errorf("failed to read config file '%s': %w", configPath, err)
+	}
+
+	if config == nil {
+		log.Printf("WARN: Config file not found or is empty, creating default config at '%s'", configPath)
+		defaultConfig := NewDefaultConfig()
+		if err := WriteButtonConfig(defaultConfig); err != nil {
+			return nil, fmt.Errorf("failed to write default config: %w", err)
+		}
+		return defaultConfig, nil
+	}
+
+	return config, nil
+}
+
+// LoadConfigFromFile loads a ConfigData from a specific file path.
+func LoadConfigFromFile(path string) (ConfigData, error) {
+	var config ConfigData
+	if err := jsonUtils.ReadFromFile(path, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config from '%s': %w", path, err)
 	}
 	return config, nil

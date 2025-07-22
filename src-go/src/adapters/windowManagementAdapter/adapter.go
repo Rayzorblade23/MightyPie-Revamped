@@ -79,6 +79,9 @@ func (a *WindowManagementAdapter) Run() error {
 	initialWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0), a.exclusionConfig)
 	a.winManager.UpdateOpenWindowsInfo(initialWindows)
 	logger.Printf("Initial window list created with %d windows.\n", len(initialWindows))
+
+	// Publish initial window list
+	go a.publishWindowListUpdate(initialWindows)
 	// PrintWindowList(initialWindows)
 
 	// Start window watcher and monitoring goroutine

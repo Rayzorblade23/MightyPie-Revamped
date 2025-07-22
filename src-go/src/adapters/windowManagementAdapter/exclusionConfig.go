@@ -1,15 +1,18 @@
 package windowManagementAdapter
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
+)
+
+const (
+	jsonExtension         = ".json"
+	exclusionListFileName = "windowExclusionList"
 )
 
 // ExclusionConfig defines the rules for excluding windows from being assigned to buttons.
@@ -25,67 +28,39 @@ type SpecificExclusion struct {
 	Title string `json:"title"`
 }
 
-func loadExclusionConfig() (*ExclusionConfig, error) {
+func getExclusionConfigPath() (string, error) {
 	// Define user and default config paths
 	localAppData := os.Getenv("LOCALAPPDATA")
 	if localAppData == "" {
-		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
+		return "", fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
-	userConfigDir := filepath.Join(localAppData, "MightyPieRevamped")
-	userConfigPath := filepath.Join(userConfigDir, "window_exclusion_list.json")
+	userConfigDir := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"))
+	userConfigPath := filepath.Join(userConfigDir, exclusionListFileName+jsonExtension)
 
-	// If user config doesn't exist, create it from the default
-	if _, err := os.Stat(userConfigPath); os.IsNotExist(err) {
-		log.Printf("DEBUG: User config not found. Attempting to create from default.")
-		staticDir, err := core.GetStaticDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get static dir for default exclusion list: %w", err)
-		}
-		defaultConfigPath := filepath.Join(staticDir, env.Get("PUBLIC_DIR_DEFAULTEXCLUSIONLIST"))
+	return userConfigPath, nil
+}
 
-		if _, err := os.Stat(defaultConfigPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("default exclusion config not found at %s", defaultConfigPath)
-		}
-
-		// Create user config directory if it doesn't exist
-		if err := os.MkdirAll(userConfigDir, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create user config directory: %w", err)
-		}
-
-		// Copy default config to user directory
-		sourceFile, err := os.Open(defaultConfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open default config for copying: %w", err)
-		}
-		defer sourceFile.Close()
-
-		destFile, err := os.Create(userConfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create user config file: %w", err)
-		}
-		defer destFile.Close()
-
-		if _, err := io.Copy(destFile, sourceFile); err != nil {
-			log.Printf("ERROR: Failed to copy default config: %v", err)
-			return nil, fmt.Errorf("failed to copy default config to user directory: %w", err)
-		}
-	}
-
-	// Load the config from the user path
-	file, err := os.Open(userConfigPath)
+func loadExclusionConfig() (*ExclusionConfig, error) {
+	configPath, err := getExclusionConfigPath()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open exclusion config file at %s: %w", userConfigPath, err)
+		return nil, err
 	}
-	defer file.Close()
-
-	bytes, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read exclusion config file: %w", err)
-	}
-
 	var config ExclusionConfig
-	if err := json.Unmarshal(bytes, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse exclusion config JSON: %w", err)
+
+	// Ensure the exclusion config file exists by copying the default if needed.
+	staticDir, err := core.GetStaticDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get static dir for default exclusion list: %w", err)
+	}
+	defaultConfigPath := filepath.Join(staticDir, env.Get("PUBLIC_DIR_DEFAULTEXCLUSIONLIST"))
+
+	if err := jsonUtils.CreateFileFromDefaultIfNotExist(defaultConfigPath, configPath); err != nil {
+		return nil, fmt.Errorf("failed to copy default exclusion config if needed: %w", err)
+	}
+
+	// Now, read the file (either the original or the newly created one).
+	if err := jsonUtils.ReadFromFile(configPath, &config); err != nil {
+		return nil, fmt.Errorf("failed to read exclusion config: %w", err)
 	}
 
 	return &config, nil

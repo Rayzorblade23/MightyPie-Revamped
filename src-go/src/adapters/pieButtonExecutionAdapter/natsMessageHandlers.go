@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
@@ -91,7 +92,7 @@ func (a *PieButtonExecutionAdapter) handleOpenFolder(msg *nats.Msg) {
 			log.Println("ERROR: LOCALAPPDATA environment variable not set.")
 			return
 		}
-		path = filepath.Join(localAppData, "MightyPieRevamped")
+		path = filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"))
 	case "appfolder":
 		path, err = core.GetRootDir()
 		if err != nil {

@@ -6,8 +6,8 @@ import (
 	"maps"
 	"sync"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"                  // Verify path
-	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter" // Verify path
+	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )

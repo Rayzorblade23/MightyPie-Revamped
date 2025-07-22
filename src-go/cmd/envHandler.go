@@ -4,24 +4,20 @@ import (
 	"log"
 	"maps"
 	"path/filepath"
-	"runtime"
 
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/joho/godotenv"
 )
 
 var envVars map[string]string
 
-
 func init() {
 	envVars = make(map[string]string)
 
-	// Get the current file's directory
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		log.Fatal("Could not determine current file path")
+	baseDir, err := core.GetRootDir()
+	if err != nil {
+		log.Fatalf("Could not determine base directory: %v", err)
 	}
-
-	baseDir := filepath.Join(filepath.Dir(filename), "..", "..")
 
 	// Load .env
 	envPath := filepath.Join(baseDir, ".env")
@@ -41,11 +37,11 @@ func init() {
 }
 
 func Get(key string) string {
-    return envVars[key]
+	return envVars[key]
 }
 
 func GetAll() map[string]string {
-    result := make(map[string]string)
-    maps.Copy(result, envVars)
-    return result
+	result := make(map[string]string)
+	maps.Copy(result, envVars)
+	return result
 }

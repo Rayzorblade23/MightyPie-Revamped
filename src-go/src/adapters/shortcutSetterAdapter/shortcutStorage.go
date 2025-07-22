@@ -1,8 +1,8 @@
 package shortcutSetterAdapter
 
 import (
-	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,23 +10,18 @@ import (
 
 	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
+)
+
+const (
+	jsonExtension    = ".json"
+	shortcutsFileName = "shortcuts"
 )
 
 func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	configDir := filepath.Join(localAppData, "MightyPieRevamped")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-	shortcutsPath := filepath.Join(configDir, "shortcuts.json")
-
-	// Read existing shortcuts
-	shortcuts := make(ShortcutMap)
-	if data, err := os.ReadFile(shortcutsPath); err == nil {
-		_ = json.Unmarshal(data, &shortcuts)
+	shortcuts, err := LoadShortcuts()
+	if err != nil {
+		return fmt.Errorf("failed to load shortcuts: %w", err)
 	}
 
 	// Use the helper to build the label
@@ -39,12 +34,8 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	}
 	shortcuts[strconv.Itoa(index)] = entry
 
-	// Write back to file
-	data, err := json.MarshalIndent(shortcuts, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal shortcuts: %w", err)
-	}
-	if err := os.WriteFile(shortcutsPath, data, 0644); err != nil {
+	shortcutsPath := getShortcutConfigPath()
+	if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
 		return fmt.Errorf("failed to write shortcuts file: %w", err)
 	}
 
@@ -58,27 +49,33 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 }
 
 func LoadShortcuts() (ShortcutMap, error) {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	shortcutsPath := filepath.Join(localAppData, "MightyPieRevamped", "shortcuts.json")
-
+	shortcutsPath := getShortcutConfigPath()
 	shortcuts := make(ShortcutMap)
-	data, err := os.ReadFile(shortcutsPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return shortcuts, nil
+
+	// Ensure the config file exists.
+	if _, err := os.Stat(shortcutsPath); os.IsNotExist(err) {
+		log.Printf("INFO: Shortcuts file not found at %s. Creating a new empty file.", shortcutsPath)
+		if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
+			return nil, fmt.Errorf("failed to create initial shortcuts file: %w", err)
 		}
+	}
+
+	// Now, read the file (either the original or the newly created one).
+	if err := jsonUtils.ReadFromFile(shortcutsPath, &shortcuts); err != nil {
 		return nil, fmt.Errorf("failed to read shortcuts file: %w", err)
 	}
-	if err := json.Unmarshal(data, &shortcuts); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal shortcuts: %w", err)
-	}
+
+	// If the file was empty (but existed), ReadFromFile returns a nil error
+	// and shortcuts will be an empty map. We can just return it.
 	return shortcuts, nil
 }
 
 // ShortcutCodesToString returns a human-readable string for a slice of key codes.
+func getShortcutConfigPath() string {
+	localAppData := os.Getenv("LOCALAPPDATA")
+		return filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), shortcutsFileName+jsonExtension)
+}
+
 func ShortcutCodesToString(codes []int) string {
 	names := []string{}
 	for _, k := range codes {
@@ -93,28 +90,16 @@ func ShortcutCodesToString(codes []int) string {
 
 // Add a function to delete a shortcut by index
 func (a *ShortcutSetterAdapter) DeleteShortcut(index int) error {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return fmt.Errorf("LOCALAPPDATA environment variable not set")
-	}
-	configDir := filepath.Join(localAppData, "MightyPieRevamped")
-	shortcutsPath := filepath.Join(configDir, "shortcuts.json")
-
-	// Read existing shortcuts
-	shortcuts := make(ShortcutMap)
-	if data, err := os.ReadFile(shortcutsPath); err == nil {
-		_ = json.Unmarshal(data, &shortcuts)
+	shortcuts, err := LoadShortcuts()
+	if err != nil {
+		return fmt.Errorf("failed to load shortcuts: %w", err)
 	}
 
 	// Delete the shortcut at the given index
 	delete(shortcuts, strconv.Itoa(index))
 
-	// Write back to file
-	data, err := json.MarshalIndent(shortcuts, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal shortcuts: %w", err)
-	}
-	if err := os.WriteFile(shortcutsPath, data, 0644); err != nil {
+	shortcutsPath := getShortcutConfigPath()
+	if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
 		return fmt.Errorf("failed to write shortcuts file: %w", err)
 	}
 
