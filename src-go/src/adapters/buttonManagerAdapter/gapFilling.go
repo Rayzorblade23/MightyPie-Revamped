@@ -63,74 +63,69 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 			return bi < bj
 		})
 
-		// Minimal-move gap-filling: for each gap, move the highest-indexed assigned window above it into the gap
-		moves := 0
+		// Minimal-move gap-filling: if a move is made, the process restarts to find the next best move.
+		movesThisType := 0
+	mainLoop:
 		for {
-			// Find the lowest-indexed gap
-			gapIdx := -1
-			for i := 0; i < len(keys); i++ {
-				gapBtn := config[keys[i].menuID][keys[i].pageID][keys[i].btnID]
-				if isButtonEmpty(&gapBtn) {
-					gapIdx = i
-					break
+			// Iterate through all buttons to find a gap
+			for gapIdx := 0; gapIdx < len(keys); gapIdx++ {
+				gapBtn := config[keys[gapIdx].menuID][keys[gapIdx].pageID][keys[gapIdx].btnID]
+				if !isButtonEmpty(&gapBtn) {
+					continue // Not a gap, try next button
 				}
-			}
-			if gapIdx == -1 {
-				break // no more gaps
-			}
-			// Find the highest-indexed assigned window above the gap
-			srcIdx := -1
-			for i := len(keys) - 1; i > gapIdx; i-- {
-				srcBtn := config[keys[i].menuID][keys[i].pageID][keys[i].btnID]
-				if !isButtonEmpty(&srcBtn) {
+
+				// Found a gap at gapIdx. Now find the highest-indexed source for it.
+				for srcIdx := len(keys) - 1; srcIdx > gapIdx; srcIdx-- {
+					srcBtn := config[keys[srcIdx].menuID][keys[srcIdx].pageID][keys[srcIdx].btnID]
+					if isButtonEmpty(&srcBtn) {
+						continue // Not a source, try next button
+					}
+
+					// Check for program match if necessary
 					if buttonType == core.ButtonTypeShowProgramWindow {
-						gapBtn := config[keys[gapIdx].menuID][keys[gapIdx].pageID][keys[gapIdx].btnID]
 						propsGap, errGap := GetButtonProperties[core.ShowProgramWindowProperties](gapBtn)
 						propsSrc, errSrc := GetButtonProperties[core.ShowProgramWindowProperties](srcBtn)
 						if errGap != nil || errSrc != nil {
-							continue // skip if cannot get properties
+							continue // Cannot compare, so not a match
 						}
 						if propsGap.ButtonTextLower != propsSrc.ButtonTextLower {
-							continue // skip if not the same program
+							continue // Not the same program, not a match
 						}
 					}
-					srcIdx = i
-					break
+
+					// We found a valid gap and a source. Perform the move.
+					srcKey := keys[srcIdx]
+					gapKey := keys[gapIdx]
+					log.Printf("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", buttonType, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
+
+					// Get fresh button structs for the move
+					srcBtnToMove := config[srcKey.menuID][srcKey.pageID][srcKey.btnID]
+					gapBtnToFill := config[gapKey.menuID][gapKey.pageID][gapKey.btnID]
+
+					switch buttonType {
+					case core.ButtonTypeShowAnyWindow:
+						props, _ := GetButtonProperties[core.ShowAnyWindowProperties](srcBtnToMove)
+						SetButtonProperties(&gapBtnToFill, props)
+					case core.ButtonTypeShowProgramWindow:
+						props, _ := GetButtonProperties[core.ShowProgramWindowProperties](srcBtnToMove)
+						SetButtonProperties(&gapBtnToFill, props)
+					}
+					clearButtonWindowProperties(&srcBtnToMove)
+
+					config[gapKey.menuID][gapKey.pageID][gapKey.btnID] = gapBtnToFill
+					config[srcKey.menuID][srcKey.pageID][srcKey.btnID] = srcBtnToMove
+
+					movesThisType++
+					continue mainLoop // Restart the search for the next best move
 				}
+				// If we are here, no source was found for the current gap.
+				// The outer loop will proceed to the next gap candidate.
 			}
-			if srcIdx == -1 {
-				break // no more assigned windows above gaps (or no same-program match)
-			}
-			// Move assignment from srcIdx to gapIdx
-			srcKey := keys[srcIdx]
-			gapKey := keys[gapIdx]
-			log.Printf("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", buttonType, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
-			srcBtn := config[srcKey.menuID][srcKey.pageID][srcKey.btnID]
-			gapBtn := config[gapKey.menuID][gapKey.pageID][gapKey.btnID]
-			switch buttonType {
-			case core.ButtonTypeShowAnyWindow:
-				props, _ := GetButtonProperties[core.ShowAnyWindowProperties](srcBtn)
-				SetButtonProperties(&gapBtn, props)
-				clearButtonWindowProperties(&srcBtn)
-				config[gapKey.menuID][gapKey.pageID][gapKey.btnID] = gapBtn
-				config[srcKey.menuID][srcKey.pageID][srcKey.btnID] = srcBtn
-			case core.ButtonTypeShowProgramWindow:
-				propsGap, errGap := GetButtonProperties[core.ShowProgramWindowProperties](gapBtn)
-				propsSrc, errSrc := GetButtonProperties[core.ShowProgramWindowProperties](srcBtn)
-				if errGap != nil || errSrc != nil {
-					break // skip if cannot get properties
-				}
-				if propsGap.ButtonTextLower != propsSrc.ButtonTextLower {
-					break // do not move across programs
-				}
-				SetButtonProperties(&gapBtn, propsSrc)
-				clearButtonWindowProperties(&srcBtn)
-				config[gapKey.menuID][gapKey.pageID][gapKey.btnID] = gapBtn
-				config[srcKey.menuID][srcKey.pageID][srcKey.btnID] = srcBtn
-			}
-			moves++
+
+			// If we complete the gap-finding loop without making a move, we're done.
+			break mainLoop
 		}
-		totalMoves += moves
+		totalMoves += movesThisType
 	}
 	// Debug: dump Menu 0, Pages 0 and 1 AFTER ALL GAP-FILL
 	dumpFirstMenuPages(config)
@@ -147,9 +142,9 @@ func handleToStr(h int) string {
 
 // dumpFirstMenuPages prints the first two pages of the first menu, showing button IDs, type, and title/handle.
 func dumpFirstMenuPages(config ConfigData) {
-	menuID := "0"
-	for _, pageID := range []string{"0", "1"} {
-		log.Printf("[GAPFILL] DUMP Menu 0 Page %s:", pageID)
+	menuID := "3"
+	for _, pageID := range []string{"0"} {
+		log.Printf("[GAPFILL] DUMP Menu %s Page %s:", menuID, pageID)
 		pageConfig, ok := config[menuID][pageID]
 		if !ok {
 			continue
