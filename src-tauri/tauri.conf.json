@@ -39,7 +39,8 @@
       "../src-go/bin/main"
     ],
     "resources": [
-      "../scripts/nats.conf"
+      "../scripts/nats.conf",
+      "../scripts/nats-server"
     ]
   }
 }
