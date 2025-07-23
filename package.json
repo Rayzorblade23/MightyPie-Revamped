@@ -4,8 +4,14 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "pnpm dev:build:go && concurrently --kill-others --names NATS,GO,VITE \"nats-server -config scripts/nats.conf\" \"wait-on tcp:4222 && cd src-go && .\\bin\\main-x86_64-pc-windows-msvc.exe\" \"wait-on tcp:4222 && node ./node_modules/vite/bin/vite.js dev\"",
+    "start:services": "wait-on tcp:4222 && concurrently \"npm:start:go\" \"npm:dev:vite\"",
+    "dev:vite": "vite dev",
+    "start:go": "cd src-go && .\\bin\\main-x86_64-pc-windows-msvc.exe",
+    "start:nats": "nats-server -config scripts/nats.conf",
+    "build": "pnpm build:go && vite build",
+    "build:go": "cd src-go && .\\build.bat && ren .\\bin\\main.exe main-x86_64-pc-windows-msvc.exe",
+    "dev:build:go": "cd src-go && .\\dev-build.bat",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -35,9 +41,11 @@
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tauri-apps/cli": "^2",
     "@types/node": "^22.15.2",
+    "concurrently": "^9.2.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "wait-on": "^8.0.3"
   }
 }
