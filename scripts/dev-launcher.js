@@ -2,7 +2,6 @@ import {spawn} from 'child_process';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import dotenv from 'dotenv';
-import waitOn from 'wait-on';
 import chalk from 'chalk';
 
 // --- Configuration ---
@@ -12,23 +11,13 @@ const projectRoot = path.resolve(__dirname, '..');
 
 dotenv.config({path: path.join(projectRoot, '.env.local')});
 
-const natsToken = process.env.NATS_AUTH_TOKEN;
-if (!natsToken) {
-    console.error(chalk.red.bold('[FATAL] NATS_AUTH_TOKEN is not defined in .env.local'));
-    process.exit(1);
-}
-
 const commands = {
-    nats: {
-        cmd: path.join(projectRoot, 'scripts', 'nats-server', 'nats-server.exe'),
-        args: ['-c', path.join(projectRoot, 'scripts', 'nats.conf'), '--auth', natsToken],
-        cwd: projectRoot,
-        color: chalk.cyan,
-    }, go: {
+    go: {
         cmd: path.join(projectRoot, 'src-go', 'bin', 'main-x86_64-pc-windows-msvc.exe'),
         args: [],
         cwd: path.join(projectRoot, 'src-go'),
         color: chalk.blue,
+        env: { ...process.env, APP_ENV: 'development' }
     }, vite: {
         cmd: 'node',
         args: [path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js'), 'dev'],
@@ -42,12 +31,7 @@ const children = [];
 // --- Main Execution ---
 async function main() {
     try {
-        console.log(chalk.yellow('[LAUNCHER] Starting NATS server...'));
-        spawnProcess('nats', commands.nats);
-
-        await waitOn({resources: ['tcp:4222']});
-        console.log(chalk.yellow('[LAUNCHER] NATS is ready. Starting dependent services...'));
-
+        console.log(chalk.yellow('[LAUNCHER] Starting services...'));
         spawnProcess('go', commands.go);
         spawnProcess('vite', commands.vite);
 
@@ -58,8 +42,8 @@ async function main() {
 }
 
 // --- Helper Functions ---
-function spawnProcess(name, {cmd, args, cwd, color}) {
-    const p = spawn(cmd, args, {cwd, stdio: 'pipe'});
+function spawnProcess(name, {cmd, args, cwd, color, env}) {
+    const p = spawn(cmd, args, {cwd, stdio: 'pipe', env});
     children.push(p);
 
     const prefix = color(`[${name.toUpperCase()}]`);

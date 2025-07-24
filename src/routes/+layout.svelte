@@ -19,8 +19,8 @@
     import {
         connectToNats,
         disconnectFromNats,
-        getConnectionStatus,
-        manageJetStreamConsumer
+        fetchLatestFromStream,
+        getConnectionStatus
     } from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
@@ -47,11 +47,11 @@
     });
 
     let {children} = $props();
-    let displayStatus = $state('Idle');
+    let connectionStatus = $state('Idle');
 
     $effect(() => {
-        displayStatus = getConnectionStatus();
-        console.log("NATS connection status:", displayStatus);
+        connectionStatus = getConnectionStatus();
+        console.log("NATS connection status:", connectionStatus);
     });
 
     const handleButtonUpdateMessage = (message: string) => {
@@ -137,7 +137,7 @@
         let stopButtonUpdate: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopButtonUpdate = await manageJetStreamConsumer(
+                stopButtonUpdate = await fetchLatestFromStream(
                     PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
                     handleButtonUpdateMessage
                 );
@@ -150,7 +150,7 @@
         let stopBaseConfig: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopBaseConfig = await manageJetStreamConsumer(
+                stopBaseConfig = await fetchLatestFromStream(
                     PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
                     handleBaseConfigUpdateMessage
                 );
@@ -163,7 +163,7 @@
         let stopInstalledApps: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopInstalledApps = await manageJetStreamConsumer(
+                stopInstalledApps = await fetchLatestFromStream(
                     PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
                     handleInstalledAppsMessage
                 );
@@ -176,7 +176,7 @@
         let stopShortcutLabels: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopShortcutLabels = await manageJetStreamConsumer(
+                stopShortcutLabels = await fetchLatestFromStream(
                     PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
                     handleShortcutLabelsUpdateMessage
                 );
@@ -189,7 +189,7 @@
         let stopSettingsUpdate: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopSettingsUpdate = await manageJetStreamConsumer(
+                stopSettingsUpdate = await fetchLatestFromStream(
                     PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
                     handleSettingsUpdateMessage
                 );
@@ -204,7 +204,7 @@
                 try {
                     console.log("Attempting to connect to NATS...");
                     await connectToNats();
-                    // The $effect watching displayStatus will handle sending the request
+                    // The $effect watching connectionStatus will handle sending the request
                 } catch (error) {
                     console.error("[+layout.svelte] Failed to connect to NATS:", error);
                 }
@@ -244,29 +244,25 @@
     function handleJsonMessage<T>(
         message: string,
         onSuccess: (parsedData: T) => void,
-        context: string
+        sourceHint: string
     ): void {
-        let parsedJsonPayload: T;
-
         try {
-            parsedJsonPayload = JSON.parse(message);
-        } catch (parseError) {
-            console.error(`[${context}] Failed to parse JSON:`, parseError, 'Raw message:', message);
-            return;
-        }
-
-        if (parsedJsonPayload === null) {
-            console.error(`[${context}] Received null payload. Raw message:`, message);
-            return;
-        }
-
-        try {
-            onSuccess(parsedJsonPayload);
-        } catch (applyError) {
-            console.error(`[${context}] Failed to process parsed data:`, applyError, 'Parsed data:', parsedJsonPayload);
+            const parsed = JSON.parse(message) as T;
+            onSuccess(parsed);
+        } catch (error) {
+            console.error(`[${sourceHint}] Failed to parse JSON message:`, error);
         }
     }
 </script>
 
-
-{@render children()}
+{#if connectionStatus === 'connected'}
+    {@render children()}
+{:else if connectionStatus === 'error'}
+    <div class="flex h-screen w-full items-center justify-center bg-gray-800 text-white">
+        <p>Error: Could not connect to the backend service. Please try restarting the application.</p>
+    </div>
+{:else}
+    <div class="flex h-screen w-full items-center justify-center bg-gray-800 text-white">
+        <p>Connecting to backend...</p>
+    </div>
+{/if}

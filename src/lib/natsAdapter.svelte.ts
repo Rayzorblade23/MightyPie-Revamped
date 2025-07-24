@@ -94,143 +94,92 @@ export async function connectToNats(): Promise<void> {
     connectionStatus = 'connecting';
     console.log(`${NATS_LOG_PREFIX} Attempting to connect...`);
 
-    let nc: NatsConnection | null = null; // Define nc here for broader scope
+    const maxRetries = 15; // Increased retries for robustness
+    const retryDelay = 1000; // 1-second delay
 
-    try {
-        const config = await getOrLoadNatsConfig();
-        const connectionOpts: ConnectionOptions = {
-            servers: [config.serverUrl], token: config.authToken,
-            reconnectTimeWait: 5000, maxReconnectAttempts: 10,
-            timeout: 10000, name: 'TauriSvelteClient'
-        };
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        if (connectionStatus === 'connected') {
+            console.log(`${NATS_LOG_PREFIX} Already connected, aborting retry loop.`);
+            return;
+        }
 
-        nc = await connect(connectionOpts);
-        natsConnection = nc; // Assign to module variable *before* listener starts
-        connectionStatus = 'connected'; // Set status *after* successful connect
-        console.log(`${NATS_LOG_PREFIX} Connected to server: ${nc.getServer()}`);
+        try {
+            const config = await getOrLoadNatsConfig();
+            const connectionOpts: ConnectionOptions = {
+                servers: [config.serverUrl], token: config.authToken,
+                reconnectTimeWait: 5000, maxReconnectAttempts: -1, // Reconnect indefinitely
+                timeout: 10000, name: 'TauriSvelteClient'
+            };
 
-        // --- Start monitoring status events (async IIFE) ---
-        (async () => {
-            // Capture the specific connection instance for this listener's scope
-            const currentNcInstance = nc;
+            const nc = await connect(connectionOpts);
+            natsConnection = nc;
+            connectionStatus = 'connected';
+            console.log(`${NATS_LOG_PREFIX} Connected to server: ${nc.getServer()} on attempt ${attempt}`);
 
-            // Safeguard: Check for immediate closure after connect but before listener loop starts
-            if (!currentNcInstance || currentNcInstance.isClosed()) {
-                console.warn(`${NATS_LOG_PREFIX} Listener not started; connection ${currentNcInstance?.getServer()} closed prematurely.`);
-                if (natsConnection === currentNcInstance) {
-                    natsConnection = null;
-                    console.log(`${NATS_LOG_PREFIX} Setting status to 'closed' due to premature connection closure.`);
-                    connectionStatus = 'closed';
-                }
-                return; // Exit this IIFE
-            }
-
-            let listenerErrorOccurred = false; // Track errors within the listener's try/catch
-
-            try {
-                console.log(`${NATS_LOG_PREFIX} Status listener started for ${currentNcInstance.getServer()}.`);
-
-                // Process status events asynchronously
-                for await (const status of currentNcInstance.status()) {
-                    // Stop processing if this listener's connection is no longer the active one,
-                    // or if the connection instance itself is closed.
-                    if (natsConnection !== currentNcInstance || currentNcInstance.isClosed()) {
-                        console.log(`${NATS_LOG_PREFIX} Listener for ${currentNcInstance.getServer()} stopping; no longer active or connection closed.`);
-                        break; // Exit the for...await loop
-                    }
-
-                    console.info(`${NATS_LOG_PREFIX} Status event: ${status.type}`, status.data ?? '');
-
-                    // Update reactive state based on event type
-                    switch (status.type) {
-                        case Events.Disconnect:
-                        case 'disconnect': // String fallback
-                            connectionStatus = 'reconnecting';
-                            break;
-                        case Events.Reconnect:
-                        case 'reconnect': // String fallback
-                            connectionStatus = 'connected';
-                            console.log(`${NATS_LOG_PREFIX} Reconnected to server: ${currentNcInstance.getServer()}`);
-                            break;
-                        case Events.Error:
-                        case 'error': // String fallback
-                            console.error(`${NATS_LOG_PREFIX} NATS connection error event:`, status.data);
-                            connectionStatus = 'error'; // Reflect the error state
-                            break;
-                        // No 'close' event case; loop completion handles closure.
-                        default:
-                            console.log(`${NATS_LOG_PREFIX} Unhandled status event type: ${status.type}`);
-                    }
-                } // End for await...of loop
-
-                console.log(`${NATS_LOG_PREFIX} Status listener loop finished normally for ${currentNcInstance.getServer()}.`);
-
-            } catch (err) { // Catch errors during the listener's execution (e.g., iterating status)
-                console.error(`${NATS_LOG_PREFIX} Status listener CRASHED for ${currentNcInstance.getServer()}:`, err);
-                listenerErrorOccurred = true; // Mark that an error happened within the listener
-                // If the error occurred for the currently active connection, set global state to error
-                if (natsConnection === currentNcInstance) {
-                    connectionStatus = 'error';
-                }
-            } finally { // Runs when the loop exits (normally, break, or error)
-                console.log(`${NATS_LOG_PREFIX} Status listener finally block for ${currentNcInstance.getServer()}.`);
-
-                // Check if the connection instance is actually closed when the listener stops
-                if (currentNcInstance.isClosed()) {
-                    console.log(`${NATS_LOG_PREFIX} Connection ${currentNcInstance.getServer()} is closed.`);
-                    // Only finalize state if this listener was for the *currently active* connection
+            // Start monitoring status events
+            (async () => {
+                const currentNcInstance = nc;
+                if (!currentNcInstance || currentNcInstance.isClosed()) {
                     if (natsConnection === currentNcInstance) {
-                        natsConnection = null; // Clean up the global connection reference
-
-                        // Determine final state based on whether an error occurred *during* the listener run
-                        const statusBeforeFinally = connectionStatus; // Check state right before this block
-                        if (statusBeforeFinally !== 'error' && !listenerErrorOccurred) {
-                            // If no error state before and listener didn't crash, connection is cleanly closed
-                            console.log(`${NATS_LOG_PREFIX} Setting status to 'closed' in finally.`);
-                            connectionStatus = 'closed';
-                        } else {
-                            // If state was already error OR the listener crashed, keep/set state to error
-                            console.log(`${NATS_LOG_PREFIX} Setting/Keeping status as 'error' in finally due to prior error state or listener crash.`);
-                            connectionStatus = 'error'; // Ensure error state if listener crashed
-                        }
-                    } else {
-                        // Listener stopped for an old/inactive connection that is now closed. Do nothing to global state.
-                        console.log(`${NATS_LOG_PREFIX} Listener finally: Connection ${currentNcInstance.getServer()} closed, but it wasn't the active connection.`);
+                        natsConnection = null;
+                        connectionStatus = 'closed';
                     }
-                } else {
-                    // Listener stopped (e.g., loop break), but connection is NOT closed.
-                    console.log(`${NATS_LOG_PREFIX} Listener finally: Connection ${currentNcInstance.getServer()} is NOT closed.`);
-                    // If the listener crashed but connection isn't closed, something is weird. Force error state.
-                    if (listenerErrorOccurred && natsConnection === currentNcInstance) {
-                        console.warn(`${NATS_LOG_PREFIX} Listener crashed but connection not closed? Forcing 'error' state.`);
+                    return;
+                }
+
+                try {
+                    for await (const status of currentNcInstance.status()) {
+                        if (natsConnection !== currentNcInstance || currentNcInstance.isClosed()) {
+                            break;
+                        }
+                        switch (status.type) {
+                            case Events.Disconnect:
+                                connectionStatus = 'reconnecting';
+                                break;
+                            case Events.Reconnect:
+                                connectionStatus = 'connected';
+                                break;
+                            case Events.Error:
+                                connectionStatus = 'error';
+                                break;
+                        }
+                    }
+                } catch (err) {
+                    if (natsConnection === currentNcInstance) {
                         connectionStatus = 'error';
                     }
-                    // Otherwise, the state ('connected' or 'reconnecting') likely remains valid.
+                } finally {
+                    if (currentNcInstance.isClosed()) {
+                        if (natsConnection === currentNcInstance) {
+                            natsConnection = null;
+                            if (connectionStatus !== 'error') {
+                                connectionStatus = 'closed';
+                            }
+                        }
+                    }
                 }
-            } // End finally
-        })().catch(err => { // <--- ADDED .catch() HERE for the IIFE call
-            // This catches errors related to *launching* the async IIFE itself.
-            // It's unlikely but handles the floating promise lint rule.
-            console.error(`${NATS_LOG_PREFIX} CRITICAL: Failed to start NATS status listener:`, err);
-            // If starting the listener fails, the connection state is unreliable.
-            // Check if nc was assigned and is the current connection before setting error.
-            if (nc && natsConnection === nc) {
-                connectionStatus = 'error';
-            }
-        });
-        // --- End of status listener IIFE ---
+            })().catch(err => {
+                // This catches errors related to *launching* the async IIFE itself or an unhandled crash within.
+                console.error(`${NATS_LOG_PREFIX} CRITICAL: NATS status listener failed unexpectedly:`, err);
+                // If the listener fails, the connection state is unreliable.
+                if (natsConnection === nc) {
+                    connectionStatus = 'error';
+                }
+            });
 
-    } catch (err: unknown) { // Catches errors from getOrLoadNatsConfig() or connect()
-        console.error(`${NATS_LOG_PREFIX} Failed to connect:`, err);
-        // Ensure natsConnection is null if connect() threw or nc wasn't assigned
-        if (natsConnection === nc) {
-            natsConnection = null;
+            return; // Exit the function successfully
+
+        } catch (err) {
+            console.warn(`${NATS_LOG_PREFIX} Connection attempt ${attempt} of ${maxRetries} failed:`, err);
+            if (attempt === maxRetries) {
+                console.error(`${NATS_LOG_PREFIX} All connection attempts failed.`);
+                connectionStatus = 'error';
+                natsConnection = null;
+                throw new Error("Failed to connect to NATS after multiple retries.");
+            }
+            // Wait before the next retry
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
-        connectionStatus = 'error'; // Initial connection failure results in 'error' state
-        // Rethrow so the caller knows connection failed
-        throw new Error(
-            `${NATS_LOG_PREFIX} Connection failed: ${err instanceof Error ? err.message : String(err)}`
-        );
     }
 }
 
@@ -349,46 +298,12 @@ export async function subscribeToSubject(
 }
 
 /**
- * Starts a persistent JetStream consumer for a given stream/consumer, calling the given handler for each message.
- * Handles both history and live updates. Returns a cancel function.
- * @param stream - JetStream stream name (e.g. 'MIGHTYPIE_EVENTS')
- * @param consumer - Durable consumer name
- * @param handler - Function to call for each decoded message
- * @returns A function to cancel the consumer loop
- */
-export async function startJetStreamConsumer(
-    stream: string,
-    consumer: string,
-    handler: (decodedMsg: string) => void | Promise<void>
-): Promise<() => void> {
-    if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
-    const js = natsConnection.jetstream();
-    const c = await js.consumers.get(stream, consumer);
-    let cancelled = false;
-    const consumeLoop = async () => {
-        for await (const m of await c.consume()) {
-            if (cancelled) break;
-            try {
-                handler(sc.decode(m.data));
-            } catch (e) {
-                console.error("[JetStreamConsumer] Handler error:", e);
-            }
-            m.ack();
-        }
-    };
-    await consumeLoop();
-    return () => {
-        cancelled = true;
-    };
-}
-
-/**
  * Manages an ephemeral JetStream consumer for any stream/subject, always delivering the latest message.
  * @param subject - Subject filter
  * @param handler - Handler for the decoded latest message
  * @returns Cleanup function
  */
-export async function manageJetStreamConsumer(
+export async function fetchLatestFromStream(
     subject: string,
     handler: (msg: string) => void | Promise<void>
 ) {
@@ -411,7 +326,7 @@ export async function manageJetStreamConsumer(
             try {
                 await handler(sc.decode(msg.data));
             } catch (e) {
-                console.error("[manageJetStreamConsumer] Handler error:", e);
+                console.error("[fetchLatestFromStream] Handler error:", e);
             }
             msg.ack();
         }

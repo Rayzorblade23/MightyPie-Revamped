@@ -15,33 +15,37 @@ type NatsAdapter struct {
 }
 
 func New() (*NatsAdapter, error) {
-	// Connect to NATS server with token authentication
 	token := env.Get("NATS_AUTH_TOKEN")
 	urlStr := env.Get("NATS_SERVER_URL")
 
-	connection, err := nats.Connect(urlStr, nats.Token(token))
-	if err != nil {
-		log.Fatalf("Error connecting to NATS: %v", err)
-		return nil, err
+	var connection *nats.Conn
+	var err error
+
+	// Retry connecting to NATS with a backoff strategy
+	for {
+		connection, err = nats.Connect(urlStr, nats.Token(token))
+		if err == nil {
+			log.Println("Successfully connected to NATS server.")
+			break // Connection successful
+		}
+
+		log.Printf("Failed to connect to NATS: %v. Retrying in 5 seconds...", err)
+		time.Sleep(5 * time.Second)
 	}
 
 	adapter := &NatsAdapter{
 		Connection: connection,
 	}
 
-	// Ensure the JetStream stream is created
-	if err := adapter.CreateEventsStream(); err != nil {
-		log.Fatalf("Error creating JetStream stream: %v", err)
-		return nil, err
+	// Ensure the JetStream stream is created, with retries
+	for {
+		if err := adapter.CreateEventsStream(); err == nil {
+			log.Println("Successfully created or verified JetStream stream.")
+			break // Stream creation successful
+		}
+		log.Printf("Failed to create JetStream stream: %v. Retrying in 5 seconds...", err)
+		time.Sleep(5 * time.Second)
 	}
-
-	// // Print stream overview after 10 seconds
-	// go func(adapter *NatsAdapter) {
-	// 	for {
-	// 		time.Sleep(10 * time.Second)
-	// 		adapter.StreamOverview()
-	// 	}
-	// }(adapter)
 
 	return adapter, nil
 }
