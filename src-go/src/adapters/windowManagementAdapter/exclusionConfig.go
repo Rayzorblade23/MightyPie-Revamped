@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
 )
@@ -34,7 +33,7 @@ func getExclusionConfigPath() (string, error) {
 	if localAppData == "" {
 		return "", fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
-	userConfigDir := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"))
+	userConfigDir := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"))
 	userConfigPath := filepath.Join(userConfigDir, exclusionListFileName+jsonExtension)
 
 	return userConfigPath, nil
@@ -52,7 +51,7 @@ func loadExclusionConfig() (*ExclusionConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get static dir for default exclusion list: %w", err)
 	}
-	defaultConfigPath := filepath.Join(staticDir, env.Get("PUBLIC_DIR_DEFAULTEXCLUSIONLIST"))
+	defaultConfigPath := filepath.Join(staticDir, os.Getenv("PUBLIC_DIR_DEFAULTEXCLUSIONLIST"))
 
 	if err := jsonUtils.CreateFileFromDefaultIfNotExist(defaultConfigPath, configPath); err != nil {
 		return nil, fmt.Errorf("failed to copy default exclusion config if needed: %w", err)

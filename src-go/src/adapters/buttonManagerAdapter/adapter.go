@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"maps"
+	"os"
 	"sync"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
@@ -32,13 +32,13 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		natsAdapter: natsAdapter,
 	}
 
-	buttonUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
-	windowUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	baseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG")
-	saveConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
-	loadConfigBackupSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
-	receiveNewBaseConfigSubject := env.Get("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
-	fillGapsSubject := env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS")
+	buttonUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
+	windowUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
+	baseConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG")
+	saveConfigBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
+	loadConfigBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
+	receiveNewBaseConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
+	fillGapsSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS")
 
 	config, err := ReadButtonConfig()
 	if err != nil {
@@ -139,7 +139,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		gapFilledConfig, cleared := FillWindowAssignmentGaps(currentConfig)
 		if cleared > 0 {
 			updateButtonConfig(gapFilledConfig)
-			a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
+			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
 			log.Println("INFO: Gap-filling/compaction performed and update published (no processWindowUpdate).")
 		} else {
 			log.Println("INFO: Gap-filling triggered but no gaps were found.")

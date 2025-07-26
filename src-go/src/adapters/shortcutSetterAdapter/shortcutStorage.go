@@ -8,13 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
 )
 
 const (
-	jsonExtension    = ".json"
+	jsonExtension     = ".json"
 	shortcutsFileName = "shortcuts"
 )
 
@@ -40,7 +39,7 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	}
 
 	// --- Send NATS message with the whole map ---
-	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
+	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
 		a.natsAdapter.PublishMessage(subject, shortcuts)
 	}
@@ -73,7 +72,7 @@ func LoadShortcuts() (ShortcutMap, error) {
 // ShortcutCodesToString returns a human-readable string for a slice of key codes.
 func getShortcutConfigPath() string {
 	localAppData := os.Getenv("LOCALAPPDATA")
-		return filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), shortcutsFileName+jsonExtension)
+	return filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), shortcutsFileName+jsonExtension)
 }
 
 func ShortcutCodesToString(codes []int) string {
@@ -104,7 +103,7 @@ func (a *ShortcutSetterAdapter) DeleteShortcut(index int) error {
 	}
 
 	// --- Send NATS message with the whole map ---
-	subject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
+	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
 		a.natsAdapter.PublishMessage(subject, shortcuts)
 	}

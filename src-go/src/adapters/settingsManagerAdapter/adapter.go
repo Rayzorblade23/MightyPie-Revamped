@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	core "github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
@@ -30,7 +29,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 		natsAdapter: natsAdapter,
 	}
 
-	subject := env.Get("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
+	subject := os.Getenv("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
 
 	settings, err := ReadSettings()
 	if err != nil {
@@ -84,7 +83,7 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 	if localAppData == "" {
 		return nil, os.ErrNotExist
 	}
-		settingsPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
+	settingsPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
 	configDir := filepath.Dir(settingsPath)
 
 	// Ensure the settings file exists by copying the default if needed.
@@ -92,7 +91,7 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get static dir for default settings: %w", err)
 	}
-	defaultSettingsRel := env.Get("PUBLIC_DIR_DEFAULTSETTINGS")
+	defaultSettingsRel := os.Getenv("PUBLIC_DIR_DEFAULTSETTINGS")
 	if defaultSettingsRel == "" {
 		return nil, fmt.Errorf("environment variable PUBLIC_DIR_DEFAULTSETTINGS is not set")
 	}
@@ -135,7 +134,7 @@ func WriteSettings(settings map[string]SettingsEntry) error {
 	if localAppData == "" {
 		return os.ErrNotExist
 	}
-		settingsPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
+	settingsPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), settingsFileName+jsonExtension)
 	return jsonUtils.WriteToFile(settingsPath, settings)
 }
 

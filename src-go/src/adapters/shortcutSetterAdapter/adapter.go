@@ -3,9 +3,9 @@ package shortcutSetterAdapter
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
@@ -23,10 +23,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		natsAdapter: natsAdapter,
 	}
 
-	captureShortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE")
-	updateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
-	abortSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT")
-	deleteSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE")
+	captureShortcutSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE")
+	updateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
+	abortSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT")
+	deleteSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE")
 
 	// Load and print existing shortcuts
 	shortcuts, err := LoadShortcuts()
@@ -82,21 +82,21 @@ func (a *ShortcutSetterAdapter) ListenForShortcutAtIndex(index int) {
 	}
 
 	a.keyboardHook = newSetterKeyboardHook(func(shortcut []int) {
-			once.Do(func() {
-				// Always stop the hook after the first detected shortcut.
-				defer a.keyboardHook.Stop()
+		once.Do(func() {
+			// Always stop the hook after the first detected shortcut.
+			defer a.keyboardHook.Stop()
 
-				if !IsValidShortcut(shortcut) {
-					fmt.Println("DEBUG: Invalid shortcut, ignoring")
-					return
-				}
+			if !IsValidShortcut(shortcut) {
+				fmt.Println("DEBUG: Invalid shortcut, ignoring")
+				return
+			}
 
-				if err := a.SaveShortcut(index, shortcut); err != nil {
-					fmt.Println("Failed to save shortcut:", err)
-				} else {
-					fmt.Printf("Shortcut detected and saved for index %d\n", index)
-				}
-			})
+			if err := a.SaveShortcut(index, shortcut); err != nil {
+				fmt.Println("Failed to save shortcut:", err)
+			} else {
+				fmt.Printf("Shortcut detected and saved for index %d\n", index)
+			}
+		})
 	})
 	go func() {
 		if err := a.keyboardHook.Run(); err != nil {

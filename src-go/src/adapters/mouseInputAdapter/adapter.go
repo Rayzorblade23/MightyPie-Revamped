@@ -3,10 +3,10 @@ package mouseInputAdapter
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"syscall"
 	"unsafe"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
@@ -28,7 +28,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 	a := &MouseInputAdapter{
 		natsAdapter: natsAdapter,
 	}
-	natsAdapter.SubscribeToSubject(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), core.GetTypeName(a), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), core.GetTypeName(a), func(msg *nats.Msg) {
 
 		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -142,7 +142,7 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
 	msg := piemenuClick_Message{
 		Click: fmt.Sprintf("%s_%s", event.Button, event.State),
 	}
-	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), msg)
+	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), msg)
 	fmt.Printf("Mouse %s\n", msg.Click)
 }
 

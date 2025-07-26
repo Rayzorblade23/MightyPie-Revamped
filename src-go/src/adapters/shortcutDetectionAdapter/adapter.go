@@ -4,11 +4,11 @@ package shortcutDetectionAdapter
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"syscall"
 
 	"unsafe"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
@@ -54,7 +54,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 	}()
 
-	setterUpdateSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
+	setterUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	err := adapter.natsAdapter.SubscribeJetStreamPull(setterUpdateSubject, "", func(natsMessage *nats.Msg) {
 		var receivedShortcuts map[string]core.ShortcutEntry
 		if err := json.Unmarshal(natsMessage.Data, &receivedShortcuts); err != nil {
@@ -80,7 +80,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		fmt.Printf("Error: Failed to subscribe to JetStream subject: %v\n", err)
 	}
 
-	pressedEventSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	pressedEventSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
 		var eventData core.ShortcutPressed_Message
 		if err := json.Unmarshal(natsMessage.Data, &eventData); err != nil {
@@ -195,9 +195,9 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	}
 	natsSubject := ""
 	if isPressedEvent {
-		natsSubject = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	} else {
-		natsSubject = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
+		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
 	fmt.Printf("Publishing %s for shortcut %d (%s) at (%d, %d)\n", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
 	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)

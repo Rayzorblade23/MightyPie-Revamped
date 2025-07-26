@@ -6,21 +6,21 @@ package pieButtonExecutionAdapter
 import (
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
 // NATS Subjects - fetched from environment, consider constants if these are static.
 var (
-	natsSubjectPieButtonExecute    = env.Get("PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE")
-	natsSubjectShortcutPressed     = env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
-	natsSubjectWindowManagerUpdate = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	natsSubjectInstalledAppsInfo   = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
-	natsSubjectPieMenuNavigate     = env.Get("PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE")
-	natsSubjectPieButtonOpenFolder = env.Get("PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER")
+	natsSubjectPieButtonExecute    = os.Getenv("PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE")
+	natsSubjectShortcutPressed     = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	natsSubjectWindowManagerUpdate = os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
+	natsSubjectInstalledAppsInfo   = os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
+	natsSubjectPieMenuNavigate     = os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE")
+	natsSubjectPieButtonOpenFolder = os.Getenv("PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER")
 )
 
 // PieButtonExecutionAdapter listens to NATS events and executes actions.

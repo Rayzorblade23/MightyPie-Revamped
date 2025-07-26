@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
@@ -245,7 +245,7 @@ func (a *PieButtonExecutionAdapter) handleOpenPageInMenu(executionInfo *pieButto
 		PageID:           pageID,
 	}
 
-	natsSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	natsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	log.Printf("Publishing OpenPageInMenu for Menu %d, Page %d at (%d, %d)", menuID, pageID, xPos, yPos)
 	a.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 

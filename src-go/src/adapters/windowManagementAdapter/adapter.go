@@ -3,19 +3,19 @@ package windowManagementAdapter
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
 	// Use lxn/win for HWND type consistency if desired, otherwise use windows.HWND
 	"github.com/lxn/win" // Assuming you want to keep this for HWND type in GetFilteredListOfWindows call
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter" // Import needed here
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/nats-io/nats.go"
 )
 
-var subjectInstalledAppsInfo = env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
+var subjectInstalledAppsInfo = os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO")
 
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error) {
@@ -42,7 +42,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 		windowWatcher:   windowWatcher,
 	}
 
-	shortcutSubject := env.Get("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
+	shortcutSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 
 	a.publishInstalledAppsInfo(installedAppsInfo)
 
@@ -215,5 +215,5 @@ func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping)
 		convertedMap[int(hwnd)] = info
 	}
 
-	a.natsAdapter.PublishMessage(env.Get("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
+	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
 }

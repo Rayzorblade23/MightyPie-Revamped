@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/nats-io/nats.go"
 )
 
@@ -15,8 +15,8 @@ type NatsAdapter struct {
 }
 
 func New() (*NatsAdapter, error) {
-	token := env.Get("NATS_AUTH_TOKEN")
-	urlStr := env.Get("NATS_SERVER_URL")
+	token := os.Getenv("NATS_AUTH_TOKEN")
+	urlStr := os.Getenv("NATS_SERVER_URL")
 
 	var connection *nats.Conn
 	var err error
@@ -116,7 +116,7 @@ func (a *NatsAdapter) CreateEventsStream() error {
 	}
 
 	// Get the stream subject from the environment and add wildcard
-	baseSubject := env.Get("PUBLIC_NATSSUBJECT_STREAM")
+	baseSubject := os.Getenv("PUBLIC_NATSSUBJECT_STREAM")
 	if baseSubject == "" {
 		log.Println("Stream subject not set in environment variable PUBLIC_NATSSUBJECT_STREAM")
 		return nats.ErrBadSubject

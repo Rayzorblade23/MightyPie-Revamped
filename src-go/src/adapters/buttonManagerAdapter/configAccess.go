@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	env "github.com/Rayzorblade23/MightyPie-Revamped/cmd"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
 )
@@ -48,7 +47,7 @@ func WriteButtonConfig(config ConfigData) error {
 	if localAppData == "" {
 		return fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
-	configPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), configFileName+jsonExtension)
+	configPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), configFileName+jsonExtension)
 
 	return jsonUtils.WriteToFile(configPath, config)
 }
@@ -112,7 +111,7 @@ func deepCopyConfig(src ConfigData) (ConfigData, error) {
 
 // BackupConfigToFile writes the given config to a backup file.
 func BackupConfigToFile(config ConfigData) error {
-	return BackupConfigToFileWithBaseDir(config, filepath.Join(os.Getenv("LOCALAPPDATA"), env.Get("PUBLIC_APPNAME")))
+	return BackupConfigToFileWithBaseDir(config, filepath.Join(os.Getenv("LOCALAPPDATA"), os.Getenv("PUBLIC_APPNAME")))
 }
 
 // BackupConfigToFileWithBaseDir writes the config to a backup file in a specific directory.
@@ -137,7 +136,7 @@ func ReadButtonConfig() (ConfigData, error) {
 	if localAppData == "" {
 		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
 	}
-	configPath := filepath.Join(localAppData, env.Get("PUBLIC_APPNAME"), configFileName+jsonExtension)
+	configPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), configFileName+jsonExtension)
 
 	var config ConfigData
 	if err := jsonUtils.ReadFromFile(configPath, &config); err != nil {
