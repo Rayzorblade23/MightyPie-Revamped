@@ -4,7 +4,7 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "dev": "pnpm dev:build:go && node scripts/dev-launcher.js",
+    "dev": "pnpm dev:build:go && vite dev",
     "start:services": "wait-on tcp:4222 && concurrently \"npm:start:go\" \"npm:dev:vite\"",
     "dev:vite": "vite dev",
     "start:go": "cd src-go && .\\bin\\main-x86_64-pc-windows-msvc.exe",

@@ -40,7 +40,8 @@
       "../scripts/nats-server/nats-server"
     ],
     "resources": [
-      "../scripts/nats.conf"
+      "../scripts/nats.conf",
+      "../scripts/universal-launcher.js"
     ]
   }
 }
