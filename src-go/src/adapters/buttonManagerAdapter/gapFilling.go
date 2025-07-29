@@ -1,7 +1,6 @@
 package buttonManagerAdapter
 
 import (
-	"log"
 	"sort"
 	"strconv"
 
@@ -20,8 +19,6 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 	}
 
 	totalMoves := 0
-	// Debug: dump Menu 0, Pages 0 and 1 BEFORE ALL GAP-FILL
-	dumpFirstMenuPages(config)
 	for _, buttonType := range typesToProcess {
 		// Collect all keys for buttons of this type, in config order (across ALL menus/pages)
 		type btnKey struct{ menuID, pageID, btnID string }
@@ -96,7 +93,7 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 					// We found a valid gap and a source. Perform the move.
 					srcKey := keys[srcIdx]
 					gapKey := keys[gapIdx]
-					log.Printf("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", buttonType, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
+					log.Info("[GAPFILL] MOVE: %s (%s,%s,%s) -> (%s,%s,%s)", buttonType, srcKey.menuID, srcKey.pageID, srcKey.btnID, gapKey.menuID, gapKey.pageID, gapKey.btnID)
 
 					// Get fresh button structs for the move
 					srcBtnToMove := config[srcKey.menuID][srcKey.pageID][srcKey.btnID]
@@ -127,50 +124,8 @@ func FillWindowAssignmentGaps(config ConfigData) (ConfigData, int) {
 		}
 		totalMoves += movesThisType
 	}
-	// Debug: dump Menu 0, Pages 0 and 1 AFTER ALL GAP-FILL
-	dumpFirstMenuPages(config)
+
 	return config, totalMoves
-}
-
-// Helper to format handle for debug
-func handleToStr(h int) string {
-	if h == -1 {
-		return "-"
-	}
-	return strconv.Itoa(h)
-}
-
-// dumpFirstMenuPages prints the first two pages of the first menu, showing button IDs, type, and title/handle.
-func dumpFirstMenuPages(config ConfigData) {
-	menuID := "3"
-	for _, pageID := range []string{"0"} {
-		log.Printf("[GAPFILL] DUMP Menu %s Page %s:", menuID, pageID)
-		pageConfig, ok := config[menuID][pageID]
-		if !ok {
-			continue
-		}
-		for btnIdx := range 8 {
-			btnID := strconv.Itoa(btnIdx)
-			btn, ok := pageConfig[btnID]
-			if !ok {
-				continue
-			}
-			var title string
-			switch core.ButtonType(btn.ButtonType) {
-			case core.ButtonTypeShowAnyWindow:
-				props, err := GetButtonProperties[core.ShowAnyWindowProperties](btn)
-				if err == nil {
-					title = props.ButtonTextUpper
-				}
-			case core.ButtonTypeShowProgramWindow:
-				props, err := GetButtonProperties[core.ShowProgramWindowProperties](btn)
-				if err == nil {
-					title = "handle=" + handleToStr(props.WindowHandle)
-				}
-			}
-			log.Printf("[GAPFILL] BTN: menu=0 page=%s btn=%s type=%s title='%s'", pageID, btnID, btn.ButtonType, title)
-		}
-	}
 }
 
 func isButtonEmpty(btn *Button) bool {

@@ -1,6 +1,6 @@
 <!-- src/lib/components/piemenuConfig/FunctionSelector.svelte -->
 <script lang="ts">
-    import SelectorSvgIcon from '../SelectorSvgIcon.svelte';
+    import IconRenderer from '../IconRenderer.svelte';
 
     interface FunctionDefinition {
         icon_path: string;
@@ -34,9 +34,9 @@
     </label>
     <div class="flex items-stretch space-x-2">
         <div class="flex-shrink-0 h-[40px] w-[40px] flex items-center justify-center border border-zinc-200 dark:border-zinc-600 rounded bg-zinc-50 dark:bg-zinc-700">
-            <SelectorSvgIcon iconPath={currentFunctionDef?.icon_path}
-                             svgClasses="h-6 w-6 text-zinc-700 dark:text-zinc-200"
-                             titleText={currentFunctionDef?.icon_path || 'No icon'}/>
+            <IconRenderer iconPath={currentFunctionDef?.icon_path}
+                          svgClasses="h-6 w-6 text-zinc-700 dark:text-zinc-200"
+                          titleText={currentFunctionDef?.icon_path || 'No icon'}/>
         </div>
         <select
                 id="functionNameSelect"

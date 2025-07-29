@@ -70,14 +70,14 @@ func SetExplorerWindowPositions(states []ExplorerWindowState) error {
 	}
 
 	// Debug: print all saved states
-	fmt.Println("[DEBUG] Saved Explorer window states:")
+	log.Debug("Saved Explorer window states:")
 	for i, s := range states {
-		fmt.Printf("  [%d] Path: %s Rect: %+v\n", i, s.Path, s.Rect)
+		log.Debug("  [%d] Path: %s Rect: %+v", i, s.Path, s.Rect)
 	}
 	// Debug: print all currently open Explorer windows
-	fmt.Println("[DEBUG] Currently open Explorer windows:")
+	log.Debug("Currently open Explorer windows:")
 	for i, w := range openWindows {
-		fmt.Printf("  [%d] Path: %s HWND: %v\n", i, w.Path, w.HWND)
+		log.Debug("  [%d] Path: %s HWND: %v", i, w.Path, w.HWND)
 	}
 
 	// 2. Match by path and order
@@ -88,7 +88,7 @@ func SetExplorerWindowPositions(states []ExplorerWindowState) error {
 				// Found the nth window for this path
 				var rect win.RECT
 				if win.GetWindowRect(w.HWND, &rect) {
-					fmt.Printf("[DEBUG] Moving HWND %v for path %s from %+v to %+v\n", w.HWND, w.Path, rect, s.Rect)
+					log.Debug("Moving HWND %v for path %s from %+v to %+v", w.HWND, w.Path, rect, s.Rect)
 				}
 				// Get current DPI for this window
 				user32 := syscall.NewLazyDLL("user32.dll")

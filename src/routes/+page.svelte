@@ -1,7 +1,7 @@
 <!-- +page.svelte (Main Page for Pie Menu -->
 <script lang="ts">
     // Import subscribeToSubject AND the getter for connection status
-    import PieMenuWithTransitions from "$lib/components/piemenu/PieMenuWithTransitions.svelte";
+    import PieMenu from "$lib/components/piemenu/PieMenu.svelte";
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/data/types/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
@@ -17,6 +17,10 @@
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import {goto} from "$app/navigation";
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('PieMenu');
 
     // --- Core State ---
     // Temporarily force PieMenu to be visible for debugging
@@ -53,7 +57,7 @@
             pageID = newPageID;
         }
         isPieMenuVisible = true;
-        console.log("PieMenu state: VISIBLE, PageID:", pageID);
+        logger.debug("PieMenu state: VISIBLE, PageID:", pageID);
         if (isNatsReady) {
             publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
         }
@@ -67,7 +71,7 @@
         if (isPieMenuVisible) {
             isPieMenuVisible = false;
             pageID = 0;
-            console.log("PieMenu state: HIDDEN");
+            logger.debug("PieMenu state: HIDDEN");
             if (isNatsReady) {
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
             }
@@ -83,7 +87,7 @@
 
             // The new backend message now includes pageID. We parse it, but do not use it yet.
             if (shortcutDetectedMsg.shortcutPressed >= 0) {
-                console.log("[NATS] Shortcut (" + shortcutDetectedMsg.shortcutPressed + "): Show/Cycle.");
+                logger.debug("[NATS] Shortcut (" + shortcutDetectedMsg.shortcutPressed + "): Show/Cycle.");
                 // Only cycle if the same menu shortcut is pressed
                 let newPageID: number;
 
@@ -106,10 +110,12 @@
                 if (shortcutDetectedMsg.openSpecificPage) {
                     menuID = shortcutDetectedMsg.shortcutPressed;
                     newPageID = shortcutDetectedMsg.pageID;
+                    logger.info(`Displaying menu ${menuID}, page ${newPageID} (specific page)`);
                 } else if (isChangingPage) {
                     // Cycle to the next page
                     const nextPotentialPageID = pageID + 1;
                     newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
+                    logger.info(`Displaying menu ${menuID}, page ${newPageID} (cycling pages)`);
                     if (!keepPieMenuAnchored) {
                         monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                     }
@@ -117,6 +123,7 @@
                     // Open the menu
                     menuID = shortcutDetectedMsg.shortcutPressed;
                     newPageID = 0; // Always start with page 0 when switching menus or opening initially
+                    logger.info(`Displaying menu ${menuID}, page ${newPageID} (just opened)`);
                     monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);
                 }
                 await moveCursorToWindowCenter();
@@ -129,13 +136,13 @@
                 if (!document.hidden) {
                     await handlePieMenuVisible(newPageID);
                 } else {
-                    console.warn("[NATS] Document is hidden. UI remains hidden.");
+                    logger.warn("[NATS] Document is hidden. UI remains hidden.");
                     await handlePieMenuHidden();
                 }
             } else {
                 // Set opacity to 0 before hiding the window
                 pieMenuOpacity = 0;
-                console.log(`[NATS] Shortcut (${shortcutDetectedMsg.shortcutPressed}): Hide.`);
+                logger.debug(`[NATS] Shortcut (${shortcutDetectedMsg.shortcutPressed}): Hide.`);
                 // Cancel all animations before hiding
                 if (pieMenuComponent?.cancelAnimations) {
                     pieMenuComponent.cancelAnimations();
@@ -148,7 +155,7 @@
         } catch (e) {
             // Set opacity to 0 before hiding the window
             pieMenuOpacity = 0;
-            console.error('[NATS] Error in handleShortcutMessage:', e);
+            logger.error('[NATS] Error in handleShortcutMessage:', e);
             // Cancel all animations before hiding
             if (pieMenuComponent?.cancelAnimations) {
                 pieMenuComponent.cancelAnimations();
@@ -167,10 +174,10 @@
     $effect(() => {
         if (subscription_shortcut_pressed.status === "subscribed" && !isNatsReady) {
             isNatsReady = true;
-            console.log("NATS subscription ready.");
+            logger.debug("NATS subscription_shortcut_pressed ready.");
         }
         if (subscription_shortcut_pressed.error) {
-            console.error("NATS subscription error:", subscription_shortcut_pressed.error);
+            logger.error("NATS subscription_shortcut_pressed error:", subscription_shortcut_pressed.error);
         }
     });
 
@@ -179,7 +186,7 @@
         async (message: string) => {
             const navigateToPageMsg: string = JSON.parse(message);
 
-            console.log(`[NATS] Navigate to page: ${navigateToPageMsg}`);
+            logger.debug(`[NATS] Navigate to page: ${navigateToPageMsg}`);
             publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
 
             setTimeout(() => {
@@ -191,10 +198,10 @@
     $effect(() => {
         if (subscription_navigate_to_page.status === "subscribed" && !isNatsReady) {
             isNatsReady = true;
-            console.log("NATS subscription ready.");
+            logger.debug("NATS subscription_navigate_to_page ready.");
         }
         if (subscription_navigate_to_page.error) {
-            console.error("NATS subscription error:", subscription_navigate_to_page.error);
+            logger.error("NATS subscription_navigate_to_page error:", subscription_navigate_to_page.error);
         }
     });
 
@@ -202,10 +209,10 @@
         const handleVisibilityChange = async () => {
             const currentWindow = getCurrentWindow();
             if (document.hidden) {
-                console.log("Document visibility: HIDDEN");
+                logger.debug("Document visibility: HIDDEN");
                 await handlePieMenuHidden();
             } else {
-                console.log("Document visibility: VISIBLE");
+                logger.debug("Document visibility: VISIBLE");
                 const tauriWindowIsProgrammaticallyVisible = await currentWindow.isVisible();
                 if (tauriWindowIsProgrammaticallyVisible) {
                     await handlePieMenuVisible(pageID);
@@ -237,9 +244,11 @@
     });
 
     onMount(() => {
+        logger.info('PieMenu Mounted');
+
         const handleKeyDown = async (event: KeyboardEvent) => {
             if (event.key === "Escape") {
-                console.log("Escape pressed: closing PieMenu and hiding window.");
+                logger.debug("Escape pressed: closing PieMenu and hiding window.");
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
                 await getCurrentWindow().hide();
             }
@@ -253,7 +262,7 @@
     onMount(async () => {
         const currentWindow = getCurrentWindow();
         await currentWindow.setSize(new LogicalSize(Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y)));
-        console.log("[onMount] Forcing initial hidden state.");
+        logger.debug("[onMount] Forcing initial hidden state.");
         await getCurrentWindow().hide();
         await handlePieMenuHidden();
     });
@@ -267,8 +276,8 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenuWithTransitions animationKey={animationKey} bind:this={pieMenuComponent} menuID={menuID}
-                                opacity={pieMenuOpacity}
-                                pageID={pageID}/>
+        <PieMenu animationKey={animationKey} bind:this={pieMenuComponent} menuID={menuID}
+                 opacity={pieMenuOpacity}
+                 pageID={pageID}/>
     </div>
 </main>

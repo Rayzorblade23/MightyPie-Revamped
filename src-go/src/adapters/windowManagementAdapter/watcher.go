@@ -30,7 +30,7 @@ var winEventProcCallback = windows.NewCallback(func(hWinEventHook windows.Handle
 	activeWatcherMutex.RUnlock()
 
 	if watcher == nil {
-		fmt.Println("[CALLBACK DEBUG] !!! No activeWindowWatcher !!!")
+		log.Debug("[CALLBACK DEBUG] !!! No activeWindowWatcher !!!")
 		return 0
 	}
 
@@ -100,7 +100,7 @@ func (w *WindowWatcher) Start() error {
 	w.mutex.Lock() // Lock for checking/setting isRunning
 	if w.isRunning {
 		w.mutex.Unlock()
-		fmt.Println("[WATCHER START] Already running.")
+		log.Info("[WATCHER START] Already running.")
 		return nil
 	}
 
@@ -109,6 +109,7 @@ func (w *WindowWatcher) Start() error {
 	if activeWindowWatcher != nil {
 		activeWatcherMutex.Unlock()
 		w.mutex.Unlock()
+		log.Error("Another WindowWatcher is already active")
 		return fmt.Errorf("another WindowWatcher is already active")
 	}
 	activeWindowWatcher = w
@@ -170,12 +171,12 @@ hook, _, err := procSetWinEventHook.Call(
 		if tid != 0 {
 			ret, _, postErr := procPostThreadMessageW.Call(uintptr(tid), uintptr(WM_QUIT), 0, 0)
 			if ret == 0 {
-				fmt.Printf("[HOOK LOOP] !!!!! PostThreadMessageW(WM_QUIT) FAILED. Error: %v !!!!!\n", postErr)
+				log.Error("[HOOK LOOP] PostThreadMessageW(WM_QUIT) FAILED. Error: %v", postErr)
 			} else {
-				fmt.Println("[HOOK LOOP] WM_QUIT posted via PostThreadMessageW.")
+				log.Info("[HOOK LOOP] WM_QUIT posted via PostThreadMessageW.")
 			}
 		} else {
-			fmt.Println("[HOOK LOOP] !!! Cannot post WM_QUIT, Thread ID is 0 !!!")
+			log.Error("[HOOK LOOP] Cannot post WM_QUIT, Thread ID is 0")
 		}
 	}(loopThreadId)
 
@@ -187,11 +188,11 @@ hook, _, err := procSetWinEventHook.Call(
 
 		getMsgRet := int32(ret)
 		if getMsgRet == -1 {
-			fmt.Printf("[HOOK LOOP] !!!!! GetMessageW ERROR: Ret=-1, Error=%v !!!!!\n", getMsgErr)
+			log.Error("[HOOK LOOP] GetMessageW ERROR: Ret=-1, Error=%v", getMsgErr)
 			break
 		}
 		if getMsgRet == 0 {
-			fmt.Println("[HOOK LOOP] GetMessageW received WM_QUIT (Ret=0). Exiting loop.")
+			log.Info("[HOOK LOOP] GetMessageW received WM_QUIT (Ret=0). Exiting loop.")
 			break
 		}
 
@@ -216,7 +217,7 @@ hook, _, err := procSetWinEventHook.Call(
 	if currentHook != 0 {
 		ret, _, unhookErr := procUnhookWinEvent.Call(uintptr(currentHook))
 		if ret == 0 {
-			fmt.Printf("[HOOK LOOP] !!!!! UnhookWinEvent FAILED: Error=%v !!!!!\n", unhookErr)
+			log.Error("[HOOK LOOP] UnhookWinEvent FAILED: Error=%v", unhookErr)
 		} 
 	}
 }
@@ -224,23 +225,23 @@ hook, _, err := procSetWinEventHook.Call(
 // Stop signals the hookAndMessageLoop goroutine to exit
 func (w *WindowWatcher) Stop() {
 	w.mutex.Lock() // Lock for reading/closing stopChan safely
-	fmt.Println("[WATCHER STOP] Stop called.")
+	log.Info("[WATCHER STOP] Stop called.")
 	if !w.isRunning {
-		fmt.Println("[WATCHER STOP] Hook loop not running.")
+		log.Info("[WATCHER STOP] Hook loop not running.")
 		w.mutex.Unlock()
 		return
 	}
 
 	select {
 	case <-w.stopChan:
-		fmt.Println("[WATCHER STOP] Stop channel already closed.")
+		log.Info("[WATCHER STOP] Stop channel already closed.")
 	default:
 		close(w.stopChan)
-		fmt.Println("[WATCHER STOP] Closed stop channel.")
+		log.Info("[WATCHER STOP] Closed stop channel.")
 	}
 	w.mutex.Unlock() // Unlock after closing channel
 
-	fmt.Println("[WATCHER STOP] Stop signal sent.")
+	log.Info("[WATCHER STOP] Stop signal sent.")
 }
 
 // GetChangeDetectedChannel returns the channel that signals window changes

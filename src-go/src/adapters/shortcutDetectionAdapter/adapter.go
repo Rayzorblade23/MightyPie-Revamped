@@ -11,8 +11,12 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
+
+// Package-level logger instance
+var log = logger.New("ShortcutDetection")
 
 const (
 	vkLSHIFT          = 0xA0
@@ -58,11 +62,14 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	err := adapter.natsAdapter.SubscribeJetStreamPull(setterUpdateSubject, "", func(natsMessage *nats.Msg) {
 		var receivedShortcuts map[string]core.ShortcutEntry
 		if err := json.Unmarshal(natsMessage.Data, &receivedShortcuts); err != nil {
-			fmt.Printf("Error: Failed to decode shortcuts update from JetStream: %v\n", err)
+			log.Error("Failed to decode shortcuts update from JetStream: %v", err)
 			return
 		}
 
-		fmt.Printf("Info: Received shortcuts update from JetStream: %+v\n", receivedShortcuts)
+		log.Info("Received shortcuts update from JetStream:")
+		for label, shortcut := range receivedShortcuts {
+			log.Info("↳ Shortcut %v: %s, (Codes: %v)", label, shortcut.Label, shortcut.Codes)
+		}
 
 		adapter.shortcuts = receivedShortcuts
 		newPressedState := make(map[string]bool)
@@ -77,16 +84,16 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	})
 
 	if err != nil {
-		fmt.Printf("Error: Failed to subscribe to JetStream subject: %v\n", err)
+		log.Error("Failed to subscribe to JetStream subject: %v", err)
 	}
 
 	pressedEventSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
 		var eventData core.ShortcutPressed_Message
 		if err := json.Unmarshal(natsMessage.Data, &eventData); err != nil {
-			fmt.Printf("Error (NATS Listener): Failed to decode pressed event: %v\n", err)
+			log.Error("NATS Listener: Failed to decode pressed event: %v", err)
 		}
-		// Optional: fmt.Printf("Info (NATS Listener): Shortcut pressed event observed: %+v\n", eventData)
+		// Optional: log.Debug("NATS Listener: Shortcut pressed event observed: %+v", eventData)
 	})
 	return adapter
 }
@@ -120,7 +127,7 @@ func (adapter *ShortcutDetectionAdapter) updateKeyboardHook() {
 
 	hookProcCallback := syscall.NewCallback(adapter.hookProc)
 	if core.SetWindowsHookEx == nil {
-		fmt.Println("CRITICAL Error: core.SetWindowsHookEx is nil!")
+		log.Fatal("CRITICAL Error: core.SetWindowsHookEx is nil!")
 		return
 	}
 
@@ -128,14 +135,14 @@ func (adapter *ShortcutDetectionAdapter) updateKeyboardHook() {
 	adapter.hook = syscall.Handle(hookHandle)
 
 	if adapter.hook == 0 {
-		fmt.Printf("Error: Failed to set keyboard hook: %v (GetLastError: %v)\n", errOriginal, syscall.GetLastError())
+		log.Error("Failed to set keyboard hook: %v (GetLastError: %v)", errOriginal, syscall.GetLastError())
 		return
 	}
 
 	go func() {
 		var msg core.MSG
 		if core.GetMessage == nil {
-			fmt.Println("CRITICAL Error: GetMessage nil in msg loop!")
+			log.Fatal("CRITICAL Error: GetMessage nil in msg loop!")
 			return
 		}
 		for {
@@ -180,7 +187,7 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, isPressedEvent bool) {
 	xPos, yPos, errMouse := core.GetMousePosition()
 	if errMouse != nil {
-		fmt.Printf("Error: Failed to get mouse position: %v\n", errMouse)
+		log.Error("Failed to get mouse position: %v", errMouse)
 		xPos, yPos = 0, 0
 	}
 	shortcutLabel := ""
@@ -199,6 +206,6 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	} else {
 		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
-	fmt.Printf("Publishing %s for shortcut %d (%s) at (%d, %d)\n", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
-	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
+	log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
+	adapter.natsAdapter.PublishMessage(natsSubject, "ShortcutDetection", outgoingMessage)
 }

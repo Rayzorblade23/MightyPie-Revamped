@@ -2,7 +2,6 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,7 @@ func launchViaURI(appNameKey string, uri string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to start '%s' (URI: %s) via shell: %w", appNameKey, uri, err)
 	}
-	log.Printf("Attempted to start '%s' via URI handler: %s", appNameKey, uri)
+	log.Info("Attempted to start '%s' via URI handler: %s", appNameKey, uri)
 	return nil
 }
 

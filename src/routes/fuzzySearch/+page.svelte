@@ -14,6 +14,10 @@
     // --- NATS Integration ---
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
     import {goto} from "$app/navigation";
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('FuzzySearch');
 
     // --- State
     let search = $state('');
@@ -26,7 +30,7 @@
     let inputEl: HTMLInputElement;
 
     function onLostFocus() {
-        console.log('Window lost focus');
+        logger.debug('Window lost focus');
         const window = getCurrentWindow();
         window.hide();  // Hide first
         goto('/');
@@ -53,7 +57,7 @@
 
     function handleKeyDown(event: KeyboardEvent) {
         const current = selectedIndex;
-        console.log('KEY:', event.key, 'selectedIndex:', current);
+        logger.debug('KEY:', event.key, 'selectedIndex:', current);
         if (event.key === "Escape") {
             onLostFocus();
         } else if (event.key === "ArrowDown") {
@@ -76,7 +80,7 @@
     }
 
     onMount(() => {
-        console.log('FUZZY SEARCH Mounted');
+        logger.info('FUZZY SEARCH Mounted');
 
         allButtons = extractButtons();
 

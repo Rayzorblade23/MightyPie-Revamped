@@ -2,7 +2,6 @@ package windowManagementAdapter
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"time"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter" // Import needed here
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
 
@@ -23,7 +23,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 	ProcessIcons()
 
 	// b, _ := json.MarshalIndent(installedAppsInfo, "", "  ")
-	// fmt.Println(string(b))
+	// logger.Debug(string(b))
 
 	// Create manager and watcher using their respective constructors
 	windowManager := NewWindowManager()
@@ -31,7 +31,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 
 	exclusionConfig, err := loadExclusionConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load exclusion config: %w", err)
+		logger.Error("Failed to load exclusion config: %v", err)
+		return nil, err
 	}
 
 	a := &WindowManagementAdapter{
@@ -50,16 +51,16 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var message core.ShortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			logger.Printf("Failed to decode command on subject '%s': %v\n", shortcutSubject, err)
+			log.Error("Failed to decode command on subject '%s': %v", shortcutSubject, err)
 			return
 		}
 
 		// // Get current windows using the refactored function and print them
 		// // Pass win.HWND(0) as we don't need to exclude a specific window here.
 		// currentWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0))
-		// logger.Println("--- Window list at time of shortcut press ---")
+		// log.Info("--- Window list at time of shortcut press ---")
 		// PrintWindowList(currentWindows) // Use the helper function from manager.go
-		// logger.Println("---------------------------------------------")
+		// log.Info("---------------------------------------------")
 
 	})
 
@@ -68,17 +69,17 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 
 // publishInstalledAppsInfo sends the current discovered apps list to the NATS subject
 func (a *WindowManagementAdapter) publishInstalledAppsInfo(apps map[string]core.AppInfo) {
-	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, apps)
+	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, "WindowManagement", apps)
 }
 
 // Run starts the adapter, including the initial window scan and monitoring loop
 func (a *WindowManagementAdapter) Run() error {
-	logger.Println("Starting WindowManagementAdapter...")
+	log.Info("Starting WindowManagementAdapter...")
 
 	// Perform initial window scan and update window info
 	initialWindows := GetFilteredListOfWindows(a.winManager, win.HWND(0), a.exclusionConfig)
 	a.winManager.UpdateOpenWindowsInfo(initialWindows)
-	logger.Printf("Initial window list created with %d windows.\n", len(initialWindows))
+	log.Info("Initial window list created with %d windows", len(initialWindows))
 
 	// Publish initial window list
 	go a.publishWindowListUpdate(initialWindows)
@@ -86,39 +87,40 @@ func (a *WindowManagementAdapter) Run() error {
 
 	// Start window watcher and monitoring goroutine
 	if err := a.windowWatcher.Start(); err != nil {
-		return fmt.Errorf("failed to start window watcher: %w", err)
+		logger.Error("Failed to start window watcher: %v", err)
+		return err
 	}
-	logger.Println("Window watcher started.")
+	log.Info("Window watcher started")
 
 	go a.monitorWindows()
 
 	// Wait for stop signal
 	<-a.stopChan
-	logger.Println("Received stop signal.")
+	log.Info("Received stop signal")
 
-	logger.Println("WindowManagementAdapter finished.")
+	log.Info("WindowManagementAdapter finished")
 	return nil
 }
 
 // Stop gracefully shuts down the WindowManagementAdapter
 func (a *WindowManagementAdapter) Stop() {
-	logger.Println("[STOP] Stopping adapter...")
+	log.Info("[STOP] Stopping adapter...")
 
 	// Signal stop to main loop and monitor goroutine
 	select {
 	case <-a.stopChan:
-		logger.Println("[STOP] stopChan already closed.")
+		log.Info("[STOP] stopChan already closed.")
 	default:
 		close(a.stopChan)
-		logger.Println("[STOP] Closed stopChan.")
+		log.Info("[STOP] Closed stopChan.")
 	}
 
 	// Stop window watcher
 	if a.windowWatcher != nil {
 		a.windowWatcher.Stop()
-		logger.Println("[STOP] WindowWatcher stopped.")
+		log.Info("[STOP] WindowWatcher stopped.")
 	} else {
-		logger.Println("[STOP] WindowWatcher is nil.")
+		log.Info("[STOP] WindowWatcher is nil.")
 	}
 }
 
@@ -169,7 +171,7 @@ func (a *WindowManagementAdapter) monitorWindows() {
 		if updateTimer != nil {
 			updateTimer.Stop()
 		}
-		logger.Println("[Monitor] Exiting monitor loop.")
+		log.Info("[Monitor] Exiting monitor loop.")
 	}()
 
 	for {
@@ -215,5 +217,5 @@ func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping)
 		convertedMap[int(hwnd)] = info
 	}
 
-	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
+	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), "WindowManagement", convertedMap)
 }

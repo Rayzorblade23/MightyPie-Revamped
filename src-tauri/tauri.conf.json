@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mightypie-revamped",
+  "productName": "MightyPieRevamped",
   "version": "0.1.0",
   "identifier": "com.mightypie-revamped.dev",
   "build": {
@@ -36,12 +36,11 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "../src-go/bin/main",
-      "../scripts/nats-server/nats-server"
     ],
     "resources": [
-      "../scripts/nats.conf",
-      "../scripts/universal-launcher.js"
+      "assets/src-go/bin/*",
+      "assets/nats-server/*",
+      "assets/data/*"
     ]
   }
 }

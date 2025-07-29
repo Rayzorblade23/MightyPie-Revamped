@@ -1,23 +1,27 @@
 package main
 
 import (
-	"log"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/windowManagementAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 )
 
 func main() {
-	natsAdapter, err := natsAdapter.New()
+	// Initialize structured logger
+	log := logger.New("WindowManagement")
+	logger.ReplaceStdLog("WindowManagement")
+	
+	natsAdapter, err := natsAdapter.New("WindowManagement")
 	if err != nil {
-		panic(err)
+		log.Fatal("Failed to initialize NATS adapter: %v", err)
 	}
 
-	println("windowManagementAdapter: NATS connection established")
+	log.Info("NATS connection established")
 
     // Create and start the keyboard hook
 	windowManagementAdapter, err := windowManagementAdapter.New(natsAdapter)
 	if err != nil {
-		log.Fatalf("Failed to create WindowManagementAdapter: %v", err)
+		log.Fatal("Failed to create WindowManagementAdapter: %v", err)
 	}
 
 	windowManagementAdapter.Run()

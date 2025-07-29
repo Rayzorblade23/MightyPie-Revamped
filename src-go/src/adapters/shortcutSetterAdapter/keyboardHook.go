@@ -1,13 +1,14 @@
 package shortcutSetterAdapter
 
 import (
-    "fmt"
+    "fmt" // Keep for fmt.Errorf
     "sync"
     "syscall"
     "unsafe"
 
     "github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
+
 
 type setterKeyboardHook struct {
     callback func(shortcut []int)
@@ -37,6 +38,7 @@ func (kh *setterKeyboardHook) Run() error {
     )
     kh.hook = syscall.Handle(ret)
     if kh.hook == 0 {
+        log.Error("Failed to set keyboard hook: %v", err)
         return fmt.Errorf("failed to set keyboard hook: %v", err)
     }
 

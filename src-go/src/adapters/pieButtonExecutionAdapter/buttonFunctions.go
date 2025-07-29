@@ -2,14 +2,13 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
-	"log"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
-	"github.com/go-vgo/robotgo"
 	"github.com/go-ole/go-ole"
+	"github.com/go-vgo/robotgo"
 )
 
 // Windows mouse event constants
@@ -80,13 +79,13 @@ func (a *PieButtonExecutionAdapter) RestartAndRestoreExplorerWindows() error {
 	if err != nil {
 		return fmt.Errorf("failed to get Explorer windows: %w", err)
 	}
-	log.Printf("Captured %d Explorer windows before restart", len(states))
+	log.Info("Captured %d Explorer windows before restart", len(states))
 
 	// 2. Restart explorer.exe
 	if err := RestartExplorer(); err != nil {
 		return fmt.Errorf("failed to restart explorer.exe: %w", err)
 	}
-	log.Printf("Explorer.exe restarted")
+	log.Info("Explorer.exe restarted")
 	// Give Explorer time to fully restart
 	time.Sleep(2 * time.Second)
 
@@ -94,22 +93,21 @@ func (a *PieButtonExecutionAdapter) RestartAndRestoreExplorerWindows() error {
 	if err := RestoreExplorerWindows(states); err != nil {
 		return fmt.Errorf("failed to restore Explorer windows: %w", err)
 	}
-	log.Printf("Restored %d Explorer windows", len(states))
+	log.Info("Restored %d Explorer windows", len(states))
 	// Give windows time to open and fully initialize
-	delay := max(time.Duration(len(states))*900*time.Millisecond + 2*time.Second, 3 * time.Second)
+	delay := max(time.Duration(len(states))*900*time.Millisecond+2*time.Second, 3*time.Second)
 	time.Sleep(delay)
 
 	// 4. Move windows to original positions
 	if err := SetExplorerWindowPositions(states); err != nil {
 		return fmt.Errorf("failed to reposition Explorer windows: %w", err)
 	}
-	log.Printf("Repositioned Explorer windows")
+	log.Info("Repositioned Explorer windows")
 
 	// Close the warning dialog automatically
 	CloseWarningMessageBox()
 	return nil
 }
-
 
 // Copy simulates Ctrl+C to copy selected content to the clipboard.
 
@@ -148,13 +146,12 @@ func (a *PieButtonExecutionAdapter) OpenClipboard() error {
 	return nil
 }
 
-
 // Fullscreen_F11 simulates pressing F11 to toggle fullscreen mode in most applications.
 func (a *PieButtonExecutionAdapter) Fullscreen_F11() error {
 	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("f11")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap f11 failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap f11 failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -166,13 +163,13 @@ func (a *PieButtonExecutionAdapter) MediaPrev() error {
 	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("audio_prev")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap audio_prev (first press) failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap audio_prev (first press) failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
 	err = robotgo.KeyTap("audio_prev")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap audio_prev (second press) failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap audio_prev (second press) failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -184,7 +181,7 @@ func (a *PieButtonExecutionAdapter) MediaNext() error {
 	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("audio_next")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap audio_next failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap audio_next failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -196,7 +193,7 @@ func (a *PieButtonExecutionAdapter) MediaPlayPause() error {
 	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("audio_play")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap audio_play failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap audio_play failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -208,7 +205,7 @@ func (a *PieButtonExecutionAdapter) MediaToggleMute() error {
 	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("audio_mute")
 	if err != nil {
-		log.Printf("[DEBUG] robotgo.KeyTap audio_mute failed: %v", err)
+		log.Error("[DEBUG] robotgo.KeyTap audio_mute failed: %v", err)
 		return err
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -259,7 +256,7 @@ func LaunchApp(appNameKey string, appInfo core.AppInfo) error {
 		return fmt.Errorf("failed to start executable '%s' for app '%s': %w", appInfo.ExePath, appNameKey, err)
 	}
 
-	log.Printf("Successfully started application: '%s' (Path: %s, PID: %d)", appNameKey, appInfo.ExePath, cmd.Process.Pid)
+	log.Info("Successfully started application: '%s' (Path: %s, PID: %d)", appNameKey, appInfo.ExePath, cmd.Process.Pid)
 	return nil
 }
 
@@ -320,21 +317,21 @@ func (a *PieButtonExecutionAdapter) CloseWindowUnderCursor(x, y int) error {
 
 // OpenSettings opens the settings window.
 func (a *PieButtonExecutionAdapter) OpenSettings() error {
-	log.Println("Publishing navigation message for Settings")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "settings")
+	log.Info("Publishing navigation message for Settings")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "settings")
 	return nil
 }
 
 // OpenConfig opens the Pie Menu configuration window.
 func (a *PieButtonExecutionAdapter) OpenConfig() error {
-	log.Println("Publishing navigation message for Config")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "pieMenuConfig")
+	log.Info("Publishing navigation message for Config")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "pieMenuConfig")
 	return nil
 }
 
 // FuzzySearch opens the Fuzzy Search window.
 func (a *PieButtonExecutionAdapter) FuzzySearch() error {
-	log.Println("Publishing navigation message for Fuzzy Search")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "fuzzySearch")
+	log.Info("Publishing navigation message for Fuzzy Search")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "fuzzySearch")
 	return nil
 }

@@ -6,9 +6,18 @@
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
-    import {PUBLIC_SETTINGS_SIZE_X, PUBLIC_SETTINGS_SIZE_Y, PUBLIC_DIR_BUTTONFUNCTIONS, PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER} from "$env/static/public";
+    import {
+        PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER,
+        PUBLIC_SETTINGS_SIZE_X,
+        PUBLIC_SETTINGS_SIZE_Y
+    } from "$env/static/public";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
+    import {createLogger} from "$lib/logger";
+    import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
+
+    // Create a logger for this component
+    const logger = createLogger('Settings');
 
     // Canonical deep clone for settings, matching piemenuConfig approach
     function cloneSettings(settings: SettingsMap): SettingsMap {
@@ -27,6 +36,8 @@
     let deadzoneFunctionOptions = $state<string[]>([]);
 
     onMount(() => {
+        logger.info('Settings Mounted');
+
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 if (event.defaultPrevented) return;
@@ -60,16 +71,16 @@
                 );
                 await currentWindow.show();
             } catch (e) {
-                console.error(e);
+                logger.error('Error setting up window:', e);
             }
             try {
-                const response = await fetch(PUBLIC_DIR_BUTTONFUNCTIONS);
-                if (response.ok) {
-                    const defs = await response.json();
-                    deadzoneFunctionOptions = Object.keys(defs).sort();
-                }
+                // Get the buttonFunctions.json parsed data using the utility function
+                const buttonFunctions = await getButtonFunctions();
+
+                // Extract the keys for deadzone function options
+                deadzoneFunctionOptions = Object.keys(buttonFunctions).sort();
             } catch (e) {
-                console.error("Failed to load buttonFunctions.json for deadzone options:", e);
+                logger.error("Failed to load buttonFunctions.json for deadzone options:", e);
             }
         })();
 
@@ -142,7 +153,7 @@
 
     function handleHexInput(key: string, e: Event) {
         const target = e.target as HTMLInputElement;
-        handleStringChange(key, '#' + target.value.replace(/[^0-9a-fA-F]/g, '').slice(0,6));
+        handleStringChange(key, '#' + target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6));
     }
 
     function handleEnumChange(e: Event, key: string) {
@@ -189,27 +200,28 @@
             <div class="w-full">
                 {#each Object.entries(settings)
                     .sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0))
-                    as [key, entry]}
+                        as [key, entry]}
                     {#if entry.isExposed}
                         <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-2 shadow-sm border border-zinc-200 dark:border-zinc-700">
-                            <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base" for={key}>{entry.label}</label>
+                            <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
+                                   for={key}>{entry.label}</label>
                             <div class="flex-1 flex items-center gap-2 min-w-0">
                                 {#if entry.type === 'boolean' || entry.type === 'bool'}
                                     <label class="relative inline-flex items-center cursor-pointer select-none">
                                         <input
-                                            type="checkbox"
-                                            id={key}
-                                            checked={entry.value}
-                                            class="sr-only"
-                                            onchange={e => handleBooleanChange(e, key)}
+                                                type="checkbox"
+                                                id={key}
+                                                checked={entry.value}
+                                                class="sr-only"
+                                                onchange={e => handleBooleanChange(e, key)}
                                         />
                                         <span
-                                            class="block w-10 h-6 rounded-full transition-colors duration-200 relative"
-                                            style="background-color: {entry.value ? '#2563eb' : (document.documentElement.classList.contains('dark') ? '#374151' : '#d1d5db')};"
+                                                class="block w-10 h-6 rounded-full transition-colors duration-200 relative"
+                                                style="background-color: {entry.value ? '#2563eb' : (document.documentElement.classList.contains('dark') ? '#374151' : '#d1d5db')};"
                                         >
                                             <span
-                                                class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-zinc-200 rounded-full shadow transition-transform duration-200"
-                                                style="transform: translateX({entry.value ? '1.0rem' : '0'});"
+                                                    class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-zinc-200 rounded-full shadow transition-transform duration-200"
+                                                    style="transform: translateX({entry.value ? '1.0rem' : '0'});"
                                             ></span>
                                         </span>
                                     </label>
@@ -226,14 +238,14 @@
                                                    value={entry.value ? entry.value.replace(/^#/, '') : ''}
                                                    oninput={e => handleHexInput(key, e)}
                                                    maxlength="6"
-                                                   placeholder="RRGGBB" />
+                                                   placeholder="RRGGBB"/>
                                         </div>
                                     </div>
                                 {:else if entry.type === 'number' || entry.type === 'float'}
                                     <input type="number" id={key}
                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
-                                           onchange={e => handleNumberChange(e, key)} />
+                                           onchange={e => handleNumberChange(e, key)}/>
                                 {:else if entry.type === 'int' || entry.type === 'integer'}
                                     <input type="number" id={key}
                                            step="1"
@@ -242,7 +254,7 @@
                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}
-                                           onkeydown={handleIntKeydown} />
+                                           onkeydown={handleIntKeydown}/>
                                 {:else if entry.type === 'string'}
                                     <input type="text" id={key}
                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
@@ -271,14 +283,15 @@
                                 {/if}
                                 <div class="flex-1"></div>
                                 <button
-                                    class="w-8 h-8 flex items-center justify-center p-0 rounded bg-white/80 dark:bg-zinc-700/80 border border-zinc-300 dark:border-zinc-600 shadow hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex-shrink-0"
-                                    title="Reset to Default"
-                                    aria-label="Reset to Default"
-                                    onclick={() => handleResetToDefault(key)}
-                                    tabindex="0"
-                                    type="button"
+                                        class="w-8 h-8 flex items-center justify-center p-0 rounded bg-white/80 dark:bg-zinc-700/80 border border-zinc-300 dark:border-zinc-600 shadow hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex-shrink-0"
+                                        title="Reset to Default"
+                                        aria-label="Reset to Default"
+                                        onclick={() => handleResetToDefault(key)}
+                                        tabindex="0"
+                                        type="button"
                                 >
-                                    <img src="tabler_icons/restore.svg" alt="Reset to Default" class="w-5 h-5 opacity-90 dark:invert" />
+                                    <img src="tabler_icons/restore.svg" alt="Reset to Default"
+                                         class="w-5 h-5 opacity-90 dark:invert"/>
                                 </button>
                             </div>
                         </div>
@@ -288,14 +301,14 @@
                 <!-- Folder Navigation Buttons -->
                 <div class="flex flex-row gap-2 pt-4">
                     <button
-                        class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
-                        onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appdata')}
+                            class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
+                            onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appdata')}
                     >
                         Open App Config Folder
                     </button>
                     <button
-                        class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
-                        onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
+                            class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
+                            onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
                     >
                         Open App Folder
                     </button>
@@ -308,36 +321,36 @@
     <div class="flex-shrink-0 w-full p-2 bg-zinc-200/50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
         <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
             <button
-                aria-label="Undo"
-                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
-                onclick={handleUndo}
-                type="button"
-                disabled={undoHistory.length === 0}>
+                    aria-label="Undo"
+                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                    disabled={undoHistory.length === 0}
+                    onclick={handleUndo}
+                    type="button">
                 Undo
             </button>
             <button
-                aria-label="Discard Changes"
-                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
-                onclick={() => showDiscardConfirmDialog = true}
-                type="button"
-                disabled={undoHistory.length === 0}>
+                    aria-label="Discard Changes"
+                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                    disabled={undoHistory.length === 0}
+                    onclick={() => showDiscardConfirmDialog = true}
+                    type="button">
                 Discard Changes
             </button>
             <button
-                aria-label="Done"
-                class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                onclick={() => goto('/')} type="button">
+                    aria-label="Done"
+                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                    onclick={() => goto('/')} type="button">
                 Done
             </button>
         </div>
         <ConfirmationDialog
-            cancelText="Save Changes"
-            confirmText="Discard Changes"
-            isOpen={showDiscardConfirmDialog}
-            message="You have unsaved changes. What would you like to do?"
-            onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
-            onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
-            title="Unsaved Changes"
+                cancelText="Save Changes"
+                confirmText="Discard Changes"
+                isOpen={showDiscardConfirmDialog}
+                message="You have unsaved changes. What would you like to do?"
+                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+                title="Unsaved Changes"
         />
     </div>
 </div>

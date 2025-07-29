@@ -6,12 +6,10 @@ import (
 )
 
 func main() {
-	natsAdapter, err := natsAdapter.New()
+	natsAdapter, err := natsAdapter.New("SettingsManager")
 	if err != nil {
 		panic(err)
 	}
-
-	println("SettingsManagerAdapter: NATS connection established")
 
     // Create and start the keyboard hook
 	settingsManagerAdapter := settingsManagerAdapter.New(natsAdapter)

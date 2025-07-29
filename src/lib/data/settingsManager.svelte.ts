@@ -1,5 +1,9 @@
 import {publishMessage} from "$lib/natsAdapter.svelte.ts";
 import {PUBLIC_NATSSUBJECT_SETTINGS_UPDATE} from "$env/static/public";
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('SettingsManager');
 
 // --- Type Definitions ---
 export interface SettingsEntry {
@@ -31,6 +35,7 @@ export function getSettings(): SettingsMap {
  */
 export function updateSettings(newSettings: SettingsMap) {
     settings = newSettings;
+    logger.info("Settings updated.");
 }
 
 /**

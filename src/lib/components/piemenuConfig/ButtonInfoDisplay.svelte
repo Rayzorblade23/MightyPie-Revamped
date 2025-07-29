@@ -3,7 +3,7 @@
     import {type Button, ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import {getMenuConfiguration} from "$lib/data/configManager.svelte.ts";
     import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
-
+    import {createLogger} from "$lib/logger";
     import {getInstalledAppsInfo} from '$lib/data/installedAppsInfoManager.svelte.ts';
 
     // Child components
@@ -11,7 +11,10 @@
     import CallFunctionButtonConfig from './buttonConfigs/CallFunctionButtonConfig.svelte'; // New
     import ShowProgramButtonConfig from './buttonConfigs/ShowProgramButtonConfig.svelte'; // New
     import OpenPageButtonConfig from './buttonConfigs/OpenPageButtonConfig.svelte';
-    import {PUBLIC_DIR_BUTTONFUNCTIONS} from "$env/static/public";
+    import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
+
+    // Create a logger for this component
+    const logger = createLogger('ButtonInfoDisplay');
 
     let {
         selectedButtonDetails,
@@ -53,21 +56,24 @@
     let typedAvailableFunctions = $derived(availableFunctionsData);
 
     $effect(() => {
-        fetch(PUBLIC_DIR_BUTTONFUNCTIONS)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch buttonFunctions.json: ${response.statusText}`);
-                }
-                return response.json() as Promise<AvailableFunctionsMap>;
-            })
-            .then((data) => {
-                availableFunctionsData = data;
-            })
-            .catch((error) => {
-                console.error('Error loading buttonFunctions.json:', error);
-
-            });
+        (async () => {
+            try {
+                // Get the buttonFunctions.json parsed data using the utility function
+                availableFunctionsData = await getButtonFunctions<AvailableFunctionsMap>();
+            } catch (error) {
+                logger.error('Error loading buttonFunctions:', error);
+            }
+        })();
     });
+
+    // Load button functions data when component initializes
+    (async () => {
+        try {
+            availableFunctionsData = await getButtonFunctions<AvailableFunctionsMap>();
+        } catch (error) {
+            logger.error('Error loading buttonFunctions.json:', error);
+        }
+    })();
 
     function getFriendlyButtonTypeName(buttonType: ButtonType | undefined): string {
         if (buttonType === undefined) {

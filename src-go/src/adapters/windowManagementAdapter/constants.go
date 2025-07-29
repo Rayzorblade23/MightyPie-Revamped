@@ -1,12 +1,11 @@
 package windowManagementAdapter
 
 import (
-	"log"
-	"os"
 	"sync"
 	"syscall"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
 )
@@ -54,9 +53,8 @@ var (
 	procGetIconInfoExW           = user32DLL.MustFindProc("GetIconInfoExW")
 
 	// Global variables
-	hwndToExclude      []win.HWND
-	excludedClassNames = map[string]bool{"Progman": true, "AutoHotkeyGUI": true, "RainmeterMeterWindow": true}
-	logger             = log.New(os.Stdout, "[WindowManager] ", log.LstdFlags)
+	hwndToExclude []win.HWND
+	log           = logger.New("WindowManager")
 
 	// Active window watcher for callback access
 	activeWindowWatcher *WindowWatcher

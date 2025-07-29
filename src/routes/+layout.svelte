@@ -35,6 +35,10 @@
     import {listen} from '@tauri-apps/api/event';
     import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsManager.svelte.ts';
     import {saturateHexColor} from "$lib/colorUtils.ts";
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('Layout');
 
     let validationHasRun = false;
     $effect(() => {
@@ -51,7 +55,7 @@
 
     $effect(() => {
         connectionStatus = getConnectionStatus();
-        console.log("NATS connection status:", connectionStatus);
+        logger.debug("NATS connection status:", connectionStatus);
     });
 
     const handleButtonUpdateMessage = (message: string) => {
@@ -66,7 +70,6 @@
     };
 
     const handleBaseConfigUpdateMessage = (message: string) => {
-        // console.log("Received base config update message:", message);
         handleJsonMessage<ConfigData>(
             message,
             (configData) => {
@@ -80,10 +83,9 @@
     const handleInstalledAppsMessage = (message: string) => {
         try {
             const installedAppsInfo = parseInstalledAppsInfo(message);
-            // console.log("Received installed apps list:", installedAppsInfo);
             updateInstalledAppsInfo(installedAppsInfo);
         } catch (error) {
-            console.error("[+layout.svelte] Failed to process installed apps message:", error);
+            logger.error("[+layout.svelte] Failed to process installed apps message:", error);
         }
     };
 
@@ -92,7 +94,7 @@
             const newLabels = parseShortcutLabelsMessage(msg);
             updateShortcutLabels(newLabels);
         } catch (error) {
-            console.error("[+layout.svelte] Failed to process shortcut labels message:", error);
+            logger.error("[+layout.svelte] Failed to process shortcut labels message:", error);
         }
     };
 
@@ -202,11 +204,11 @@
         if (browser) {
             const initializeConnection = async () => {
                 try {
-                    console.log("Attempting to connect to NATS...");
+                    logger.info("Attempting to connect to NATS...");
                     await connectToNats();
                     // The $effect watching connectionStatus will handle sending the request
                 } catch (error) {
-                    console.error("[+layout.svelte] Failed to connect to NATS:", error);
+                    logger.error("[+layout.svelte] Failed to connect to NATS:", error);
                 }
             };
             initializeConnection();
@@ -250,7 +252,7 @@
             const parsed = JSON.parse(message) as T;
             onSuccess(parsed);
         } catch (error) {
-            console.error(`[${sourceHint}] Failed to parse JSON message:`, error);
+            logger.error(`[${sourceHint}] Failed to parse JSON message:`, error);
         }
     }
 </script>

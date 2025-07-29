@@ -1,7 +1,6 @@
 package windowManagementAdapter
 
 import (
-	"fmt"
 	"runtime"
 	"unsafe"
 
@@ -69,7 +68,7 @@ func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND, ex
 		} // Default to not cloaked on failure
 
 		// Call passesInitialFilter
-		if passesInitialFilter(hwnd, tempTitle, tempClassName, int(tempIsCloaked), thisWindow) {
+		if passesInitialFilter(hwnd, tempTitle, tempClassName, int(tempIsCloaked), thisWindow, exclusionConfig) {
 			infoMap, appName := getWindowInfo(hwnd)
 
 			// Create a temporary map to hold the cleaned window info
@@ -108,15 +107,15 @@ func GetFilteredListOfWindows(winManager *WindowManager, thisWindow win.HWND, ex
 
 // PrintWindowList prints the current window list for debugging
 func PrintWindowList(mapping WindowMapping) {
-	fmt.Println("------------------ Current Window List ------------------")
+	log.Info("------------------ Current Window List ------------------")
 	for hwnd, info := range mapping {
-		fmt.Printf("Window Handle: %v\n", hwnd)
-		fmt.Printf("  Title: %s\n", info.Title)
-		fmt.Printf("  ExeName: %s\n", info.ExeName)
-		fmt.Printf("  AppName: %s\n", info.AppName)
-		fmt.Printf("  Instance: %d\n", info.Instance)
-		fmt.Printf("  IconPath: %s\n", info.IconPath)
-		fmt.Println()
+		log.Info("Window Handle: %v", hwnd)
+		log.Info("  Title: %s", info.Title)
+		log.Info("  ExeName: %s", info.ExeName)
+		log.Info("  AppName: %s", info.AppName)
+		log.Info("  Instance: %d", info.Instance)
+		log.Info("  IconPath: %s", info.IconPath)
+		log.Info("")
 	}
-	fmt.Println("---------------------------------------------------------")
+	log.Info("---------------------------------------------------------")
 }

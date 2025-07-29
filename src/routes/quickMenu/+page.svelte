@@ -14,6 +14,10 @@
     import {getMenuConfiguration} from '$lib/data/configManager.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('QuickMenu');
 
     // --- THEME TOGGLE LOGIC ---
     let isDark = $state(false);
@@ -37,7 +41,7 @@
     }
 
     function onLostFocus() {
-        console.log('Window lost focus');
+        logger.debug('Window lost focus');
         const window = getCurrentWindow();
         window.hide();  // Hide first
         goto('/');
@@ -76,6 +80,8 @@
     });
 
     onMount(() => {
+        logger.info('Quick Menu Mounted');
+
         isDark = document.documentElement.classList.contains('dark');
         const initialize = async () => {
             const window = getCurrentWindow();

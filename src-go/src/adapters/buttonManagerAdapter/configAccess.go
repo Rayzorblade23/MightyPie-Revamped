@@ -3,7 +3,6 @@ package buttonManagerAdapter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -12,8 +11,6 @@ import (
 )
 
 const (
-	jsonExtension    = ".json"
-	configFileName   = "buttonConfig"
 	backupFilePrefix = "buttonConfig_BACKUP"
 )
 
@@ -26,15 +23,15 @@ func GetButtonConfig() ConfigData {
 
 	copiedConfig, err := deepCopyConfig(configToCopy)
 	if err != nil {
-		log.Printf("ERROR: GetButtonConfig - deepCopyConfig returned an error: %v. Returning empty config.", err)
+		log.Error("GetButtonConfig - deepCopyConfig returned an error: %v. Returning empty config.", err)
 		return make(ConfigData)
 	}
 	if copiedConfig == nil { // Should not happen with current deepCopyConfig logic
-		log.Printf("ERROR: GetButtonConfig - deepCopyConfig returned nil unexpectedly. Returning empty config.")
+		log.Error("GetButtonConfig - deepCopyConfig returned nil unexpectedly. Returning empty config.")
 		return make(ConfigData)
 	}
 	if len(copiedConfig) == 0 && sourceLen > 0 {
-		log.Printf("WARN: GetButtonConfig - deepCopyConfig resulted in an EMPTY map, but source was NOT empty (len %d)! Decode likely failed inside deepCopyConfig.", sourceLen)
+		log.Warn("GetButtonConfig - deepCopyConfig resulted in an EMPTY map, but source was NOT empty (len %d)! Decode likely failed inside deepCopyConfig.", sourceLen)
 		return make(ConfigData)
 	}
 
@@ -43,11 +40,11 @@ func GetButtonConfig() ConfigData {
 
 // WriteButtonConfig saves the given configuration to the default config file path.
 func WriteButtonConfig(config ConfigData) error {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return fmt.Errorf("LOCALAPPDATA environment variable not set")
+	appDataDir, err := core.GetAppDataDir()
+	if err != nil {
+		return err
 	}
-	configPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), configFileName+jsonExtension)
+	configPath := filepath.Join(appDataDir, os.Getenv("PUBLIC_DIR_PIEMENUCONFIG"))
 
 	return jsonUtils.WriteToFile(configPath, config)
 }
@@ -103,7 +100,7 @@ func deepCopyConfig(src ConfigData) (ConfigData, error) {
 
 	dst := make(ConfigData)
 	if err := jsonUtils.Copy(src, &dst); err != nil {
-		log.Printf("ERROR: deepCopyConfig - failed to copy config: %v", err)
+		log.Error("deepCopyConfig - failed to copy config: %v", err)
 		return nil, err
 	}
 	return dst, nil
@@ -111,12 +108,16 @@ func deepCopyConfig(src ConfigData) (ConfigData, error) {
 
 // BackupConfigToFile writes the given config to a backup file.
 func BackupConfigToFile(config ConfigData) error {
-	return BackupConfigToFileWithBaseDir(config, filepath.Join(os.Getenv("LOCALAPPDATA"), os.Getenv("PUBLIC_APPNAME")))
+	appDataDir, err := core.GetAppDataDir()
+	if err != nil {
+		return err
+	}
+	return BackupConfigToFileWithBaseDir(config, appDataDir)
 }
 
 // BackupConfigToFileWithBaseDir writes the config to a backup file in a specific directory.
 func BackupConfigToFileWithBaseDir(config ConfigData, baseDir string) error {
-	baseName := backupFilePrefix + jsonExtension
+	baseName := backupFilePrefix + ".json"
 	backupPath := filepath.Join(baseDir, baseName)
 	idx := 1
 	for {
@@ -124,7 +125,7 @@ func BackupConfigToFileWithBaseDir(config ConfigData, baseDir string) error {
 			break
 		}
 		idx++
-		backupPath = filepath.Join(baseDir, fmt.Sprintf("%s_%d%s", backupFilePrefix, idx, jsonExtension))
+		backupPath = filepath.Join(baseDir, fmt.Sprintf("%s_%d%s", backupFilePrefix, idx, ".json"))
 	}
 
 	return jsonUtils.WriteToFile(backupPath, config)
@@ -132,11 +133,11 @@ func BackupConfigToFileWithBaseDir(config ConfigData, baseDir string) error {
 
 // ReadButtonConfig loads the button configuration from the default path.
 func ReadButtonConfig() (ConfigData, error) {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	if localAppData == "" {
-		return nil, fmt.Errorf("LOCALAPPDATA environment variable not set")
+	appDataDir, err := core.GetAppDataDir()
+	if err != nil {
+		return nil, err
 	}
-	configPath := filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), configFileName+jsonExtension)
+	configPath := filepath.Join(appDataDir, os.Getenv("PUBLIC_DIR_PIEMENUCONFIG"))
 
 	var config ConfigData
 	if err := jsonUtils.ReadFromFile(configPath, &config); err != nil {
@@ -144,7 +145,7 @@ func ReadButtonConfig() (ConfigData, error) {
 	}
 
 	if config == nil {
-		log.Printf("WARN: Config file not found or is empty, creating default config at '%s'", configPath)
+		log.Warn("Config file not found or is empty, creating default config at '%s'", configPath)
 		defaultConfig := NewDefaultConfig()
 		if err := WriteButtonConfig(defaultConfig); err != nil {
 			return nil, fmt.Errorf("failed to write default config: %w", err)

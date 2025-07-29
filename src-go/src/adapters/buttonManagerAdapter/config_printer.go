@@ -2,7 +2,6 @@ package buttonManagerAdapter
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,50 +17,50 @@ const ellipsis = "..."
 
 // // PrintWindowList prints the current window list for debugging
 func PrintWindowList(mapping map[int]core.WindowInfo) {
-	fmt.Println("------------------ Current Window List ------------------")
+	log.Debug("------------------ Current Window List ------------------")
 	if len(mapping) == 0 {
-		fmt.Println("(empty)")
+		log.Debug("(empty)")
 		return
 	}
 	for hwnd, info := range mapping {
-		fmt.Printf("Window Handle: %d\n", hwnd)
-		fmt.Printf("  Title: %s\n", info.Title)
-		fmt.Printf("  ExeName: %s\n", info.ExeName)
-		fmt.Printf("  AppName: %s\n", info.AppName)
-		fmt.Printf("  Instance: %d\n", info.Instance)
-		fmt.Printf("  IconPath: %s\n", info.IconPath)
-		fmt.Println()
+		log.Debug("Window Handle: %d", hwnd)
+		log.Debug("  Title: %s", info.Title)
+		log.Debug("  ExeName: %s", info.ExeName)
+		log.Debug("  AppName: %s", info.AppName)
+		log.Debug("  Instance: %d", info.Instance)
+		log.Debug("  IconPath: %s", info.IconPath)
+		log.Debug("")
 	}
-	fmt.Println("---------------------------------------------------------")
+	log.Debug("---------------------------------------------------------")
 }
 
 func PrintButton(button Button) {
-	fmt.Printf("Button Type: %s\n", button.ButtonType)
+	log.Debug("Button Type: %s", button.ButtonType)
 
 	switch button.ButtonType {
 	case string(core.ButtonTypeShowProgramWindow):
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 		if err != nil {
-			fmt.Printf("Error parsing properties: %v\n", err)
+			log.Error("Error parsing properties: %v", err)
 			return
 		}
-		fmt.Printf("Properties:\n")
-		fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-		fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-		fmt.Printf("  Icon Path: %s\n", props.IconPath)
-		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
+		log.Debug("Properties:")
+		log.Debug("  Button Text Upper: %s", props.ButtonTextUpper)
+		log.Debug("  Button Text Lower: %s", props.ButtonTextLower)
+		log.Debug("  Icon Path: %s", props.IconPath)
+		log.Debug("  Window Handle: %d", props.WindowHandle)
 
 	case string(core.ButtonTypeShowAnyWindow):
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 		if err != nil {
-			fmt.Printf("Error parsing properties: %v\n", err)
+			log.Error("Error parsing properties: %v", err)
 			return
 		}
-		fmt.Printf("Properties:\n")
-		fmt.Printf("  Button Text Upper: %s\n", props.ButtonTextUpper)
-		fmt.Printf("  Button Text Lower: %s\n", props.ButtonTextLower)
-		fmt.Printf("  Icon Path: %s\n", props.IconPath)
-		fmt.Printf("  Window Handle: %d\n", props.WindowHandle)
+		log.Debug("Properties:")
+		log.Debug("  Button Text Upper: %s", props.ButtonTextUpper)
+		log.Debug("  Button Text Lower: %s", props.ButtonTextLower)
+		log.Debug("  Icon Path: %s", props.IconPath)
+		log.Debug("  Window Handle: %d", props.WindowHandle)
 
 		// ... add other cases as needed
 	}
@@ -134,7 +133,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 			for idStr := range pageConfig {
 				id, err := strconv.Atoi(idStr)
 				if err != nil {
-					log.Printf("WARN: Invalid button ID format '%s' in P:%s M:%s", idStr, menuID, pageID)
+					log.Warn("Invalid button ID format '%s' in P:%s M:%s", idStr, menuID, pageID)
 					continue
 				}
 				buttonIDs = append(buttonIDs, id)
@@ -151,7 +150,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case core.ButtonTypeShowAnyWindow:
 					props, err := GetButtonProperties[core.ShowAnyWindowProperties](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
+						log.Error("Failed to get props for ShowAnyWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						buttonSpecificDetails = "<Error reading props>"
 					} else {
 						buttonSpecificDetails = formatProperties(
@@ -166,7 +165,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case core.ButtonTypeShowProgramWindow:
 					props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
+						log.Error("Failed to get props for ShowProgramWindow (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						buttonSpecificDetails = "<Error reading props>"
 					} else {
 						buttonSpecificDetails = formatProperties(
@@ -181,7 +180,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case core.ButtonTypeCallFunction:
 					props, err := GetButtonProperties[core.CallFunctionProperties](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for CallFunction (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
+						log.Error("Failed to get props for CallFunction (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
 						buttonSpecificDetails = "[ERR]"
 					} else {
 						buttonSpecificDetails = formatProperties(
@@ -192,7 +191,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case core.ButtonTypeOpenPageInMenu:
 					props, err := GetButtonProperties[core.OpenSpecificPieMenuPage](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for OpenPageInMenu (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
+						log.Error("Failed to get props for OpenPageInMenu (P:%s M:%s B:%s): %v", menuID, pageID, buttonIDStr, err)
 						buttonSpecificDetails = "[ERR]"
 					} else {
 						buttonSpecificDetails = formatProperties(
@@ -204,7 +203,7 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 				case core.ButtonTypeLaunchProgram:
 					props, err := GetButtonProperties[core.LaunchProgramProperties](button)
 					if err != nil {
-						log.Printf("ERROR: Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
+						log.Error("Failed to get props for LaunchProgram (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
 						buttonSpecificDetails = "<Error reading props>"
 					} else {
 						buttonSpecificDetails = formatProperties(

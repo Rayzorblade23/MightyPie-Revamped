@@ -2,7 +2,6 @@ package windowManagementAdapter
 
 import (
 	"image"
-	"log"
 	"unsafe"
 
 	w32 "github.com/gonutz/w32/v2"
@@ -44,7 +43,7 @@ func localGetIconInfoEx(hIcon w32.HICON, piconinfo *ICONINFOEXW) bool {
 // Ensure this is defined or imported.
 func bgraToGoImage(bgraData []byte, width, height int) *image.RGBA {
 	if len(bgraData) < width*height*4 {
-		log.Printf("Error bgraToGoImage: not enough data. Expected %d, got %d for %dx%d", width*height*4, len(bgraData), width, height)
+		log.Error("Error bgraToGoImage: not enough data. Expected %d, got %d for %dx%d", width*height*4, len(bgraData), width, height)
 		// Return an empty/black image or handle error appropriately
 		return image.NewRGBA(image.Rect(0,0,width,height))
 	}

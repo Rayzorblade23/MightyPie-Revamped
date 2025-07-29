@@ -2,15 +2,18 @@ package buttonManagerAdapter
 
 import (
 	"encoding/json"
-	"log"
 	"maps"
 	"os"
 	"sync"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
+
+// Package-level logger instance
+var log = logger.New("ButtonManager")
 
 var (
 	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> PageConfiguration)
@@ -26,7 +29,7 @@ type ButtonManagerAdapter struct {
 // New creates and initializes the ButtonManagerAdapter
 func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	if natsAdapter == nil {
-		log.Fatalf("FATAL: NATS Adapter dependency cannot be nil") // Fail fast if dependency missing
+		log.Fatal("FATAL: NATS Adapter dependency cannot be nil") // Fail fast if dependency missing
 	}
 	a := &ButtonManagerAdapter{
 		natsAdapter: natsAdapter,
@@ -42,73 +45,74 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 
 	config, err := ReadButtonConfig()
 	if err != nil {
-		log.Fatalf("FATAL: Failed to read initial button configuration: %v", err)
+		log.Fatal("FATAL: Failed to read initial button configuration: %v", err)
 	}
 
 	updateButtonConfig(config)
-	log.Println("INFO: Initial button configuration loaded.")
+	log.Info("INFO: Initial button configuration loaded.")
 	// PrintConfig(config, true)
 
-	a.natsAdapter.PublishMessage(baseConfigSubject, config)
+	a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", config)
 
 	a.natsAdapter.SubscribeToSubject(receiveNewBaseConfigSubject, core.GetTypeName(a), func(msg *nats.Msg) {
-		log.Printf("INFO: Raw config coming in on '%s'.", msg.Subject)
+		log.Info("Raw config coming in on '%s'.", msg.Subject)
 
 		var newConfig ConfigData
 		if err := json.Unmarshal(msg.Data, &newConfig); err != nil {
-			log.Printf("ERROR: Failed to unmarshal config: %v", err)
+			log.Error("Failed to unmarshal config: %v", err)
 			return
 		}
 
 		// Reject empty config updates
 		if len(newConfig) == 0 {
-			log.Printf("ERROR: Rejected incoming config update: config is empty!")
+			log.Error("Rejected incoming config update: config is empty!")
 			return
 		}
 
 		if err := WriteButtonConfig(newConfig); err != nil {
-			log.Printf("ERROR: Failed to write config: %v", err)
+			log.Error("Failed to write config: %v", err)
 			return
 		}
 
 		// Read it back in to update in-memory state
 		loadedConfig, err := ReadButtonConfig()
 		if err != nil {
-			log.Printf("ERROR: Failed to reload config after write: %v", err)
+			log.Error("Failed to reload config after write: %v", err)
 			return
 		}
 
 		updateButtonConfig(loadedConfig)
 
-		log.Println("INFO: Config written and reloaded from disk.")
+		log.Info("INFO: Config written and reloaded from disk.")
 		// PrintConfig(buttonConfig, false)
 
-		a.natsAdapter.PublishMessage(baseConfigSubject, loadedConfig)
-		a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
+		a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", loadedConfig)
+		a.natsAdapter.PublishMessage(windowUpdateSubject, "ButtonManager", windowsList)
 	})
 
 	a.natsAdapter.SubscribeToSubject(saveConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		// Assume BackupConfigToFile exists and takes the config as argument
 		var configToBackup ConfigData
 		if err := json.Unmarshal(msg.Data, &configToBackup); err != nil {
-			log.Printf("ERROR: Failed to unmarshal backup config: %v", err)
+			log.Error("Failed to unmarshal backup config: %v", err)
 			return
 		}
 		if err := BackupConfigToFile(configToBackup); err != nil {
-			log.Printf("ERROR: Failed to backup config to file: %v", err)
+			log.Error("Failed to backup config to file: %v", err)
 			return
 		}
-		log.Println("INFO: Config backup successful.")
+		log.Info("Config backup successful.")
 	})
 
 	// Subscribe to window updates for subsequent changes
 	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var currentWindows core.WindowsUpdate
 		if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
-			log.Printf("ERROR: Failed to decode window update message: %v", err)
+			log.Error("Failed to decode window update message: %v", err)
 			return
 		}
 
+		// PrintWindowList(currentWindows)
 		updateWindowsList(currentWindows)
 
 		currentConfigSnapshot := GetButtonConfig() // Get clean snapshot
@@ -116,7 +120,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		// Process updates
 		processedConfig, err := a.processWindowUpdate(currentConfigSnapshot, currentWindows)
 		if err != nil {
-			log.Printf("ERROR: Failed to process window update for button config: %v", err)
+			log.Error("Failed to process window update for button config: %v", err)
 			return
 		}
 
@@ -124,9 +128,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		if processedConfig != nil {
 			// Update global state first
 			updateButtonConfig(processedConfig)
-			log.Println("INFO: Button configuration updated (due to window event) and will be published.")
+			log.Info("Button configuration updated (due to window event) and will be published.")
 			// Publish the updated configuration object
-			a.natsAdapter.PublishMessage(buttonUpdateSubject, processedConfig)
+			a.natsAdapter.PublishMessage(buttonUpdateSubject, "ButtonManager", processedConfig)
 			// PrintConfig(processedConfig, true)
 		}
 	})
@@ -139,10 +143,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		gapFilledConfig, cleared := FillWindowAssignmentGaps(currentConfig)
 		if cleared > 0 {
 			updateButtonConfig(gapFilledConfig)
-			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
-			log.Println("INFO: Gap-filling/compaction performed and update published (no processWindowUpdate).")
+			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), "ButtonManager", gapFilledConfig)
+			log.Info("Gap-filling/compaction performed and update published (no processWindowUpdate).")
 		} else {
-			log.Println("INFO: Gap-filling triggered but no gaps were found.")
+			log.Info("Gap-filling triggered but no gaps were found.")
 		}
 	})
 
@@ -157,27 +161,28 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		if len(backupPath) > 0 && (backupPath[len(backupPath)-1] == '"' || backupPath[len(backupPath)-1] == '\'') {
 			backupPath = backupPath[:len(backupPath)-1]
 		}
-		log.Printf("INFO: Loading config backup from '%s'...", backupPath)
+		log.Info("Loading config backup from",)
+		log.Info("↳ '%s'", backupPath)
 
 		// Load config from the backup file
 		backupConfig, err := LoadConfigFromFile(backupPath)
 		if err != nil {
-			log.Printf("ERROR: Failed to load config from backup: %v", err)
+			log.Error("Failed to load config from backup: %v", err)
 			return
 		}
 
 		// Overwrite the current config file
 		if err := WriteButtonConfig(backupConfig); err != nil {
-			log.Printf("ERROR: Failed to overwrite buttonConfig.json: %v", err)
+			log.Error("Failed to overwrite buttonConfig.json: %v", err)
 			return
 		}
 
 		// Update in-memory config
 		updateButtonConfig(backupConfig)
-		log.Println("INFO: Config loaded from backup and set as current.")
+		log.Info("↳ Config loaded from backup and set as current.")
 
 		// Publish the updated config
-		a.natsAdapter.PublishMessage(baseConfigSubject, backupConfig)
+		a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", backupConfig)
 	})
 
 	return a
@@ -200,6 +205,6 @@ func updateWindowsList(newList core.WindowsUpdate) {
 
 // Run keeps the adapter alive (if needed, e.g., for non-NATS goroutines)
 func (a *ButtonManagerAdapter) Run() error {
-	log.Println("INFO: ButtonManagerAdapter running.")
+	log.Info("ButtonManagerAdapter running.")
 	select {} // Block indefinitely
 }

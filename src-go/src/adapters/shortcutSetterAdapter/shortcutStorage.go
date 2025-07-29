@@ -2,7 +2,6 @@ package shortcutSetterAdapter
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,12 +9,10 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 )
 
-const (
-	jsonExtension     = ".json"
-	shortcutsFileName = "shortcuts"
-)
+
 
 func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	shortcuts, err := LoadShortcuts()
@@ -33,7 +30,10 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	}
 	shortcuts[strconv.Itoa(index)] = entry
 
-	shortcutsPath := getShortcutConfigPath()
+	shortcutsPath, err := getShortcutConfigPath()
+	if err != nil {
+		return fmt.Errorf("failed to get shortcut config path: %w", err)
+	}
 	if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
 		return fmt.Errorf("failed to write shortcuts file: %w", err)
 	}
@@ -41,19 +41,23 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	// --- Send NATS message with the whole map ---
 	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
-		a.natsAdapter.PublishMessage(subject, shortcuts)
+		a.natsAdapter.PublishMessage(subject, "ShortcutSetter", shortcuts)
 	}
 
 	return nil
 }
 
 func LoadShortcuts() (ShortcutMap, error) {
-	shortcutsPath := getShortcutConfigPath()
+	shortcutsPath, err := getShortcutConfigPath()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shortcut config path: %w", err)
+	}
 	shortcuts := make(ShortcutMap)
 
 	// Ensure the config file exists.
 	if _, err := os.Stat(shortcutsPath); os.IsNotExist(err) {
-		log.Printf("INFO: Shortcuts file not found at %s. Creating a new empty file.", shortcutsPath)
+		// Create a local logger instance for this file
+		logger.Info("Shortcuts file not found at %s. Creating a new empty file.", shortcutsPath)
 		if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
 			return nil, fmt.Errorf("failed to create initial shortcuts file: %w", err)
 		}
@@ -70,9 +74,12 @@ func LoadShortcuts() (ShortcutMap, error) {
 }
 
 // ShortcutCodesToString returns a human-readable string for a slice of key codes.
-func getShortcutConfigPath() string {
-	localAppData := os.Getenv("LOCALAPPDATA")
-	return filepath.Join(localAppData, os.Getenv("PUBLIC_APPNAME"), shortcutsFileName+jsonExtension)
+func getShortcutConfigPath() (string, error) {
+	appDataDir, err := core.GetAppDataDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get app data dir: %w", err)
+	}
+	return filepath.Join(appDataDir, os.Getenv("PUBLIC_DIR_SHORTCUTS")), nil
 }
 
 func ShortcutCodesToString(codes []int) string {
@@ -97,7 +104,10 @@ func (a *ShortcutSetterAdapter) DeleteShortcut(index int) error {
 	// Delete the shortcut at the given index
 	delete(shortcuts, strconv.Itoa(index))
 
-	shortcutsPath := getShortcutConfigPath()
+	shortcutsPath, err := getShortcutConfigPath()
+	if err != nil {
+		return fmt.Errorf("failed to get shortcut config path: %w", err)
+	}
 	if err := jsonUtils.WriteToFile(shortcutsPath, shortcuts); err != nil {
 		return fmt.Errorf("failed to write shortcuts file: %w", err)
 	}
@@ -105,7 +115,7 @@ func (a *ShortcutSetterAdapter) DeleteShortcut(index int) error {
 	// --- Send NATS message with the whole map ---
 	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
-		a.natsAdapter.PublishMessage(subject, shortcuts)
+		a.natsAdapter.PublishMessage(subject, "ShortcutSetter", shortcuts)
 	}
 
 	return nil

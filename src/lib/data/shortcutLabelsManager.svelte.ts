@@ -1,3 +1,8 @@
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('ShortcutLabelsManager');
+
 export interface ShortcutEntry {
     codes: number[];
     label: string;
@@ -21,7 +26,7 @@ export function getShortcutLabels(): Record<number, string> {
  * @param newLabels - A Record<number, string> of shortcut labels.
  */
 export function updateShortcutLabels(newLabels: Record<number, string>) {
-    console.debug('[Shortcut Debug] updateShortcutLabels called with:', newLabels);
+    logger.debug('updateShortcutLabels called with:', newLabels);
     _shortcutLabels = newLabels;
 }
 
@@ -34,12 +39,12 @@ export function parseShortcutLabelsMessage(msg: string): Record<number, string> 
     const fullObj = JSON.parse(msg) as ShortcutLabelsMessage;
     const labels: Record<number, string> = {};
     for (const key in fullObj) {
-        console.debug('[Shortcut Debug] Parsing key:', key, 'typeof:', typeof key);
+        logger.debug('Parsing key:', key, 'typeof:', typeof key);
         const numKey = Number(key);
         if (!isNaN(numKey)) {
             labels[numKey] = fullObj[key].label;
         } else {
-            console.warn('[Shortcut Debug] Invalid key in shortcut labels:', key);
+            logger.warn('Invalid key in shortcut labels:', key);
         }
     }
     return labels;

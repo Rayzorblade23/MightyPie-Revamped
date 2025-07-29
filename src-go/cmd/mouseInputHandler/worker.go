@@ -6,16 +6,12 @@ import (
 )
 
 func main() {
-	natsAdapter, err := natsAdapter.New()
+	natsAdapter, err := natsAdapter.New("MouseInputHandler")
 	if err != nil {
 		panic(err)
 	}
 	
-	println("MouseInputAdapter: NATS connection established")
-
 	mouseInputAdapter := mouseInputAdapter.New(natsAdapter)
-
-	println("Mouse input handler started")
 	
 	mouseInputAdapter.Run()
 }

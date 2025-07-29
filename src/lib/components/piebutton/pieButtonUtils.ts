@@ -1,4 +1,5 @@
 import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
+import {getIconDataUrl as getIconDataUrlFromBackend} from '$lib/fileAccessUtils';
 
 // Border class map shared by both components
 const borderClassMap: Record<ButtonType | 'default', string> = {
@@ -65,3 +66,6 @@ export async function fetchSvgIcon(iconPath?: string): Promise<string> {
         return errorSvg;
     }
 }
+
+// Export the getIconDataUrl function from fileAccessUtils
+export const getIconDataUrl = getIconDataUrlFromBackend;

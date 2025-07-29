@@ -1,4 +1,8 @@
-﻿import {invoke} from "@tauri-apps/api/core";
+import {invoke} from "@tauri-apps/api/core";
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('GeneralUtil');
 
 export function convertRemToPixels(rem: number) {
     return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -64,7 +68,7 @@ export async function getPrivateEnvVar(key: string): Promise<string> {
     try {
         return await invoke('get_private_env_var', {key});
     } catch (error) {
-        console.error(`Failed to fetch env var ${key}:`, error);
+        logger.error(`Failed to fetch env var ${key}:`, error);
         throw error;
     }
 }

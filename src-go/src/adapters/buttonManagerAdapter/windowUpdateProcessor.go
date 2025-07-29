@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"reflect"
 
@@ -17,13 +16,13 @@ import (
 // processWindowUpdate - Refactored structure (Cleaned)
 func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, windows core.WindowsUpdate) (ConfigData, error) {
 	if len(currentConfig) == 0 {
-		log.Println("INFO: Skipping button processing - currentConfig is empty.")
+		log.Info("Skipping button processing - currentConfig is empty.")
 		return nil, nil
 	}
 
 	updatedConfig, err := deepCopyConfig(currentConfig)
 	if err != nil || updatedConfig == nil || (len(updatedConfig) == 0 && len(currentConfig) > 0) {
-		log.Printf("ERROR: processWindowUpdate - Deep copy failed or resulted in invalid state. Error: %v", err)
+		log.Error("processWindowUpdate - Deep copy failed or resulted in invalid state. Error: %v", err)
 		return nil, fmt.Errorf("config deep copy failed: %w", err)
 	}
 
@@ -69,12 +68,11 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 	jsonUpdatedFinal, errUpdateFinal := json.Marshal(updatedConfig)
 
 	if errSnapFinal != nil || errUpdateFinal != nil {
-		log.Printf("ERROR: Failed to marshal for final comparison (SnapErr: %v, UpdateErr: %v)", errSnapFinal, errUpdateFinal)
+		log.Error("Failed to marshal for final comparison (SnapErr: %v, UpdateErr: %v)", errSnapFinal, errUpdateFinal)
 		return nil, fmt.Errorf("final marshal error")
 	}
 
 	if bytes.Equal(jsonSnapshotFinal, jsonUpdatedFinal) {
-		// log.Println("DEBUG: Final JSON comparison shows configurations ARE equal. Returning nil.") // Removed DEBUG
 		return nil, nil
 	}
 
@@ -83,10 +81,9 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 
 // Helper for empty window list case (Cleaned)
 func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, updatedConfig ConfigData) (ConfigData, error) {
-	// log.Println("DEBUG: Handling empty window list.") // Removed DEBUG
 	_, err := a.handleEmptyWindowList(updatedConfig) // Modifies updatedConfig directly
 	if err != nil {
-		log.Printf("ERROR: handleEmptyWindowList returned error: %v", err)
+		log.Error("handleEmptyWindowList returned error: %v", err)
 		return nil, fmt.Errorf("error handling empty window list: %w", err)
 	}
 
@@ -94,14 +91,12 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 	jsonSnapshot, errSnap := json.Marshal(currentConfig)
 	jsonAfterClear, errClear := json.Marshal(updatedConfig)
 	if errSnap != nil || errClear != nil {
-		log.Printf("ERROR: Failed to marshal for empty list comparison (SnapErr: %v, ClearErr: %v)", errSnap, errClear)
+		log.Error("Failed to marshal for empty list comparison (SnapErr: %v, ClearErr: %v)", errSnap, errClear)
 		return nil, fmt.Errorf("marshal error during empty list check")
 	}
 	if bytes.Equal(jsonSnapshot, jsonAfterClear) {
-		// log.Println("DEBUG: JSON comparison shows config unchanged after clearing. Returning nil.") // Removed DEBUG
 		return nil, nil
 	}
-	// log.Println("DEBUG: JSON comparison shows config *changed* after clearing. Returning modified config.") // Removed DEBUG
 	return updatedConfig, nil
 }
 
@@ -141,7 +136,6 @@ func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 
 // handleEmptyWindowList (Cleaned)
 func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) (ConfigData, error) {
-	// log.Println("DEBUG: Entering handleEmptyWindowList...") // Removed DEBUG
 	anyChangeMade := false
 
 	for menuID, menuConfig := range configToModify {
@@ -158,7 +152,7 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 
 				err := clearButtonWindowProperties(&buttonCopy) // Try to clear the copy
 				if err != nil {
-					log.Printf("ERROR: Failed to clear properties for button (P:%s M:%s B:%s) on empty window list: %v", menuID, pageID, btnID, err)
+					log.Error("Failed to clear properties for button (P:%s M:%s B:%s) on empty window list: %v", menuID, pageID, btnID, err)
 					// Continue? Or return error? Continue seems reasonable.
 				} else {
 					if !reflect.DeepEqual(originalButtonBeforeClear, buttonCopy) {
@@ -171,10 +165,8 @@ func (a *ButtonManagerAdapter) handleEmptyWindowList(configToModify ConfigData) 
 	}
 
 	if anyChangeMade {
-		// log.Printf("DEBUG: handleEmptyWindowList detected internal changes.") // Removed DEBUG
 		return configToModify, nil // Return modified map reference
 	}
 
-	// log.Printf("DEBUG: handleEmptyWindowList detected no internal changes.") // Removed DEBUG
 	return nil, nil // Return nil to signal no changes made *by this function*
 }

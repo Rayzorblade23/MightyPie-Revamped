@@ -2,7 +2,6 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -94,30 +93,93 @@ func (hwnd WindowHandle) Close() error {
 }
 
 func (hwnd WindowHandle) Maximize() error {
+	// First set foreground
 	_, _, err := setForegroundWindow.Call(uintptr(hwnd))
 	if err != nil && err.Error() != "The operation completed successfully." {
 		return fmt.Errorf("failed to set foreground window: %v", err)
 	}
+	
+	// Then maximize
 	_, _, err = showWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
-	if err != nil && err.Error() != "The operation completed successfully." {
+	
+	// Windows API often returns non-nil error even on success
+	if err != nil {
+		if err.Error() == "The operation completed successfully." {
+			log.Info("Successfully maximized window HWND %X", hwnd)
+			return nil
+		}
+		
+		// Ignore quota errors as they often occur even when the window is successfully maximized
+		if strings.Contains(err.Error(), "Not enough quota") {
+			// Check if the window is actually maximized despite the error
+			isMax, _ := hwnd.IsMaximized()
+			if isMax { // Window is maximized
+				log.Info("Successfully maximized window HWND %X (despite quota error)", hwnd)
+				return nil
+			}
+		}
+		
 		return fmt.Errorf("failed to maximize window: %v", err)
 	}
+	
+	log.Info("Successfully maximized window HWND %X", hwnd)
 	return nil
 }
 
 func (hwnd WindowHandle) Minimize() error {
 	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_MINIMIZE))
-	if err != nil && err.Error() != "The operation completed successfully." {
+	
+	// Windows API often returns non-nil error even on success
+	// "The operation completed successfully" is a known case
+	// "Not enough quota" can also happen when the operation actually succeeds
+	if err != nil {
+		if err.Error() == "The operation completed successfully." {
+			log.Info("Successfully minimized window HWND %X", hwnd)
+			return nil
+		}
+		
+		// Ignore quota errors as they often occur even when the window is successfully minimized
+		if strings.Contains(err.Error(), "Not enough quota") {
+			// Check if the window is actually minimized despite the error
+			ret, _, _ := isIconic.Call(uintptr(hwnd))
+			if ret != 0 { // Window is minimized
+				log.Info("Successfully minimized window HWND %X (despite quota error)", hwnd)
+				return nil
+			}
+		}
+		
 		return fmt.Errorf("failed to minimize window: %v", err)
 	}
+	
+	log.Info("Successfully minimized window HWND %X", hwnd)
 	return nil
 }
 
 func (hwnd WindowHandle) Restore() error {
 	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
-	if err != nil && err.Error() != "The operation completed successfully." {
+	
+	// Windows API often returns non-nil error even on success
+	if err != nil {
+		if err.Error() == "The operation completed successfully." {
+			log.Info("Successfully restored window HWND %X", hwnd)
+			return nil
+		}
+		
+		// Ignore quota errors as they often occur even when the window is successfully restored
+		if strings.Contains(err.Error(), "Not enough quota") {
+			// Check if the window is actually restored despite the error
+			ret, _, _ := isIconic.Call(uintptr(hwnd))
+			isMax, _ := hwnd.IsMaximized()
+			if ret == 0 && !isMax { // Window is neither minimized nor maximized, so it's restored
+				log.Info("Successfully restored window HWND %X (despite quota error)", hwnd)
+				return nil
+			}
+		}
+		
 		return fmt.Errorf("failed to restore window: %v", err)
 	}
+	
+	log.Info("Successfully restored window HWND %X", hwnd)
 	return nil
 }
 
@@ -187,7 +249,7 @@ func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error 
 	if ok && strings.EqualFold(winInfo.ExeName, "taskmgr.exe") && appOk {
 		// Always launch Task Manager, as foregrounding is unreliable and only one instance runs
 		if err := LaunchApp("Task Manager", appInfo); err != nil {
-			log.Printf("[setForegroundOrMinimize] Failed to launch Task Manager: %v", err)
+			log.Error("Failed to launch Task Manager: %v", err)
 			return err
 		}
 		return nil
@@ -195,7 +257,7 @@ func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error 
 
 	foreground, _, callErr := getForegroundWindow.Call()
 	if callErr != nil && callErr != syscall.Errno(0) {
-		log.Printf("[setForegroundOrMinimize] getForegroundWindow failed: %v", callErr)
+		log.Error("getForegroundWindow failed: %v", callErr)
 		return fmt.Errorf("getForegroundWindow failed: %v", callErr)
 	}
 
@@ -207,7 +269,10 @@ func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error 
 			// Continue to rest of logic to bring to foreground
 		} else {
 			// Minimize if already foreground and not minimized
-			return WindowHandle(hwnd).Minimize()
+			if err := WindowHandle(hwnd).Minimize(); err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
@@ -243,17 +308,17 @@ func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error 
 	bringWindowToTop.Call(hwnd)
 
 	// Set window topmost, then notopmost
-	setWindowPos.Call(hwnd, HWND_TOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
-	setWindowPos.Call(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
+	_, _, _ = setWindowPos.Call(hwnd, HWND_TOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
+	_, _, _ = setWindowPos.Call(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, uintptr(SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW))
 
 	// Now try to bring to foreground
-	ret, _, callErr = setForegroundWindow.Call(hwnd)
+	ret, _, _ = setForegroundWindow.Call(hwnd)
 	if ret == 0 {
-		log.Printf("[setForegroundOrMinimize] WARNING: setForegroundWindow failed after restore: %v", callErr)
+		log.Error("setForegroundWindow failed after restore. This is common when another window is already in the foreground.")
 		if attached {
 			attachThreadInput.Call(thisThread, fgThread, 0)
 		}
-		return fmt.Errorf("setForegroundWindow failed after restore: %v", callErr)
+		return fmt.Errorf("setForegroundWindow failed after restore")
 	}
 
 	if attached {
@@ -266,7 +331,7 @@ func (a *PieButtonExecutionAdapter) setForegroundOrMinimize(hwnd uintptr) error 
 func logWindowContext(index int, text string, hwnd uintptr) {
 	title := GetWindowTitle(hwnd)
 	class := GetWindowClassName(hwnd)
-	log.Printf("show_any_window: Button %d (%s), HWND %X (%d), Title: '%s', Class: '%s'",
+	log.Info("show_any_window: Button %d (%s), HWND %X (%d), Title: '%s', Class: '%s'",
 		index, text, hwnd, hwnd, title, class)
 }
 
@@ -364,7 +429,7 @@ func CenterWindowOnMonitor(hwnd uintptr) error {
 		SWP_NOZORDER|SWP_NOACTIVATE,
 	)
 	if r3 == 0 {
-		log.Printf("[CenterWindowOnMonitor] SetWindowPos failed: %v", err)
+		log.Error("[CenterWindowOnMonitor] SetWindowPos failed: %v", err)
 		return fmt.Errorf("SetWindowPos failed: %v", err)
 	}
 

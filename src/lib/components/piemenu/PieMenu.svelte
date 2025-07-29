@@ -1,4 +1,4 @@
-<!-- PieMenuWithTransitions.svelte -->
+<!-- PieMenu.svelte -->
 <script lang="ts">
     import {scale} from 'svelte/transition';
     import {cubicOut} from 'svelte/easing';
@@ -30,6 +30,10 @@
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
     import {getButtonType} from "$lib/data/configManager.svelte.ts";
     import {ButtonType} from "$lib/data/types/pieButtonTypes.ts";
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('PieMenu');
 
     const numButtons = 8;
     const radius = Number(RADIUS);
@@ -59,7 +63,7 @@
 
     // Update showButtons whenever animationKey changes
     $effect(() => {
-        console.log("Animation key changed to:", animationKey);
+        logger.debug("Animation key changed to:", animationKey);
         // Reset and trigger animation when animationKey changes
         showButtons = false;
         // Small delay to ensure DOM updates
@@ -74,14 +78,14 @@
             currentMouseEvent = clickMsg.click;
 
             if (clickMsg.click == mouseEvents.right_up) {
-                console.log(`Right click in Slice: ${activeSlice}!`);
+                logger.debug(`Right click in Slice: ${activeSlice}!`);
                 publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
                 await getCurrentWindow().hide();
                 return;
             }
 
             if (clickMsg.click == mouseEvents.left_up) {
-                console.log(`Left click in Slice: ${activeSlice}!`);
+                logger.debug(`Left click in Slice: ${activeSlice}!`);
                 if (activeSlice === -1) {
                     // Use the selected deadzone function from settings
                     const settings = getSettings();
@@ -105,16 +109,16 @@
             }
 
             if (clickMsg.click == mouseEvents.middle_up) {
-                console.log(`Middle click in Slice: ${activeSlice}!`);
+                logger.debug(`Middle click in Slice: ${activeSlice}!`);
                 if (activeSlice === -1) {
                     publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
-                    console.log("Deadzone clicked! Open piemenuConfig.");
+                    logger.debug("Deadzone clicked! Open piemenuConfig.");
                     await goto('/quickMenu');
                     return;
                 }
             }
         } catch (e) {
-            console.error('Failed to parse message:', e);
+            logger.error('Failed to parse message:', e);
         }
     }
 
@@ -124,9 +128,9 @@
     );
 
     $effect(() => {
-        console.log("subscription_button_click Status:", subscription_button_click.status);
+        logger.debug("subscription_button_click Status:", subscription_button_click.status);
         if (subscription_button_click.error) {
-            console.error("subscription_button_click Error:", subscription_button_click.error);
+            logger.error("subscription_button_click Error:", subscription_button_click.error);
         }
     });
 
@@ -135,7 +139,8 @@
     let destroyed = false;
 
     const handleShortcutReleasedMessage = async (message: string) => {
-        console.log('[NATS] Shortcut released message received:', message);
+        logger.debug('[NATS] Shortcut released message received:');
+        logger.debug('↳', message);
         if (activeSlice !== -1) {
             currentMouseEvent = mouseEvents.left_down;
 
@@ -143,11 +148,11 @@
                 if (destroyed) return;
                 if (activeSlice !== -1) {
                     currentMouseEvent = mouseEvents.left_up;
-                    console.log(`Left drag released in Slice: ${activeSlice}!`);
+                    logger.debug(`Left drag released in Slice: ${activeSlice}!`);
 
                     const buttonType = getButtonType(menuID, pageID, activeSlice);
                     if (buttonType === ButtonType.OpenSpecificPieMenuPage) {
-                        console.log("[NATS] Shortcut released: OpenPage button active, not hiding.");
+                        logger.debug("[NATS] Shortcut released: Active button is type OpenPage, not hiding.");
                         return;
                     }
 
@@ -158,7 +163,7 @@
                         opacity = 0;
                         showButtons = false;
                         getCurrentWindow().hide();
-                        console.log(`[NATS] Shortcut released: Hide.`);
+                        logger.debug(`[NATS] Shortcut released: Hide.`);
                     }, 100);
                 }
             }, 50);
@@ -171,9 +176,9 @@
     );
 
     $effect(() => {
-        console.log("subscription_shortcut_released Status:", subscription_shortcut_released.status);
+        logger.debug("subscription_shortcut_released Status:", subscription_shortcut_released.status);
         if (subscription_shortcut_released.error) {
-            console.error("subscription_shortcut_released Error:", subscription_shortcut_released.error);
+            logger.error("subscription_shortcut_released Error:", subscription_shortcut_released.error);
         }
     });
 
@@ -190,7 +195,7 @@
                 activeSlice = slice;
                 indicatorRotation = mouseAngle;
             } catch (error) {
-                console.error("Error in animation loop:", error);
+                logger.error("Error in animation loop:", error);
             }
 
             animationFrameId = requestAnimationFrame(update);
@@ -202,13 +207,11 @@
         if (animationFrameId !== null) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
-            console.log("Stopped animation frame loop.");
+            logger.debug("Stopped animation frame loop.");
         }
     }
 
     onMount(() => {
-        console.log("PieMenu.svelte: onMount hook running");
-
         let newButtonPositions: { x: number; y: number }[] = [];
 
         for (let i = 0; i < numButtons; i++) {

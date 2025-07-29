@@ -5,13 +5,16 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 )
+
+// Package-level logger instance
+var log = logger.New("PieButtonExecution")
 
 // NATS Subjects - fetched from environment, consider constants if these are static.
 var (
@@ -92,7 +95,6 @@ func (a *PieButtonExecutionAdapter) subscribeToEvents() {
 
 // executeCommand dispatches the command based on the ButtonType.
 func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecute_Message) error {
-	log.Printf("Executing command for button %d: ButtonType=%s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 
 	switch executionInfo.ButtonType {
 	case core.ButtonTypeShowProgramWindow:
@@ -104,10 +106,10 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 	case core.ButtonTypeOpenPageInMenu:
 		return a.handleOpenPageInMenu(executionInfo)
 	case core.ButtonTypeLaunchProgram:
-		log.Printf("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
+		log.Info("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 		return a.handleLaunchProgram(executionInfo)
 	case core.ButtonTypeDisabled:
-		log.Printf("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
+		log.Info("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
 		return nil // Nothing to do for disabled buttons
 	default:
 		return fmt.Errorf("unknown button type: %s", executionInfo.ButtonType)
@@ -116,7 +118,7 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 
 // Run starts the adapter's main loop (currently just blocks).
 func (a *PieButtonExecutionAdapter) Run() error {
-	log.Println("PieButtonExecutionAdapter started and listening for events.")
+	log.Info("PieButtonExecutionAdapter started and listening for events.")
 	// Blocks indefinitely, keeping the adapter alive to process NATS messages.
 	select {}
 }

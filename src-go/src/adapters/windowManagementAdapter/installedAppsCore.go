@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -166,7 +165,6 @@ func addSystemApps(apps []AppEntry, seenExeTargets map[string]bool) []AppEntry {
 
 		// Only add if the path hasn't been seen from other sources (LNKs, etc.)
 		if _, seen := seenExeTargets[lowerFullPath]; seen {
-			// log.Printf("Info: System app path '%s' already seen, skipping hardcoded add.", fullPath)
 			continue
 		}
 
@@ -175,7 +173,7 @@ func addSystemApps(apps []AppEntry, seenExeTargets map[string]bool) []AppEntry {
 			displayName, nameExists := systemApps[exeBaseName]
 			if !nameExists {
 				// Fallback name if not in systemApps map (should not happen for predefined list)
-				log.Printf("Warning: System app base name '%s' not found in systemApps display name map. Using base name.", exeBaseName)
+				log.Warn("Warning: System app base name '%s' not found in systemApps display name map. Using base name.", exeBaseName)
 				displayName = exeBaseName
 			}
 
@@ -569,7 +567,7 @@ func FetchExecutableApplicationMap() map[string]core.AppInfo {
 				}
 				count++
 				if count > 100 {
-					log.Printf("Warning: Exceeded max attempts to generate unique name for '%s'. Using: '%s'", baseAppName, uniqueAppNameKey)
+					log.Warn("Warning: Exceeded max attempts to generate unique name for '%s'. Using: '%s'", baseAppName, uniqueAppNameKey)
 					break
 				}
 			}
@@ -579,6 +577,6 @@ func FetchExecutableApplicationMap() map[string]core.AppInfo {
 		finalMap[uniqueAppNameKey] = launchInfo
 	}
 
-	log.Printf("Application discovery finished. Found %d applications.", len(finalMap))
+	log.Info("Application discovery finished. Found %d applications.", len(finalMap))
 	return finalMap
 }

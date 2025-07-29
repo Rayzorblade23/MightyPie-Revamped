@@ -9,8 +9,12 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
+
+// Package-level logger instance
+var log = logger.New("MouseInput")
 
 type piemenuOpened_Message struct {
 	PiemenuOpened bool `json:"piemenuOpened"`
@@ -32,11 +36,11 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 
 		var message piemenuOpened_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			println("Failed to decode message: %v", err)
+			log.Error("Failed to decode message: %v", err)
 			return
 		}
 
-		fmt.Printf("Pie Menu opened: %+v\n", message)
+		log.Debug("Pie Menu opened: %+v", message)
 
 		if message.PiemenuOpened {
 			SetMouseHookState(true)
@@ -95,7 +99,7 @@ func (a *MouseInputAdapter) Run() {
 		pt      struct{ x, y int32 }
 	}
 	for {
-		println("Waiting for mouse input...")
+		log.Debug("Waiting for mouse input...")
 		getMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 	}
 }
@@ -133,7 +137,7 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 }
 
 func (a *MouseInputAdapter) handleClick(button string, state string) {
-	fmt.Printf("%s button %s detected and blocked!\n", button, state)
+	log.Debug("%s button %s detected and blocked!", button, state)
 	a.publishMessage(MouseEvent{Button: button, State: state})
 }
 
@@ -142,16 +146,16 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
 	msg := piemenuClick_Message{
 		Click: fmt.Sprintf("%s_%s", event.Button, event.State),
 	}
-	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), msg)
-	fmt.Printf("Mouse %s\n", msg.Click)
+	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), "MouseInput", msg)
+	log.Info("Mouse %s", msg.Click)
 }
 
 // setMouseHookState enables or disables the mouse hook
 func SetMouseHookState(enable bool) {
 	hookEnabled = enable
 	if hookEnabled {
-		fmt.Println("Mouse hook enabled")
+		log.Debug("Mouse hook enabled")
 	} else {
-		fmt.Println("Mouse hook disabled")
+		log.Debug("Mouse hook disabled")
 	}
 }

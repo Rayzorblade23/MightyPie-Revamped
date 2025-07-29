@@ -1,4 +1,8 @@
 import {LogicalPosition, LogicalSize, monitorFromPoint, Window} from "@tauri-apps/api/window";
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('WindowUtils');
 
 /**
  * Centers and sizes a Tauri window on the monitor it currently resides on, DPI-aware.
@@ -11,7 +15,7 @@ export async function centerAndSizeWindowOnMonitor(currentWindow: Window, desire
     const windowPos = await currentWindow.outerPosition();
     const monitor = await monitorFromPoint(windowPos.x, windowPos.y);
     if (!monitor) {
-        console.error("Could not get monitor info");
+        logger.error("Could not get monitor info");
         return;
     }
     const monitorScaleFactor = monitor.scaleFactor;

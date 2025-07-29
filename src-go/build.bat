@@ -7,35 +7,42 @@ SET "SRC_DIR=%~dp0"
 REM Change to the script's directory so go.mod can be found
 cd /D "%SRC_DIR%"
 
-REM Create a clean bin directory
-SET "BIN_DIR=%SRC_DIR%bin"
-IF EXIST "%BIN_DIR%" (
-    echo Cleaning bin directory...
-    RMDIR /S /Q "%BIN_DIR%"
+REM Create assets directory in Tauri if it doesn't exist
+SET "ASSETS_BIN_DIR=%SRC_DIR%..\src-tauri\assets\src-go\bin"
+IF NOT EXIST "%ASSETS_BIN_DIR%" (
+    echo Creating Tauri assets bin directory...
+    MKDIR "%ASSETS_BIN_DIR%"
 )
-MKDIR "%BIN_DIR%"
 
-REM List of services to build. The last one is the main orchestrator.
+REM Parse arguments
+SET "MODE=incremental"
+IF "%1"=="--clean" SET "MODE=clean"
+
+echo Building Go services in %MODE% mode...
+
+REM List of services to build
 SET "services=buttonManager mouseInputHandler pieButtonExecutor settingsManager shortcutDetector shortcutSetter windowManagement main"
 
-echo Building services...
+IF "%MODE%"=="clean" (
+    echo Cleaning output directory...
+    IF EXIST "%ASSETS_BIN_DIR%" (
+        DEL /Q "%ASSETS_BIN_DIR%\*.exe" 2>nul
+    )
+)
 
-REM Loop through each service and build it
 FOR %%s IN (%services%) DO (
     echo Building %%s...
-    SET "INPUT_FILE=%SRC_DIR%cmd\%%s\worker.go"
-    IF "%%s"=="main" SET "INPUT_FILE=%SRC_DIR%cmd\%%s\main.go"
-
-    go build -v -o "%BIN_DIR%\%%s.exe" "!INPUT_FILE!"
+    go build -v -o "%ASSETS_BIN_DIR%\%%s.exe" "./cmd/%%s"
+    
     IF !ERRORLEVEL! NEQ 0 (
         echo Failed to build %%s.
-        GOTO :EOF
+        EXIT /B !ERRORLEVEL!
     )
 )
 
 echo.
 echo Build complete.
-echo All executables are in the '%BIN_DIR%' directory.
-echo Run 'main.exe' from the 'bin' directory to start all services.
+echo All executables are in the '%ASSETS_BIN_DIR%' directory.
+echo.
 
 ENDLOCAL

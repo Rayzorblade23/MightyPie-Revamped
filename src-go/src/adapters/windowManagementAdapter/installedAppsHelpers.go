@@ -1,7 +1,6 @@
 package windowManagementAdapter
 
 import (
-	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -66,7 +65,7 @@ func buildLaunchInfo(
 
 	iconPath, errIcon := GetIconPathForExe(appEntry.Path)
 	if errIcon != nil {
-		log.Printf("Info: Could not retrieve icon for '%s' (identifier: %s): %v", appEntry.Name, appEntry.Path, errIcon)
+		log.Info("Could not retrieve icon for '%s' (identifier: %s): %v", appEntry.Name, appEntry.Path, errIcon)
 	}
 	info.IconPath = iconPath
 
@@ -90,7 +89,7 @@ func buildLaunchInfo(
 					}
 				}
 			} else {
-				log.Printf("Warning: Failed to parse LNK file '%s' for app '%s' (exe: '%s'): %v",
+				log.Warn("Failed to parse LNK file '%s' for app '%s' (exe: '%s'): %v",
 					originalLnkPath, appEntry.Name, appEntry.Path, errLnk)
 			}
 		}

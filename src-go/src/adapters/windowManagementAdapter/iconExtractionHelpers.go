@@ -3,7 +3,6 @@ package windowManagementAdapter
 import (
 	"errors"
 	"fmt"
-	"log"
 	"syscall"
 	"unsafe"
 
@@ -106,7 +105,6 @@ func getBitmapPixelData(hBitmap w32.HBITMAP, debugNameForCtx string) ([]byte, in
 	if w32.GetObject(w32.HGDIOBJ(hBitmap), unsafe.Sizeof(bmp), unsafe.Pointer(&bmp)) == 0 {
 		return nil, 0, 0, 0, fmt.Errorf("GetObject for %s failed: %w", debugNameForCtx, syscall.GetLastError())
 	}
-	// log.Printf("Debug GIIEX %s Details: W:%d, H:%d, Planes:%d, BPP:%d", debugNameForCtx, bmp.BmWidth, bmp.BmHeight, bmp.BmPlanes, bmp.BmBitsPixel)
 
 	width, height := int(bmp.BmWidth), int(bmp.BmHeight)
 	bpp := int(bmp.BmBitsPixel)
@@ -148,7 +146,7 @@ func getBitmapPixelData(hBitmap w32.HBITMAP, debugNameForCtx string) ([]byte, in
 		// If source is 24bpp and target BITMAPINFO is 32bpp, GetDIBits might expand it.
 		hdr.BiBitCount = 32 // Request 32bpp output from GetDIBits
 		stride = width * 4
-		log.Printf("Info GIIEX %s: Source BPP is %d, requesting 32bpp output from GetDIBits.", debugNameForCtx, bpp)
+		log.Info("Info GIIEX %s: Source BPP is %d, requesting 32bpp output from GetDIBits.", debugNameForCtx, bpp)
 	}
 
 	pixelData := make([]byte, stride*abs(height)) // abs(height) because BiHeight can be negative

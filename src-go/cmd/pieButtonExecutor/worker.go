@@ -6,12 +6,10 @@ import (
 )
 
 func main() {
-	natsAdapter, err := natsAdapter.New()
+	natsAdapter, err := natsAdapter.New("PieButtonExecutor")
 	if err != nil {
 		panic(err)
 	}
-
-	println("PieButtonExecutionAdapter: NATS connection established")
 
 	pieButtonExecutionAdapter := pieButtonExecutionAdapter.New(natsAdapter)
 

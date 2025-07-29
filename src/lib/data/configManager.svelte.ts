@@ -17,6 +17,10 @@ import {
 import {publishMessage} from "$lib/natsAdapter.svelte.ts";
 import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
 import {PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE} from "$env/static/public";
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('ConfigManager');
 
 // --- Svelte State and Public API ---
 
@@ -53,6 +57,7 @@ export function getBaseMenuConfiguration(): MenuConfiguration {
  */
 export function updateBaseMenuConfiguration(newConfig: MenuConfiguration) {
     baseMenuConfiguration = newConfig;
+    logger.info("Base Menu Config updated.")
 }
 
 /**
@@ -68,7 +73,7 @@ export function parseButtonConfig(configInput: ConfigData): MenuConfiguration {
     Object.entries(configInput).forEach(([menuKey, menuPageData]) => {
         const menuId = parseInt(menuKey, 10);
         if (isNaN(menuId)) {
-            console.warn(`Invalid menu key: "${menuKey}" in configuration. Skipping menu.`);
+            logger.warn(`Invalid menu key: "${menuKey}" in configuration. Skipping menu.`);
             return;
         }
         newMenuConfig.set(menuId, buildPagesMapForMenu(menuPageData, menuId));
@@ -142,7 +147,7 @@ function buildPagesMapForMenu(
     Object.entries(menuPageData).forEach(([pageKey, pageButtonData]) => {
         const pageId = parseInt(pageKey, 10);
         if (isNaN(pageId)) {
-            console.warn(`Invalid page key: "${pageKey}" for menu ${menuId}. Skipping page.`);
+            logger.warn(`Invalid page key: "${pageKey}" for menu ${menuId}. Skipping page.`);
             return;
         }
         pagesInMenu.set(pageId, buildButtonsMapForPage(pageButtonData, menuId, pageId));
@@ -170,7 +175,7 @@ function buildButtonsMapForPage(
     Object.entries(pageButtonData).forEach(([buttonKey, rawButton]) => {
         const buttonId = parseInt(buttonKey, 10);
         if (isNaN(buttonId)) {
-            console.warn(`Invalid button key: "${buttonKey}" for page ${pageId}, menu ${menuId}. Skipping button.`);
+            logger.warn(`Invalid button key: "${buttonKey}" for page ${pageId}, menu ${menuId}. Skipping button.`);
             return;
         }
         buttonsOnPage.set(buttonId, convertToButton(rawButton, menuId, pageId, buttonId));
@@ -204,35 +209,35 @@ function convertToButton(
     switch (button_type) {
         case ButtonType.ShowAnyWindow:
             if (!properties) {
-                console.warn(createLogMessage("Properties missing"));
+                logger.warn(createLogMessage("Properties missing"));
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as ShowAnyWindowProperties};
 
         case ButtonType.ShowProgramWindow:
             if (!properties) {
-                console.warn(createLogMessage("Properties missing"));
+                logger.warn(createLogMessage("Properties missing"));
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as ShowProgramWindowProperties};
 
         case ButtonType.LaunchProgram:
             if (!properties) {
-                console.warn(createLogMessage("Properties missing"));
+                logger.warn(createLogMessage("Properties missing"));
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as LaunchProgramProperties};
 
         case ButtonType.CallFunction:
             if (!properties) {
-                console.warn(createLogMessage("Properties object missing"));
+                logger.warn(createLogMessage("Properties object missing"));
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as CallFunctionProperties};
 
         case ButtonType.OpenSpecificPieMenuPage:
             if (!properties) {
-                console.warn(createLogMessage("Properties missing"));
+                logger.warn(createLogMessage("Properties missing"));
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as OpenSpecificPieMenuPageProperties};
@@ -241,7 +246,7 @@ function convertToButton(
             return getDefaultButton(ButtonType.Disabled);
 
         default:
-            console.warn(createLogMessage("Unknown or missing button type"));
+            logger.warn(createLogMessage("Unknown or missing button type"));
             return getDefaultButton(ButtonType.Disabled);
     }
 }
@@ -275,6 +280,7 @@ export function publishBaseMenuConfiguration(menuConfig: MenuConfiguration): voi
     });
 
     // Publish the ConfigData
+    logger.info("Publishing updated Base Menu Configuration");
     publishMessage<ConfigData>(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE, configData);
 }
 
@@ -293,7 +299,7 @@ export function addPageToMenuConfiguration(
     menuIdToAddPageTo: number
 ): { newConfig: MenuConfiguration; newPageID: number } | null {
     if (!currentMenuConfig.has(menuIdToAddPageTo) && menuIdToAddPageTo !== 0 && currentMenuConfig.size > 0) {
-        console.warn(`Menu ID ${menuIdToAddPageTo} not found in the provided configuration.`);
+        logger.warn(`Menu ID ${menuIdToAddPageTo} not found in the provided configuration.`);
         // Allow creating the first menu (ID 0) if the config is empty
         if (menuIdToAddPageTo !== 0 || currentMenuConfig.size > 0) {
             return null;
@@ -372,7 +378,7 @@ export function removePageFromMenuConfiguration(
     pageIdToRemove: number
 ): MenuConfiguration | null {
     if (!currentMenuConfig.has(menuIdToRemoveFrom)) {
-        console.warn(`Menu ID ${menuIdToRemoveFrom} not found in current configuration.`);
+        logger.warn(`Menu ID ${menuIdToRemoveFrom} not found in current configuration.`);
         return null;
     }
 
@@ -380,7 +386,7 @@ export function removePageFromMenuConfiguration(
     const currentPagesInMenu = newConfig.get(menuIdToRemoveFrom);
 
     if (!currentPagesInMenu || !currentPagesInMenu.has(pageIdToRemove)) {
-        console.warn(`Page ID ${pageIdToRemove} not found in menu ${menuIdToRemoveFrom}.`);
+        logger.warn(`Page ID ${pageIdToRemove} not found in menu ${menuIdToRemoveFrom}.`);
         return null;
     }
 
@@ -418,7 +424,7 @@ export function removeMenuFromMenuConfiguration(
     menuIdToRemove: number
 ): MenuConfiguration | null {
     if (!currentMenuConfig.has(menuIdToRemove)) {
-        console.warn(`Menu ID ${menuIdToRemove} not found in the provided configuration.`);
+        logger.warn(`Menu ID ${menuIdToRemove} not found in the provided configuration.`);
         return null;
     }
     // Remove the menu

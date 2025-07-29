@@ -2,14 +2,17 @@ package shortcutSetterAdapter
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
+
+// Package-level logger instance
+var log = logger.New("ShortcutSetter")
 
 // ShortcutSetterAdapter is a completely independent adapter for capturing shortcuts dynamically.
 type ShortcutSetterAdapter struct {
@@ -31,9 +34,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	// Load and print existing shortcuts
 	shortcuts, err := LoadShortcuts()
 	if err != nil {
-		fmt.Println("Failed to load shortcuts for initial update:", err)
+		log.Error("Failed to load shortcuts for initial update: %v", err)
 	} else {
-		natsAdapter.PublishMessage(updateSubject, shortcuts)
+		natsAdapter.PublishMessage(updateSubject, "ShortcutSetter", shortcuts)
 	}
 
 	// Subscribe to requests to record a new shortcut at a given index.
@@ -41,17 +44,17 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	natsAdapter.SubscribeToSubject(captureShortcutSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
 		var payload ShortcutIndexMessage
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
-			fmt.Printf("Failed to decode index: %v\n", err)
+			log.Error("Failed to decode index: %v", err)
 			return
 		}
-		fmt.Printf("[ShortcutSetter] Shortcut pressed index: %d\n", payload.Index)
+		log.Info("Shortcut pressed index: %d", payload.Index)
 		shortcutSetterAdapter.ListenForShortcutAtIndex(payload.Index)
 	})
 
 	// Subscribe to abort messages to stop shortcut detection.
 	// When a message is received, stop the current keyboard hook if it is running.
 	natsAdapter.SubscribeToSubject(abortSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
-		fmt.Println("Received abort message, stopping shortcut detection.")
+		log.Info("Received abort message, stopping shortcut detection.")
 		if shortcutSetterAdapter.keyboardHook != nil {
 			shortcutSetterAdapter.keyboardHook.Stop()
 		}
@@ -61,12 +64,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	natsAdapter.SubscribeToSubject(deleteSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
 		var payload ShortcutIndexMessage
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
-			fmt.Printf("Failed to decode index for delete: %v\n", err)
+			log.Error("Failed to decode index for delete: %v", err)
 			return
 		}
-		fmt.Printf("[ShortcutSetter] Deleting shortcut at index: %d\n", payload.Index)
+		log.Info("Deleting shortcut at index: %d", payload.Index)
 		if err := shortcutSetterAdapter.DeleteShortcut(payload.Index); err != nil {
-			fmt.Printf("Failed to delete shortcut: %v\n", err)
+			log.Error("Failed to delete shortcut: %v", err)
 		}
 	})
 
@@ -87,20 +90,20 @@ func (a *ShortcutSetterAdapter) ListenForShortcutAtIndex(index int) {
 			defer a.keyboardHook.Stop()
 
 			if !IsValidShortcut(shortcut) {
-				fmt.Println("DEBUG: Invalid shortcut, ignoring")
+				log.Debug("Invalid shortcut, ignoring")
 				return
 			}
 
 			if err := a.SaveShortcut(index, shortcut); err != nil {
-				fmt.Println("Failed to save shortcut:", err)
+				log.Error("Failed to save shortcut: %v", err)
 			} else {
-				fmt.Printf("Shortcut detected and saved for index %d\n", index)
+				log.Info("Shortcut detected and saved for index %d", index)
 			}
 		})
 	})
 	go func() {
 		if err := a.keyboardHook.Run(); err != nil {
-			fmt.Println("Keyboard hook error:", err)
+			log.Error("Keyboard hook error: %v", err)
 		}
 	}()
 }

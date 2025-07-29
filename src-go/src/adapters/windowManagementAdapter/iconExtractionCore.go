@@ -3,7 +3,6 @@ package windowManagementAdapter
 import (
 	"fmt"
 	"image"
-	"log"
 	"path/filepath"
 	"syscall"
 	"unsafe"
@@ -26,12 +25,7 @@ func getIconImageViaGetIconInfoEx(exeName string, hIcon w32.HICON) (*image.RGBA,
 		defer w32.DeleteObject(w32.HGDIOBJ(ii.HbmMask))
 	}
 
-	// log.Printf("Debug GIIEX for %s: HbmColor:%p, HbmMask:%p", exeName, ii.HbmColor, ii.HbmMask)
-
 	if ii.HbmColor == 0 {
-		// TODO: Handle monochrome icons if HbmColor is nil but HbmMask exists.
-		// This would involve creating a 32bpp image, colorizing based on mask,
-		// then applying mask for transparency. For now, require HbmColor.
 		return nil, 0, 0, fmt.Errorf("GetIconInfoEx for %s: HbmColor is nil", exeName)
 	}
 
@@ -46,14 +40,14 @@ func getIconImageViaGetIconInfoEx(exeName string, hIcon w32.HICON) (*image.RGBA,
 
 	// Check if the 32bpp HbmColor (as returned by getBitmapPixelData) has its own alpha
 	if !isBGRADataFullyTransparent(colorBGRA, cW, cH) {
-		log.Printf("Debug GIIEX for %s: Using direct 32bpp HbmColor with existing alpha.", exeName)
+		log.Debug("GIIEX for %s: Using direct 32bpp HbmColor with existing alpha.", exeName)
 		return bgraToGoImage(colorBGRA, cW, cH), cW, cH, nil
 	}
 
 	// HbmColor is 32bpp but fully transparent (or source was not 32bpp and converted), try mask
-	log.Printf("Debug GIIEX for %s: HbmColor is 32bpp but transparent, or needs mask. Attempting to apply HbmMask.", exeName)
+	log.Debug("GIIEX for %s: HbmColor is 32bpp but transparent, or needs mask. Attempting to apply HbmMask.", exeName)
 	if ii.HbmMask == 0 {
-		log.Printf("Debug GIIEX for %s: HbmColor transparent/needs mask, but HbmMask is nil. Returning transparent HbmColor.", exeName)
+		log.Debug("GIIEX for %s: HbmColor transparent/needs mask, but HbmMask is nil. Returning transparent HbmColor.", exeName)
 		// Return the (transparent) image from HbmColor; extractIconFromExe will decide if it's usable
 		return bgraToGoImage(colorBGRA, cW, cH), cW, cH, nil
 	}
@@ -65,7 +59,7 @@ func getIconImageViaGetIconInfoEx(exeName string, hIcon w32.HICON) (*image.RGBA,
 	var bmpMask w32.BITMAP
 	var maskData1bpp []byte
 	if w32.GetObject(w32.HGDIOBJ(ii.HbmMask), unsafe.Sizeof(bmpMask), unsafe.Pointer(&bmpMask)) == 0 {
-		log.Printf("Warning GIIEX for %s: GetObject for HbmMask (2nd attempt) failed: %v.", exeName, syscall.GetLastError())
+		log.Warn("GIIEX for %s: GetObject for HbmMask (2nd attempt) failed: %v.", exeName, syscall.GetLastError())
 	} else if bmpMask.BmBitsPixel == 1 {
 		var biMask w32.BITMAPINFO
 		hdrMask := &biMask.BmiHeader
@@ -82,22 +76,22 @@ func getIconImageViaGetIconInfoEx(exeName string, hIcon w32.HICON) (*image.RGBA,
 			maskData1bpp = make([]byte, stride1bpp*int(bmpMask.BmHeight))
 			if w32.GetDIBits(memDC, ii.HbmMask, 0, uint(bmpMask.BmHeight), unsafe.Pointer(&maskData1bpp[0]), &biMask, w32.DIB_RGB_COLORS) == 0 {
 				maskData1bpp = nil
-				log.Printf("Warning GIIEX for %s: GetDIBits for 1bpp HbmMask failed.", exeName)
+				log.Warn("GIIEX for %s: GetDIBits for 1bpp HbmMask failed.", exeName)
 			}
 		}
 	}
 
 	if maskData1bpp == nil {
-		log.Printf("Warning GIIEX for %s: Could not get 1bpp HbmMask data. Using (transparent) HbmColor.", exeName)
+		log.Warn("GIIEX for %s: Could not get 1bpp HbmMask data. Using (transparent) HbmColor.", exeName)
 		return bgraToGoImage(colorBGRA, cW, cH), cW, cH, nil
 	}
 
 	if err := applyAlphaFromMask(colorBGRA, cW, cH, maskData1bpp, int(bmpMask.BmWidth), int(bmpMask.BmHeight)); err != nil {
-		log.Printf("Warning GIIEX for %s: Failed to apply alpha from mask (%v). Using HbmColor as-is.", exeName, err)
+		log.Warn("GIIEX for %s: Failed to apply alpha from mask (%v). Using HbmColor as-is.", exeName, err)
 		return bgraToGoImage(colorBGRA, cW, cH), cW, cH, nil // Return (transparent) HbmColor
 	}
 
-	log.Printf("Debug GIIEX for %s: Successfully applied HbmMask to HbmColor.", exeName)
+	log.Debug("GIIEX for %s: Successfully applied HbmMask to HbmColor.", exeName)
 	return bgraToGoImage(colorBGRA, cW, cH), cW, cH, nil
 }
 
@@ -140,22 +134,19 @@ func extractIconFromExe(exePath string, targetSize int) (image.Image, error) {
 	defer w32.DestroyIcon(selectedIcon)
 
 	// Attempt 1: DrawIconEx (renderIconToBGRA)
-	// log.Printf("Debug Extractor for %s: Attempt 1: DrawIconEx path.", baseName)
 	bgraDataDrawIconEx, errRender := renderIconToBGRA(selectedIcon, targetSize)
 	if errRender == nil && bgraDataDrawIconEx != nil {
 		if !isBGRADataFullyTransparent(bgraDataDrawIconEx, targetSize, targetSize) {
-			// log.Printf("Debug Extractor for %s: DrawIconEx path successful (non-transparent).", baseName)
 			return bgraToGoImage(bgraDataDrawIconEx, targetSize, targetSize), nil
 		}
-		log.Printf("Debug Extractor for %s: DrawIconEx produced transparent image. Trying GetIconInfoEx.", baseName)
+		log.Debug("Extractor for %s: DrawIconEx produced transparent image. Trying GetIconInfoEx.", baseName)
 	} else if errRender != nil {
-		log.Printf("Warning Extractor for %s: DrawIconEx failed (%v). Trying GetIconInfoEx.", baseName, errRender)
+		log.Warn("Extractor for %s: DrawIconEx failed (%v). Trying GetIconInfoEx.", baseName, errRender)
 	} else { // bgraDataDrawIconEx is nil without error
-		log.Printf("Warning Extractor for %s: DrawIconEx returned nil data. Trying GetIconInfoEx.", baseName)
+		log.Warn("Extractor for %s: DrawIconEx returned nil data. Trying GetIconInfoEx.", baseName)
 	}
 
 	// Attempt 2: GetIconInfoEx path
-	// log.Printf("Debug Extractor for %s: Attempt 2: GetIconInfoEx path.", baseName)
 	imgGIIEX, nativeW, nativeH, errGIIEX := getIconImageViaGetIconInfoEx(baseName, selectedIcon)
 	if errGIIEX != nil {
 		return nil, fmt.Errorf("all extraction paths failed for %s (DrawIconEx err: %v; GetIconInfoEx err: %w)", baseName, errRender, errGIIEX)
@@ -173,11 +164,10 @@ func extractIconFromExe(exePath string, targetSize int) (image.Image, error) {
 		}
 	}
 	if isTransparentGIIEX {
-		log.Printf("Warning Extractor for %s: GetIconInfoEx path also resulted in a transparent image.", baseName)
+		log.Warn("Extractor for %s: GetIconInfoEx path also resulted in a transparent image.", baseName)
 		return nil, ErrIconNotProcessed // Or a more specific error
 	}
 
-	// log.Printf("Debug Extractor for %s: GetIconInfoEx path successful (non-transparent). Native: %dx%d", baseName, nativeW, nativeH)
 	if nativeW == targetSize && nativeH == targetSize {
 		return imgGIIEX, nil
 	}

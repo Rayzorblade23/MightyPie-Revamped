@@ -1,7 +1,6 @@
 package shortcutDetectionAdapter
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
@@ -10,7 +9,7 @@ import (
 // keyIsPressed checks the current state of a specific virtual key code.
 func keyIsPressed(virtualKeyCode int) bool {
 	if core.GetKeyState == nil {
-		fmt.Println("CRITICAL Error: core.GetKeyState is not initialized.")
+		log.Fatal("CRITICAL Error: core.GetKeyState is not initialized.")
 		return false
 	}
 	state, _, _ := core.GetKeyState.Call(uintptr(virtualKeyCode))

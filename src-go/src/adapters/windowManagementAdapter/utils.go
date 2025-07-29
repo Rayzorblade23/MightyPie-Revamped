@@ -2,7 +2,6 @@ package windowManagementAdapter
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -51,7 +50,7 @@ func AddHwndToExclude(hwnd win.HWND) {
 }
 
 // passesInitialFilter determines if a window should be included in the window list based on raw window properties
-func passesInitialFilter(hwnd win.HWND, windowTitle, className string, isCloaked int, thisWindow win.HWND) bool {
+func passesInitialFilter(hwnd win.HWND, windowTitle, className string, isCloaked int, thisWindow win.HWND, exclusionConfig *ExclusionConfig) bool {
 
 	// Check specific HWND exclusion list
 	if slices.Contains(hwndToExclude, hwnd) {
@@ -61,14 +60,14 @@ func passesInitialFilter(hwnd win.HWND, windowTitle, className string, isCloaked
 	// Check main properties
 	return isCloaked == 0 &&
 		strings.TrimSpace(windowTitle) != "" &&
-		!excludedClassNames[className] &&
+		!slices.Contains(exclusionConfig.ExcludedClassNames, className) &&
 		hwnd != thisWindow
 }
 
 // isWindowExcluded checks if a window should be excluded from the window list based on the exclusion config
 func (a *WindowManagementAdapter) isWindowExcluded(info core.WindowInfo) bool {
 	config := a.exclusionConfig
-	logger.Println("Checking if window is excluded:", info.Title, info.AppName)
+	log.Debug("Checking if window is excluded: %s, %s", info.Title, info.AppName)
 	if slices.Contains(config.ExcludedTitles, info.Title) {
 		return true
 	}
@@ -206,7 +205,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	// exePathFromProcess is the full path to the actual running executable.
 	exePathFromProcess, err := getProcessExePath(pid) // Assume getProcessExePath is defined
 	if err != nil {
-		log.Printf("Error getting process exe path for PID %d: %v", pid, err)
+		log.Error("Error getting process exe path for PID %d: %v", pid, err)
 		// Use a distinct AppName to indicate this specific error state
 		errorAppName := "ErrorApp"
 		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: errorAppName, ExeName: "Error", IconPath: ""}
@@ -217,7 +216,7 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	// fileExists might be redundant if getProcessExePath already ensures validity,
 	// but it's a safe check.
 	if exePathFromProcess == "" || !fileExists(exePathFromProcess) { // Assume fileExists is defined
-		log.Printf("Warning: Process exe path '%s' for PID %d is invalid or file does not exist.", exePathFromProcess, pid)
+		log.Warn("Process exe path '%s' for PID %d is invalid or file does not exist", exePathFromProcess, pid)
 		result[hwnd] = core.WindowInfo{Title: windowTitle, AppName: defaultAppName, ExeName: defaultExeName, IconPath: ""}
 		return result, defaultAppName
 	}
@@ -291,8 +290,9 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 		}
 		// Only log once per exePath per session
 		if !seenUnknownApps[exePathFromProcess] {
-			log.Printf("Info: Running process '%s' (basename: '%s') not found in installedAppsInfo. AppName set to '%s'.",
-				exePathFromProcess, exeNameFromProcess, identifiedAppName)
+			log.Info("Running process")
+			log.Info("↳'%s'", exePathFromProcess)
+			log.Info("↳ not found in installedAppsInfo. AppName set to '%s'", identifiedAppName)
 			seenUnknownApps[exePathFromProcess] = true
 		}
 	}

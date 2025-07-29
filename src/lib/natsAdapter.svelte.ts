@@ -10,13 +10,13 @@ import {
 } from 'nats.ws';
 
 import {getPrivateEnvVar} from "$lib/generalUtil.ts"; // Ensure this path is correct for your project
+import {createLogger} from "$lib/logger";
+import {PUBLIC_NATS_STREAM} from "$env/static/public";
 
 // --- Constants ---
-const NATS_LOG_PREFIX = '[NATS]';
+const logger = createLogger('NATS');
 const sc = StringCodec();
 // const jc = JSONCodec(); // Optional: use if payloads are strictly JSON
-
-// --- Types ---
 
 /** Define possible statuses for NATS subscription_button_click */
 type UseNatsSubscriptionStatus = 'idle' | 'subscribing' | 'subscribed' | 'failed' | 'disconnected';
@@ -54,7 +54,7 @@ async function getOrLoadNatsConfig(): Promise<{ serverUrl: string; authToken: st
     if (natsConfig) {
         return natsConfig;
     }
-    console.log(`${NATS_LOG_PREFIX} Loading configuration...`);
+    logger.debug('Loading configuration...');
     const [serverUrl, authToken] = await Promise.all([
         getPrivateEnvVar('NATS_SERVER_URL'),
         getPrivateEnvVar('NATS_AUTH_TOKEN')
@@ -64,13 +64,13 @@ async function getOrLoadNatsConfig(): Promise<{ serverUrl: string; authToken: st
         const missing = [];
         if (!serverUrl) missing.push('NATS_SERVER_URL');
         if (!authToken) missing.push('NATS_AUTH_TOKEN');
-        const errorMsg = `${NATS_LOG_PREFIX} Configuration missing: ${missing.join(', ')}.`;
-        console.error(errorMsg);
+        const errorMsg = `Configuration missing: ${missing.join(', ')}.`;
+        logger.error(errorMsg);
         throw new Error(errorMsg);
     }
 
     natsConfig = {serverUrl, authToken};
-    console.log(`${NATS_LOG_PREFIX} Configuration loaded.`);
+    logger.debug('Configuration loaded.');
     return natsConfig;
 }
 
@@ -87,19 +87,19 @@ export async function connectToNats(): Promise<void> {
         connectionStatus === 'connecting' ||
         connectionStatus === 'reconnecting'
     ) {
-        console.log(`${NATS_LOG_PREFIX} Connection attempt skipped, status: ${connectionStatus}`);
+        logger.debug(`Connection attempt skipped, status: ${connectionStatus}`);
         return;
     }
 
     connectionStatus = 'connecting';
-    console.log(`${NATS_LOG_PREFIX} Attempting to connect...`);
+    logger.info('Attempting to connect...');
 
     const maxRetries = 15; // Increased retries for robustness
     const retryDelay = 1000; // 1-second delay
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         if (connectionStatus === 'connected') {
-            console.log(`${NATS_LOG_PREFIX} Already connected, aborting retry loop.`);
+            logger.debug('Already connected, aborting retry loop.');
             return;
         }
 
@@ -114,7 +114,7 @@ export async function connectToNats(): Promise<void> {
             const nc = await connect(connectionOpts);
             natsConnection = nc;
             connectionStatus = 'connected';
-            console.log(`${NATS_LOG_PREFIX} Connected to server: ${nc.getServer()} on attempt ${attempt}`);
+            logger.info(`Connected to server: ${nc.getServer()} on attempt ${attempt}`);
 
             // Start monitoring status events
             (async () => {
@@ -160,7 +160,7 @@ export async function connectToNats(): Promise<void> {
                 }
             })().catch(err => {
                 // This catches errors related to *launching* the async IIFE itself or an unhandled crash within.
-                console.error(`${NATS_LOG_PREFIX} CRITICAL: NATS status listener failed unexpectedly:`, err);
+                logger.error('CRITICAL: NATS status listener failed unexpectedly:', err);
                 // If the listener fails, the connection state is unreliable.
                 if (natsConnection === nc) {
                     connectionStatus = 'error';
@@ -170,9 +170,9 @@ export async function connectToNats(): Promise<void> {
             return; // Exit the function successfully
 
         } catch (err) {
-            console.warn(`${NATS_LOG_PREFIX} Connection attempt ${attempt} of ${maxRetries} failed:`, err);
+            logger.warn(`Connection attempt ${attempt} of ${maxRetries} failed:`, err);
             if (attempt === maxRetries) {
-                console.error(`${NATS_LOG_PREFIX} All connection attempts failed.`);
+                logger.error('All connection attempts failed.');
                 connectionStatus = 'error';
                 natsConnection = null;
                 throw new Error("Failed to connect to NATS after multiple retries.");
@@ -187,22 +187,22 @@ export async function connectToNats(): Promise<void> {
 export async function disconnectFromNats(): Promise<void> {
     const currentConnection = natsConnection;
     if (currentConnection && !currentConnection.isClosed()) {
-        console.log(`${NATS_LOG_PREFIX} Draining NATS connection ${currentConnection.getServer()}...`);
+        logger.info('Draining NATS connection...');
         try {
             await currentConnection.drain(); // Wait for drain, then connection closes.
-            console.log(`${NATS_LOG_PREFIX} Connection drained successfully for ${currentConnection.getServer()}.`);
+            logger.info('Connection drained successfully.');
             // Listener's finally block should handle setting state to 'closed'.
             // We just ensure the reference is cleaned up if it was the active one.
             if (natsConnection === currentConnection) {
                 natsConnection = null;
                 // Safeguard state if listener's finally is somehow delayed/missed
                 if (connectionStatus !== 'error' && connectionStatus !== 'closed') {
-                    console.warn(`${NATS_LOG_PREFIX} Setting status 'closed' post-drain as safeguard.`);
+                    logger.warn('Setting status \'closed\' post-drain as safeguard.');
                     connectionStatus = 'closed';
                 }
             }
         } catch (err: unknown) {
-            console.error(`${NATS_LOG_PREFIX} Error draining NATS connection ${currentConnection.getServer()}:`, err);
+            logger.error('Error draining NATS connection:', err);
             // If drain fails, connection is likely unusable.
             if (natsConnection === currentConnection) {
                 connectionStatus = 'error';
@@ -210,7 +210,7 @@ export async function disconnectFromNats(): Promise<void> {
             }
         }
     } else {
-        console.log(`${NATS_LOG_PREFIX} Connection already closed or not established.`);
+        logger.debug('Connection already closed or not established.');
         if (connectionStatus !== 'error' && connectionStatus !== 'closed') {
             connectionStatus = 'closed';
         }
@@ -239,10 +239,10 @@ export async function subscribeToSubject(
 ): Promise<() => void> {
     // 1. Handle "Not Connected" case gracefully
     if (!isNatsConnected() || !natsConnection) {
-        console.warn(`${NATS_LOG_PREFIX} Subscription skipped for ${subject}: Connection not ready (Status: ${connectionStatus}).`);
+        logger.warn(`Subscription skipped for ${subject}: Connection not ready (Status: ${connectionStatus}).`);
         // Return a promise resolving to a function that does nothing
         return Promise.resolve(() => {
-            // No-op: console.debug(`${NATS_LOG_PREFIX} No-op unsubscribe called for ${subject} (was not connected).`);
+            // No-op
         });
     }
 
@@ -256,7 +256,7 @@ export async function subscribeToSubject(
             callback: (_err, msg) => {
                 if (_err) {
                     // Error delivered *to* the subscription_button_click (e.g., permissions)
-                    console.error(`${NATS_LOG_PREFIX} Subscription Error CB for ${subject}:`, _err);
+                    logger.error(`Subscription Error CB for ${subject}:`, _err);
                     // Optionally, you might want to trigger an external error handler here
                     return;
                 }
@@ -264,37 +264,33 @@ export async function subscribeToSubject(
                     const decodedString = sc.decode(msg.data);
                     // Use Promise.resolve to handle both sync/async handlers safely
                     Promise.resolve(handleMessage(decodedString)).catch((handlerError) => {
-                        console.error(`${NATS_LOG_PREFIX} HandleMessage Error for ${subject} processing msg:`, handlerError);
+                        logger.error(`HandleMessage Error for ${subject} processing msg:`, handlerError);
                     });
                 } catch (decodeError) {
-                    console.error(`${NATS_LOG_PREFIX} Decode Error for ${subject}:`, decodeError);
+                    logger.error(`Decode Error for ${subject}:`, decodeError);
                 }
             }
         });
 
-        console.log(`${NATS_LOG_PREFIX} Successfully subscribed to topic: ${subject}`);
+        logger.debug(`Successfully subscribed to topic: ${subject}`);
 
         // 3. Return the actual unsubscribe function
         // This specific subscription_button_click instance is captured in the closure.
         const actualSubscription = subscription; // Capture instance for the closure
         return () => {
             if (actualSubscription && !actualSubscription.isClosed()) {
-                console.log(`${NATS_LOG_PREFIX} Unsubscribing from ${subject}...`);
+                logger.debug(`Unsubscribing from ${subject}...`);
                 actualSubscription.unsubscribe();
-            } else {
-                // Optional: Log why unsubscribe isn't happening
-                // console.debug(`${NATS_LOG_PREFIX} Unsubscribe skipped for ${subject} (already closed or null).`);
             }
         };
 
     } catch (err: unknown) {
         // 4. Handle errors during the *initial* subscribe call (e.g., invalid subject)
-        console.error(`${NATS_LOG_PREFIX} Failed to subscribe to topic '${subject}':`, err);
+        logger.error(`Failed to subscribe to topic '${subject}':`, err);
         // Re-throw the error so the caller knows the attempt failed.
-        throw new Error(`${NATS_LOG_PREFIX} Subscription attempt failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(`Subscription attempt failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
         // Note: We throw here because the *attempt* failed, unlike the "not connected" case where we didn't even attempt.
     }
-    // 5. Removed the internal subscription_button_click closure monitoring IIFE for simplicity.
 }
 
 /**
@@ -310,7 +306,7 @@ export async function fetchLatestFromStream(
     if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
     const js = natsConnection.jetstream();
     const jsm = await natsConnection.jetstreamManager();
-    const stream = "MIGHTYPIE_EVENTS";
+    const stream = PUBLIC_NATS_STREAM;
     // Always create ephemeral consumer with deliver_policy: 'last'
     const consumerConfig = {
         deliver_policy: DeliverPolicy.Last,
@@ -326,7 +322,7 @@ export async function fetchLatestFromStream(
             try {
                 await handler(sc.decode(msg.data));
             } catch (e) {
-                console.error("[fetchLatestFromStream] Handler error:", e);
+                logger.error("[fetchLatestFromStream] Handler error:", e);
             }
             msg.ack();
         }
@@ -342,7 +338,7 @@ export async function fetchLatestFromStream(
 /** Publishes a message to a NATS subject. */
 export function publishMessage<T>(subject: string, message: T): void {
     if (!isNatsConnected()) {
-        throw new Error(`${NATS_LOG_PREFIX} Cannot publish: Connection not ready (Status: ${connectionStatus}).`);
+        throw new Error(`Cannot publish: Connection not ready (Status: ${connectionStatus}).`);
     }
     if (!natsConnection) throw new Error("Internal NATS error: connection null despite connected status.");
 
@@ -350,10 +346,10 @@ export function publishMessage<T>(subject: string, message: T): void {
         const payloadString = JSON.stringify(message);
         const encodedPayload = sc.encode(payloadString);
         natsConnection.publish(subject, encodedPayload);
-        console.log("Message sent on subject:", subject);
+        logger.debug("Message sent on subject:", subject);
     } catch (err: unknown) {
-        console.error(`${NATS_LOG_PREFIX} Publish error to ${subject}:`, err);
-        throw new Error(`${NATS_LOG_PREFIX} Publish failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(`Publish error to ${subject}:`, err);
+        throw new Error(`Publish failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
     }
 }
 
@@ -400,59 +396,41 @@ export function useNatsSubscription(
             status = 'subscribing';
             error = null;
 
-            const setupSubscription = async () => {
-                try {
-                    // Attempt subscription using the potentially improved adapter function
-                    unsubscribe = await subscribeToSubject(currentTopic, handler);
-
-                    // --- Post-Subscription Sanity Check ---
-                    // Verify connection/enabled status hasn't changed *during* the async subscribe call.
-                    // This prevents setting status to 'subscribed' if disconnect happened mid-flight.
-                    if (getConnectionStatus() === 'connected' && (typeof enabled === 'function' ? enabled() : enabled)) {
+            // Attempt to subscribe
+            subscribeToSubject(currentTopic, handler)
+                .then((unsub) => {
+                    if (unsub) {
+                        unsubscribe = unsub;
                         status = 'subscribed';
-                        // Minimal log: console.debug(`[useNatsSubscription] Subscribed: ${currentTopic}`);
-                    } else {
-                        // Status changed while subscribing, clean up immediately if subscription succeeded
-                        console.warn(`[useNatsSubscription] Status changed during subscription attempt for ${currentTopic}. Cleaning up.`);
-                        unsubscribe?.(); // Clean up potential zombie subscription
-                        unsubscribe = null; // Prevent cleanup function from running again later
-                        // Reflect the *actual* current state
-                        status = getConnectionStatus() === 'connected' ? 'idle' : 'disconnected';
                     }
-                } catch (err: unknown) {
-                    console.error(`[useNatsSubscription] Failed subscription attempt for ${currentTopic}:`, err);
-                    error = err instanceof Error ? err : new Error(String(err));
+                })
+                .catch((err) => {
                     status = 'failed';
-                    unsubscribe = null; // Ensure cleanup function won't try to unsubscribe
-                }
-            };
-
-            // Fire off the async setup. Use 'void' to explicitly signal
-            // that we are intentionally not awaiting the promise here.
-            // Error handling is managed internally within setupSubscription.
-            void setupSubscription();
-
-            // --- Return Cleanup Function ---
-            // This runs when the effect re-runs (due to dependency changes like
-            // connectionState, currentTopic, isEnabled) or when the component unmounts.
-            return () => {
-                if (unsubscribe) {
-                    // Minimal log: console.debug(`[useNatsSubscription] Unsubscribing: ${currentTopic}`);
-                    unsubscribe();
-                }
-            };
-
+                    error = err instanceof Error ? err : new Error(String(err));
+                    logger.error(`Subscription to ${currentTopic} failed:`, err);
+                });
         } else {
-            // --- Handle Non-Connected State ---
-            status = 'disconnected'; // Reflect NATS connection status
-            error = null;
-            // No subscription attempted, so no cleanup needed for this specific run.
-            // Implicitly returns undefined.
-            return;
+            // Not connected, so we're in a waiting state
+            status = connectionState === 'error' ? 'failed' : 'idle';
+            error = connectionState === 'error'
+                ? new Error(`NATS connection in error state: ${connectionState}`)
+                : null;
         }
-    }); // End of $effect
 
-    // --- Return Read-Only Reactive State ---
+        // --- Cleanup Function ---
+        return () => {
+            if (unsubscribe) {
+                try {
+                    unsubscribe();
+                } catch (err) {
+                    logger.error(`Error during unsubscribe from ${currentTopic}:`, err);
+                }
+                unsubscribe = null;
+            }
+        };
+    });
+
+    // Return a read-only view of the internal state
     return {
         get status() {
             return status;

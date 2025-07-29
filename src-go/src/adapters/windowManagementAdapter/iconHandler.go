@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,13 +36,13 @@ var (
 // getIconStorageDir finds or creates the directory for storing icons.
 func getIconStorageDir() (string, error) {
 	iconDirOnce.Do(func() {
-		staticDir, err := core.GetStaticDir()
+		appDataDir, err := core.GetAppDataDir()
 		if err != nil {
-			iconDirErr = fmt.Errorf("failed to determine project root using getRootDir: %w", err)
+			iconDirErr = fmt.Errorf("failed to determine app data dir using getAppDataDir: %w", err)
 			return
 		}
 
-		dir := filepath.Join(staticDir, appDataIconSubdir)
+		dir := filepath.Join(appDataDir, appDataIconSubdir)
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
 			iconDirErr = fmt.Errorf("failed to create icon directory '%s': %w", dir, err)
@@ -95,8 +94,6 @@ func extractAndSaveIcon(exePath string, storageDir string) error {
 	extractedIcon, extractErr := extractIconFromExe(exePath, defaultIconSize)
 	if extractErr != nil {
 		if errors.Is(extractErr, ErrIconNotFound) || errors.Is(extractErr, ErrIconNotProcessed) {
-			// Log these as debug/info, not necessarily hard errors for the whole batch
-			// log.Printf("Info: No usable icon for %s: %v", filepath.Base(exePath), extractErr)
 			return nil // Treat as skippable for batch processing
 		}
 		return extractErr // Actual error during extraction
@@ -151,7 +148,7 @@ func generateSummaryReport(total, skipped, failures uint64, skippedNames, failed
 // updating appMap with the new icon paths.
 func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 	if len(appMap) == 0 {
-		log.Println("App map is empty, icon extraction skipped.")
+		log.Info("App map is empty, icon extraction skipped.")
 		return nil
 	}
 	iconStorageDir, err := getIconStorageDir() // Assume defined
@@ -159,7 +156,7 @@ func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 		return fmt.Errorf("icon storage directory unavailable: %w", err)
 	}
 	// Log statement slightly changed from original to reflect map size not attempts yet.
-	log.Printf("Processing up to %d apps for icon extraction to %s...", len(appMap), iconStorageDir)
+	log.Info("Processing up to %d apps for icon extraction to %s...", len(appMap), iconStorageDir)
 
 	var wg sync.WaitGroup
 	// Counters align with generateSummaryReport:
@@ -221,11 +218,9 @@ func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 				if _, statErr := os.Stat(targetPngPathOnDisk); statErr == nil {
 					// File exists! Successful extraction.
 					successfullyProcessedAndIconAvailable = true
-					// log.Printf("DEBUG: App %s, Exe %s: extractAndSaveIcon nil error, file found at %s", currentAppName, currentExtractionPath, targetPngPathOnDisk)
 				} else {
 					// File does not exist. extractAndSaveIcon returned nil due to internal skip (e.g., ErrIconNotFound).
 					// Not a failure for reporting, but no icon path to update.
-					// log.Printf("DEBUG: App %s, Exe %s: extractAndSaveIcon nil error, but file NOT found at %s (internal skip)", currentAppName, currentExtractionPath, targetPngPathOnDisk)
 				}
 			} else if errors.Is(errExtract, ErrIconSkipped) {
 				// extractAndSaveIcon reported ErrIconSkipped, meaning file was already there.
@@ -234,28 +229,24 @@ func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 				skippedExeNames = append(skippedExeNames, currentReportName)
 				reportMutex.Unlock()
 				successfullyProcessedAndIconAvailable = true // Icon is available
-				// log.Printf("DEBUG: App %s, Exe %s: ErrIconSkipped, icon assumed at %s", currentAppName, currentExtractionPath, targetPngPathOnDisk)
 			} else {
 				// Hard failure
 				failureCount.Add(1)
 				reportMutex.Lock()
 				failedExeNames = append(failedExeNames, currentReportName)
 				reportMutex.Unlock()
-				// log.Printf("DEBUG: App %s, Exe %s: Hard failure: %v", currentAppName, currentExtractionPath, errExtract)
 			}
 
 			if successfullyProcessedAndIconAvailable {
 				reportMutex.Lock()
 				if entryToUpdate, ok := appMap[currentAppName]; ok {
 					if entryToUpdate.IconPath != potentialWebIconPath { // Update if different or was empty
-						// log.Printf("DEBUG: UPDATING App %s: Old IconPath: '%s', New IconPath: '%s'", currentAppName, entryToUpdate.IconPath, potentialWebIconPath)
 						entryToUpdate.IconPath = potentialWebIconPath
 						appMap[currentAppName] = entryToUpdate // Put the modified copy back
 					} else {
-						// log.Printf("DEBUG: App %s: IconPath already correctly set to '%s', no update needed.", currentAppName, potentialWebIconPath)
 					}
 				} else {
-					log.Printf("CRITICAL (DEBUG): App '%s' not found in appMap for update. Desired IconPath: '%s'", currentAppName, potentialWebIconPath)
+					log.Debug("CRITICAL: App '%s' not found in appMap for update. Desired IconPath: '%s'", currentAppName, potentialWebIconPath)
 				}
 				reportMutex.Unlock()
 			}
@@ -264,15 +255,13 @@ func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 
 	wg.Wait()
 
-	// Use the original generateSummaryReport function with the populated counters and slices.
-	// log.Println(generateSummaryReport(totalAttempted.Load(), skippedCount.Load(), failureCount.Load(), skippedExeNames, failedExeNames))
 	return nil
 }
 
 // CleanOrphanedIcons removes icon files from the storage directory that are not
 // referenced by any application in the provided appMap.
 func CleanOrphanedIcons(appMap map[string]core.AppInfo) error {
-	log.Println("Starting orphaned icon cleanup...")
+	log.Info("Starting orphaned icon cleanup...")
 	iconStorageDir, err := getIconStorageDir() // Assume getIconStorageDir is defined
 	if err != nil {
 		return fmt.Errorf("could not get icon storage directory for cleanup: %w", err)
@@ -294,14 +283,14 @@ func CleanOrphanedIcons(appMap map[string]core.AppInfo) error {
 			}
 		}
 	}
-	log.Printf("Expecting %d unique icon files based on current application map.", len(expectedIconFiles))
+	log.Info("Expecting %d unique icon files based on current application map.", len(expectedIconFiles))
 
 	// Read the contents of the icon storage directory.
 	dirEntries, err := os.ReadDir(iconStorageDir)
 	if err != nil {
 		// If the directory doesn't exist, there's nothing to clean.
 		if os.IsNotExist(err) {
-			log.Printf("Icon storage directory '%s' does not exist. No cleanup needed.", iconStorageDir)
+			log.Info("Icon storage directory '%s' does not exist. No cleanup needed.", iconStorageDir)
 			return nil
 		}
 		return fmt.Errorf("failed to read icon storage directory '%s': %w", iconStorageDir, err)
@@ -325,17 +314,15 @@ func CleanOrphanedIcons(appMap map[string]core.AppInfo) error {
 
 		if _, isExpected := expectedIconFiles[filenameOnDisk]; !isExpected {
 			orphanPath := filepath.Join(iconStorageDir, filenameOnDisk)
-			// log.Printf("Deleting orphaned icon: %s", filenameOnDisk) // More verbose logging if needed
 			if err := os.Remove(orphanPath); err != nil {
-				// Log the error but continue trying to clean other files.
-				log.Printf("Warning: Failed to delete orphaned icon '%s': %v", orphanPath, err)
+				log.Warn("Warning: Failed to delete orphaned icon '%s': %v", orphanPath, err)
 			} else {
 				iconsDeleted++
 			}
 		}
 	}
 
-	log.Printf("Orphaned icon cleanup complete. Checked %d relevant files on disk, deleted %d orphaned icons.", actualFilesChecked, iconsDeleted)
+	log.Info("Orphaned icon cleanup complete. Checked %d relevant files on disk, deleted %d orphaned icons.", actualFilesChecked, iconsDeleted)
 	return nil
 }
 
@@ -363,20 +350,20 @@ func GetIconPathForExe(exePath string) (string, error) {
 // ProcessIcons orchestrates icon extraction and cleanup.
 func ProcessIcons() {
 	if installedAppsInfo == nil { // Defensive check for nil map
-		log.Println("No discovered apps for icon processing.")
+		log.Info("No discovered apps for icon processing.")
 		return
 	}
-	log.Println("Starting background icon processing...")
+	log.Info("Starting background icon processing...")
 	go func() {
 		if err := ExtractAndSaveIcons(installedAppsInfo); err != nil {
-			log.Printf("CRITICAL: Icon extraction process failed: %v", err)
+			log.Error("CRITICAL: Icon extraction process failed: %v", err)
 		} else {
-			log.Println("Background icon extraction finished.")
+			log.Info("Background icon extraction finished.")
 		}
 		if err := CleanOrphanedIcons(installedAppsInfo); err != nil {
-			log.Printf("Error during icon cleanup: %v", err)
+			log.Error("Error during icon cleanup: %v", err)
 		} else {
-			log.Println("Icon cleanup finished.")
+			log.Info("Icon cleanup finished.")
 		}
 	}()
 }

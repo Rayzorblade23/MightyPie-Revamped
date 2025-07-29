@@ -8,6 +8,10 @@ import {
     PhysicalPosition
 } from "@tauri-apps/api/window";
 import {PhysicalSize} from "@tauri-apps/api/dpi";
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('PieMenuUtils');
 
 /**
  * Calculates offset positions for pie menu buttons based on their index.
@@ -145,30 +149,33 @@ export function calculatePieSliceFromCoordinates(x: number, y: number, winSize: 
  * @param deadzoneRadius - Radius of the inner deadzone circle
  * @returns Promise containing active slice index and mouse angle
  */
-export async function detectActivePieSlice(deadzoneRadius: number): Promise<{
-    slice: number;
-    mouseAngle: number
-}> {
+export async function detectActivePieSlice(deadzoneRadius: number): Promise<{ slice: number; mouseAngle: number }> {
     try {
-        const mousePosition = await getMousePosition();
         const window = getCurrentWindow();
-        const winPos: PhysicalPosition = await window.outerPosition();
-        const winSize = await window.outerSize();
+        const outerPos = await window.outerPosition();
+        const outerSize = await window.outerSize();
+        const mousePosition = await getMousePosition();
 
-        const relX = mousePosition.x - winPos.x;
-        const relY = mousePosition.y - winPos.y;
+        // Calculate relative position to window
+        const relX = mousePosition.x - outerPos.x;
+        const relY = mousePosition.y - outerPos.y;
+
+        const winSize = {
+            width: outerSize.width,
+            height: outerSize.height
+        };
 
         const result = calculatePieSliceFromCoordinates(relX, relY, winSize, deadzoneRadius);
 
         // if (result.slice === -1) {
-        //     console.log("Mouse is inside the inner radius (dead zone).");
+        //     logger.debug("Mouse is inside the inner radius (dead zone).");
         // } else {
-        //     console.log(`Mouse is in slice: ${result.slice}`);
+        //     logger.debug(`Mouse is in slice: ${result.slice}`);
         // }
 
         return {slice: result.slice, mouseAngle: result.theta};
     } catch (error) {
-        console.log("Error fetching mouse position:", error);
+        logger.error("Error fetching mouse position:", error);
         return {slice: -1, mouseAngle: 0};
     }
 }
@@ -211,7 +218,7 @@ export async function ensureWindowWithinMonitorBounds(): Promise<void> {
     // Find the monitor at the window's current position (top-left corner)
     const monitor = await monitorFromPoint(winPos.x, winPos.y);
     if (!monitor) {
-        console.log("Monitor not found for window position");
+        logger.warn("Monitor not found for window position");
         return;
     }
     const clamped = clampWindowToBounds(
@@ -252,7 +259,7 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
     const mousePosition = await getMousePosition();
     const monitor = await monitorFromPoint(mousePosition.x, mousePosition.y);
     if (!monitor) {
-        console.log("Monitor not found");
+        logger.warn("Monitor not found");
         return monitorScaleFactor;
     }
 
@@ -263,11 +270,11 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
     let windowSizeAdj = new LogicalSize(0, 0);
 
     if (newScaleFactor !== monitorScaleFactor) {
-        console.log("Monitor Status: First time on this monitor!");
+        logger.debug("Monitor Status: First time on this monitor!");
         windowSizeAdj.width = outerSize.width * (newScaleFactor / windowScaleFactor);
         windowSizeAdj.height = outerSize.height * (newScaleFactor / windowScaleFactor);
     } else {
-        console.log("Monitor Status: Been on this monitor before!");
+        logger.debug("Monitor Status: Been on this monitor before!");
         windowSizeAdj.width = outerSize.width;
         windowSizeAdj.height = outerSize.height;
     }

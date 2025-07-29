@@ -3,16 +3,10 @@ package pieButtonExecutionAdapter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
-)
-
-const (
-	jsonExtension           = ".json"
-	buttonFunctionsFileName = "buttonFunctions"
 )
 
 type ButtonFunctionMetadata struct {
@@ -22,11 +16,15 @@ type ButtonFunctionMetadata struct {
 
 // Loads buttonFunctions.json and returns a map of displayName to metadata.
 func loadButtonFunctionMetadata() (map[string]ButtonFunctionMetadata, error) {
-	staticDir, err := core.GetStaticDir()
+	assetDir, err := core.GetAssetDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine static dir: %w", err)
+		return nil, fmt.Errorf("failed to determine asset dir: %w", err)
 	}
-		jsonPath := filepath.Join(staticDir, "data", buttonFunctionsFileName+jsonExtension)
+	buttonFunctionsPath := os.Getenv("PUBLIC_DIR_BUTTONFUNCTIONS")
+	if buttonFunctionsPath == "" {
+		return nil, fmt.Errorf("PUBLIC_DIR_BUTTONFUNCTIONS environment variable not set")
+	}
+	jsonPath := filepath.Join(assetDir, buttonFunctionsPath)
 	data, err := os.ReadFile(jsonPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read buttonFunctions.json: %w", err)
@@ -42,12 +40,11 @@ func loadButtonFunctionMetadata() (map[string]ButtonFunctionMetadata, error) {
 func ValidateFunctionHandlers(handlers map[string]ButtonFunctionExecutor) {
 	metadataMap, err := loadButtonFunctionMetadata()
 	if err != nil {
-		log.Fatalf("Could not load button function metadata: %v", err)
+		log.Fatal("Could not load button function metadata: %v", err)
 	}
 	for key := range handlers {
 		if _, ok := metadataMap[key]; !ok {
-			log.Fatalf("functionHandlers key '%s' is not present in %s%s", key, buttonFunctionsFileName, jsonExtension)
+			log.Warn("Warning: Handler key '%s' from code is not present in the button functions metadata file. Please add it.", key)
 		}
 	}
 }
-

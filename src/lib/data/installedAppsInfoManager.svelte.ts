@@ -1,4 +1,8 @@
-﻿// src/lib/data/installedAppsInfoManager.svelte.ts
+// src/lib/data/installedAppsInfoManager.svelte.ts
+import {createLogger} from "$lib/logger";
+
+// Create a logger for this module
+const logger = createLogger('InstalledAppsInfoManager');
 
 export interface AppInfo {
     exePath: string; // The resolved executable path
@@ -43,7 +47,7 @@ export function parseInstalledAppsInfo(jsonString: string): Map<string, AppInfo>
 
         // Validate that the parsed data is an object
         if (typeof parsedData !== "object" || parsedData === null) {
-            console.error("Parsed data is not a valid object:", parsedData);
+            logger.error("Parsed data is not a valid object:", parsedData);
             return new Map();
         }
 
@@ -53,13 +57,13 @@ export function parseInstalledAppsInfo(jsonString: string): Map<string, AppInfo>
             if (typeof appInfo === "object" && appInfo !== null) {
                 appsMap.set(appName, appInfo as AppInfo);
             } else {
-                console.warn(`Invalid app entry for key "${appName}":`, appInfo);
+                logger.warn(`Invalid app entry for key "${appName}":`, appInfo);
             }
         });
 
         return appsMap;
     } catch (error) {
-        console.error("Failed to parse installed apps JSON:", error);
+        logger.error("Failed to parse installed apps JSON:", error);
         return new Map();
     }
 }

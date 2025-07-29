@@ -6,12 +6,10 @@ import (
 )
 
 func main() {
-	natsAdapter, err := natsAdapter.New()
+	natsAdapter, err := natsAdapter.New("ShortcutDetector")
 	if err != nil {
 		panic(err)
 	}
-
-	println("ShortcutDetectionAdapter: NATS connection established")
 
 	shortcutDetectionAdapter.New(natsAdapter)
 

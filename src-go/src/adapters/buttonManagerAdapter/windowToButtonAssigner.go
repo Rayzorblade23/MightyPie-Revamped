@@ -4,7 +4,6 @@ package buttonManagerAdapter
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -20,7 +19,6 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 	processedButtons map[string]bool,
 	pageConfig PageConfig,
 ) {
-	// log.Printf("DEBUG: processExistingShowProgramHandles - Starting for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, buttonPtr := range showProgramButtons {
 		buttonCopy := *buttonPtr
 		buttonKey := fmt.Sprintf("%s:%s:%s", menuID, pageID, btnID)
@@ -30,7 +28,7 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](buttonCopy)
 		if err != nil {
-			log.Printf("WARN: [%s] Failed to get ShowProgram props: %v", buttonKey, err)
+			log.Warn("[%s] Failed to get ShowProgram props: %v", buttonKey, err)
 			continue
 		}
 
@@ -38,29 +36,26 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		if props.WindowHandle > 0 {
 			if winInfo, exists := availableWindows[props.WindowHandle]; exists {
 				if winInfo.AppName == props.ButtonTextLower {
-					// log.Printf("DEBUG: [%s] Found valid existing handle %d for %s.", buttonKey, props.WindowHandle, props.ExePath) // Removed DEBUG
 					originalButton := buttonCopy
 					if err := updateButtonWithWindowInfo(&buttonCopy, winInfo, props.WindowHandle); err != nil {
-						log.Printf("ERROR: [%s] Failed update ShowProgram button: %v", buttonKey, err)
+						log.Error("[%s] Failed update ShowProgram button: %v", buttonKey, err)
 					} else if !reflect.DeepEqual(originalButton, buttonCopy) {
 						buttonModified = true
 					}
 					delete(availableWindows, props.WindowHandle)
 					processedButtons[buttonKey] = true
 				} else {
-					// log.Printf("DEBUG: [%s] Handle %d ExePath '%s' mismatch expected '%s'. Clearing.", buttonKey, props.WindowHandle, winInfo.ExePath, props.ExePath) // Removed DEBUG
 					originalButton := buttonCopy
 					if err := clearButtonWindowProperties(&buttonCopy); err != nil {
-						log.Printf("ERROR: [%s] Failed clear ShowProgram on mismatch: %v", buttonKey, err)
+						log.Error("[%s] Failed clear ShowProgram on mismatch: %v", buttonKey, err)
 					} else if !reflect.DeepEqual(originalButton, buttonCopy) {
 						buttonModified = true
 					}
 				}
 			} else {
-				// log.Printf("DEBUG: [%s] Existing handle %d invalid/closed. Clearing.", buttonKey, props.WindowHandle) // Removed DEBUG
 				originalButton := buttonCopy
 				if err := clearButtonWindowProperties(&buttonCopy); err != nil {
-					log.Printf("ERROR: [%s] Failed clear ShowProgram on invalid handle: %v", buttonKey, err)
+					log.Error("[%s] Failed clear ShowProgram on invalid handle: %v", buttonKey, err)
 				} else if !reflect.DeepEqual(originalButton, buttonCopy) {
 					buttonModified = true
 				}
@@ -73,7 +68,6 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		}
 
 		if buttonModified {
-			// log.Printf("DEBUG: [%s] ShowProgram Button modified, updating pageConfig.", buttonKey) // Removed DEBUG
 			pageConfig[btnID] = buttonCopy
 		}
 	}
@@ -87,7 +81,6 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 	processedButtons map[string]bool,
 	pageConfig PageConfig,
 ) {
-	// log.Printf("DEBUG: processExistingShowAnyHandles - Starting Step D logic for P:%s M:%s", menuID, pageID) // Removed DEBUG
 	for btnID, buttonPtr := range showAnyButtons {
 		buttonCopy := *buttonPtr
 		buttonKey := fmt.Sprintf("%s:%s:%s", menuID, pageID, btnID)
@@ -97,27 +90,25 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 
 		props, err := GetButtonProperties[core.ShowAnyWindowProperties](buttonCopy)
 		if err != nil {
-			log.Printf("WARN: [%s] Failed get ShowAny props: %v", buttonKey, err)
+			log.Warn("[%s] Failed get ShowAny props: %v", buttonKey, err)
 			continue
 		}
 
 		buttonModified := false
 		if props.WindowHandle != InvalidHandle {
 			if winInfo, exists := availableWindows[props.WindowHandle]; exists {
-				// log.Printf("DEBUG: [%s] Found valid existing handle %d.", buttonKey, props.WindowHandle) // Removed DEBUG
 				originalButton := buttonCopy
 				if err := updateButtonWithWindowInfo(&buttonCopy, winInfo, props.WindowHandle); err != nil {
-					log.Printf("ERROR: [%s] Failed update ShowAny button: %v", buttonKey, err)
+					log.Error("[%s] Failed update ShowAny button: %v", buttonKey, err)
 				} else if !reflect.DeepEqual(originalButton, buttonCopy) {
 					buttonModified = true
 				}
 				delete(availableWindows, props.WindowHandle)
 				processedButtons[buttonKey] = true
 			} else {
-				// log.Printf("DEBUG: [%s] Existing handle %d invalid/closed. Clearing.", buttonKey, props.WindowHandle) // Removed DEBUG
 				originalButton := buttonCopy
 				if err := clearButtonWindowProperties(&buttonCopy); err != nil {
-					log.Printf("ERROR: [%s] Failed clear ShowAny on invalid handle: %v", buttonKey, err)
+					log.Error("[%s] Failed clear ShowAny on invalid handle: %v", buttonKey, err)
 				} else if !reflect.DeepEqual(originalButton, buttonCopy) {
 					buttonModified = true
 				}
@@ -130,7 +121,6 @@ func (a *ButtonManagerAdapter) processExistingShowAnyHandles(
 		}
 
 		if buttonModified {
-			// log.Printf("DEBUG: [%s] ShowAny Button modified, updating pageConfig.", buttonKey) // Removed DEBUG
 			pageConfig[btnID] = buttonCopy
 		}
 	}
@@ -142,9 +132,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 	processedButtons map[string]bool,
 	fullUpdatedConfig ConfigData,
 ) {
-	// log.Println("DEBUG: assignMatchingProgramWindows - Starting assignment based on ExePath match.") // Removed DEBUG
 	if len(availableWindows) == 0 {
-		// log.Println("DEBUG: assignMatchingProgramWindows - No windows available to assign.") // Removed DEBUG
 		return
 	}
 
@@ -180,7 +168,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 
 				props, err := GetButtonProperties[core.ShowProgramWindowProperties](button)
 				if err != nil {
-					log.Printf("WARN: [%s] assignMatchingProgramWindows - Failed to get props: %v", buttonKey, err)
+					log.Warn("[%s] assignMatchingProgramWindows - Failed to get props: %v", buttonKey, err)
 					continue
 				}
 
@@ -210,21 +198,17 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 					}
 
 					if foundHandle != InvalidHandle {
-						// log.Printf("DEBUG: [%s] assignMatchingProgramWindows - Found matching window H:%d for ExePath '%s'. Assigning.", buttonKey, foundHandle, props.ExePath) // Removed DEBUG
 						targetButtonMap := fullUpdatedConfig[pID][mID]
 						buttonToModify := targetButtonMap[bID]
 						originalButton := buttonToModify
 
 						err := updateButtonWithWindowInfo(&buttonToModify, foundWinInfo, foundHandle)
 						if err != nil {
-							log.Printf("ERROR: [%s] assignMatchingProgramWindows - Failed update button: %v", buttonKey, err)
+							log.Error("[%s] assignMatchingProgramWindows - Failed update button: %v", buttonKey, err)
 						} else {
 							if !reflect.DeepEqual(originalButton, buttonToModify) {
-								// log.Printf("DEBUG: [%s] Button updated by assignment, writing back.", buttonKey) // Removed DEBUG
 								targetButtonMap[bID] = buttonToModify
 							}
-							// else { log.Printf("DEBUG: [%s] Button update resulted in no change.", buttonKey) } // Removed DEBUG
-
 							processedButtons[buttonKey] = true
 							windowsConsumed[foundHandle] = true
 						}
@@ -235,13 +219,10 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 	}
 
 	if len(windowsConsumed) > 0 {
-		// log.Printf("DEBUG: assignMatchingProgramWindows - Consumed %d windows.", len(windowsConsumed)) // Removed DEBUG
 		for handle := range windowsConsumed {
 			delete(availableWindows, handle)
 		}
 	}
-	// else { log.Println("DEBUG: assignMatchingProgramWindows - Consumed 0 windows.") } // Removed DEBUG
-	// log.Println("DEBUG: assignMatchingProgramWindows - Finished.") // Removed DEBUG
 }
 
 // assignRemainingWindows (Cleaned)
@@ -250,9 +231,7 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	processedButtons map[string]bool,
 	fullUpdatedConfig ConfigData,
 ) {
-	// log.Printf("DEBUG: assignRemainingWindows - Starting. Windows to assign: %d", len(availableWindows)) // Removed DEBUG
 	if len(availableWindows) == 0 {
-		// log.Println("DEBUG: assignRemainingWindows - No windows left to assign.") // Removed DEBUG
 		return
 	}
 
@@ -298,7 +277,6 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	}
 
 	if len(availableSlots) == 0 {
-		// log.Println("DEBUG: assignRemainingWindows - No available ShowAny slots found.") // Removed DEBUG
 		return
 	}
 
@@ -318,7 +296,6 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	}
 	sort.Slice(windowsToAssign, func(i, j int) bool { return windowsToAssign[i].Handle < windowsToAssign[j].Handle })
 
-	// log.Printf("DEBUG: assignRemainingWindows - Assigning %d windows to %d slots.", len(windowsToAssign), len(availableSlots)) // Removed DEBUG
 	assignedCount := 0
 	windowsConsumed := make(map[int]bool)
 
@@ -331,19 +308,15 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 		buttonToModify := targetButtonMap[slot.ButtonID]
 		originalButton := buttonToModify
 
-		// log.Printf("DEBUG: [%s] Assigning window '%s' (H:%d)", slotButtonKey, window.Info.Title, window.Handle) // Removed DEBUG
-
 		err := updateButtonWithWindowInfo(&buttonToModify, window.Info, window.Handle)
 		if err != nil {
-			log.Printf("ERROR: [%s] Failed update button with assigned window: %v", slotButtonKey, err)
+			log.Error("[%s] Failed update button with assigned window: %v", slotButtonKey, err)
 			continue
 		}
 
 		if !reflect.DeepEqual(originalButton, buttonToModify) {
-			// log.Printf("DEBUG: [%s] Button updated by assignment, writing back.", slotButtonKey) // Removed DEBUG
 			targetButtonMap[slot.ButtonID] = buttonToModify
 		}
-		// else { log.Printf("DEBUG: [%s] Button update assignment resulted in no change.", slotButtonKey) } // Removed DEBUG
 
 		windowsConsumed[window.Handle] = true
 		processedButtons[slotButtonKey] = true
@@ -353,11 +326,9 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 	for handle := range windowsConsumed {
 		delete(availableWindows, handle)
 	}
-	// log.Printf("DEBUG: assignRemainingWindows - Assigned %d windows.", assignedCount) // Removed DEBUG
 
 	// Clear remaining slots
 	if assignedCount < len(availableSlots) {
-		// log.Printf("DEBUG: Clearing %d remaining empty ShowAny slots.", len(availableSlots)-assignedCount) // Removed DEBUG
 		for i := assignedCount; i < len(availableSlots); i++ {
 			slot := availableSlots[i]
 			slotButtonKey := fmt.Sprintf("%s:%s:%s", slot.MenuID, slot.PageID, slot.ButtonID)
@@ -366,19 +337,16 @@ func (a *ButtonManagerAdapter) assignRemainingWindows(
 			originalButton := buttonToModify
 			err := clearButtonWindowProperties(&buttonToModify)
 			if err != nil {
-				log.Printf("ERROR: [%s] Failed to clear remaining empty slot: %v", slotButtonKey, err)
+				log.Error("[%s] Failed to clear remaining empty slot: %v", slotButtonKey, err)
 			} else if !reflect.DeepEqual(originalButton, buttonToModify) {
-				// log.Printf("DEBUG: [%s] Cleared remaining empty slot.", slotButtonKey) // Removed DEBUG
 				targetButtonMap[slot.ButtonID] = buttonToModify
 			}
 		}
 	}
-	// log.Println("DEBUG: assignRemainingWindows - Finished.") // Removed DEBUG
 }
 
 // updateButtonWithWindowInfo (Cleaned)
 func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHandle int) error {
-	// log.Printf("DEBUG: updateButtonWithWindowInfo called for button type %s with handle %d", button.ButtonType, newHandle) // Removed DEBUG
 	switch core.ButtonType(button.ButtonType) {
 	case core.ButtonTypeShowProgramWindow:
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](*button)

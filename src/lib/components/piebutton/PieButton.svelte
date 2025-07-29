@@ -7,6 +7,10 @@
     import {PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE} from "$env/static/public";
     import PieButtonBase from './PieButtonBase.svelte';
     import type {MouseState} from '$lib/data/types/pieButtonSharedTypes.ts';
+    import {createLogger} from "$lib/logger";
+
+    // Create a logger for this component
+    const logger = createLogger('PieButton');
 
     let {menuID, pageID, buttonID, x, y, width, height, mouseState}: {
         menuID: number,
@@ -49,6 +53,7 @@
             click_type: clickType,
         };
 
+        logger.debug(`Button clicked: Menu ${menuID}, Page ${pageID}, Button ${buttonID}, Type ${taskType}, Click ${clickType}`);
         publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
     }
 

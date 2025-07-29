@@ -1,7 +1,7 @@
 <!-- PieButtonBase.svelte -->
 <script lang="ts">
     import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
-    import {composePieButtonClasses, fetchSvgIcon} from './pieButtonUtils';
+    import {composePieButtonClasses, fetchSvgIcon, getIconDataUrl} from './pieButtonUtils';
     import type {PieButtonBaseProps} from '$lib/data/types/pieButtonSharedTypes.ts';
     import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import AutoScrollText from './AutoScrollText.svelte';
@@ -244,9 +244,26 @@
                             </div>
                         {/await}
                     {:else if properties.icon_path}
-                        <img src={properties.icon_path} alt="button icon"
-                             class="h-full flex-shrink-0 object-contain p-1"
-                             style="aspect-ratio: 1/1;"/>
+                        {#await getIconDataUrl(properties.icon_path)}
+                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-gray-400"
+                                 style="aspect-ratio: 1/1;">
+                                <!-- Loading indicator -->
+                                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        {:then dataUrl}
+                            <img src={dataUrl} alt="button icon"
+                                 class="h-full flex-shrink-0 object-contain p-1"
+                                 style="aspect-ratio: 1/1;"/>
+                        {:catch error}
+                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                                 style="aspect-ratio: 1/1;"
+                                 title="{error instanceof Error ? error.message : 'Error loading icon'}">
+                                ⚠️ <!-- Error indicator -->
+                            </div>
+                        {/await}
                     {/if}
                 {/if}
 
@@ -308,8 +325,26 @@
                         </div>
                     {/await}
                 {:else if properties.icon_path}
-                    <img src={properties.icon_path} alt="button icon" class="h-full flex-shrink-0 object-contain p-1"
-                         style="aspect-ratio: 1/1;"/>
+                    {#await getIconDataUrl(properties.icon_path)}
+                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-gray-400"
+                             style="aspect-ratio: 1/1;">
+                            <!-- Loading indicator -->
+                            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                    {:then dataUrl}
+                        <img src={dataUrl} alt="button icon"
+                             class="h-full flex-shrink-0 object-contain p-1"
+                             style="aspect-ratio: 1/1;"/>
+                    {:catch error}
+                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                             style="aspect-ratio: 1/1;"
+                             title="{error instanceof Error ? error.message : 'Error loading icon'}">
+                            ⚠️ <!-- Error indicator -->
+                        </div>
+                    {/await}
                 {/if}
             {/if}
 

@@ -26,7 +26,6 @@
     import {
         PUBLIC_CONFIG_SIZE_X,
         PUBLIC_CONFIG_SIZE_Y,
-        PUBLIC_DIR_BUTTONFUNCTIONS,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
@@ -37,6 +36,7 @@
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
+    import {createLogger} from "$lib/logger";
 
     // --- Component Imports ---
     import MenuTabs from "$lib/components/piemenuConfig/MenuTabs.svelte";
@@ -48,6 +48,10 @@
     import ButtonTypeSelector from "$lib/components/piemenuConfig/selectors/ButtonTypeSelector.svelte";
     import {goto} from "$app/navigation";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
+    import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
+
+    // Create a logger for this component
+    const logger = createLogger('PieMenuConfig');
 
     interface FunctionDefinition {
         icon_path: string;
@@ -59,23 +63,20 @@
     let availableFunctionsData = $state<AvailableFunctionsMap>({});
 
     onMount(() => {
+        logger.info('Config Mounted');
+
         getCurrentWindow().show();
     });
 
     $effect(() => {
-        fetch(PUBLIC_DIR_BUTTONFUNCTIONS)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch buttonFunctions.json: ${response.statusText}`);
-                }
-                return response.json() as Promise<AvailableFunctionsMap>;
-            })
-            .then((data) => {
-                availableFunctionsData = data;
-            })
-            .catch((error) => {
-                console.error('Error loading buttonFunctions.json:', error);
-            });
+        (async () => {
+            try {
+                // Get the buttonFunctions.json parsed data using the utility function
+                availableFunctionsData = await getButtonFunctions<AvailableFunctionsMap>();
+            } catch (error) {
+                logger.error('Error loading buttonFunctions.json:', error);
+            }
+        })();
     });
 
     // --- State ---
@@ -334,7 +335,7 @@
             currentWindow = getCurrentWindow();
             await centerAndSizeWindowOnMonitor(currentWindow, Number(PUBLIC_CONFIG_SIZE_X), Number(PUBLIC_CONFIG_SIZE_Y));
         } catch (error) {
-            console.error("Failed to get/resize window onMount:", error);
+            logger.error("Failed to get/resize window onMount:", error);
         }
     });
 
@@ -417,7 +418,7 @@
             if (selected.includes('buttonConfig_BACKUP')) {
                 pushUndoState();
                 publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
-                console.log('Published selected file path:', selected);
+                logger.log('Published selected file path:', selected);
             } else {
                 alert('Please select a file with "buttonConfig_BACKUP" in the name.');
             }
@@ -428,14 +429,14 @@
     function handleAddPage() {
         pushUndoState();
         if (selectedMenuID === undefined) {
-            console.warn("No menu selected to add a page to.");
+            logger.warn("No menu selected to add a page to.");
             return;
         }
         const result = addPageToMenuConfiguration(baseMenuConfig, selectedMenuID);
         if (result) {
             baseMenuConfig = result.newConfig;
             updateBaseMenuConfiguration(baseMenuConfig);
-            console.log(`Locally added new page ${result.newPageID} to menu ${selectedMenuID}. UI should reflect this change.`);
+            logger.log(`Locally added new page ${result.newPageID} to menu ${selectedMenuID}.`);
             setTimeout(() => {
                 if (pagesContainer && (pagesContainer as any).lockMomentum) {
                     (pagesContainer as any).lockMomentum();
@@ -456,7 +457,7 @@
                 });
             }, 0);
         } else {
-            console.error(`Failed to add page to menu ${selectedMenuID}.`);
+            logger.error(`Failed to add page to menu ${selectedMenuID}.`);
         }
     }
 
@@ -464,7 +465,7 @@
     function handleRemovePage(menuIDToRemoveFrom: number, pageIDToRemove: number) {
         pushUndoState();
         if (selectedMenuID === undefined || selectedMenuID !== menuIDToRemoveFrom) {
-            console.warn("Attempting to remove page from a menu that is not currently selected or invalid state.");
+            logger.warn("Attempting to remove page from a menu that is not currently selected or invalid state.");
             return;
         }
         const result = removePageFromMenuConfiguration(baseMenuConfig, menuIDToRemoveFrom, pageIDToRemove);
@@ -481,9 +482,9 @@
                     };
                 }
             }
-            console.log(`Locally removed page ${pageIDToRemove} from menu ${menuIDToRemoveFrom}. UI should reflect this change.`);
+            logger.log(`Locally removed page ${pageIDToRemove} from menu ${menuIDToRemoveFrom}.`);
         } else {
-            console.error(`Failed to remove page ${pageIDToRemove} from menu ${menuIDToRemoveFrom}.`);
+            logger.error(`Failed to remove page ${pageIDToRemove} from menu ${menuIDToRemoveFrom}.`);
         }
     }
 
@@ -524,7 +525,7 @@
     function handlePublishShortcutSetterUpdate() {
         if (selectedMenuID !== undefined) {
             publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE, {index: selectedMenuID});
-            console.log("Published shortcut setter update for menu index:", selectedMenuID);
+            logger.log("Published shortcut setter update for menu index:", selectedMenuID);
             isShortcutDialogOpen = true;
         }
     }
