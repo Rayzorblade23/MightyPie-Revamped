@@ -1,6 +1,12 @@
 {
   "excluded_apps": [
-    ""
+    "MightyPie",
+    "MightyPieRevamped"
+  ],
+  "excluded_class_names": [
+    "Progman",
+    "AutoHotkeyGUI",
+    "RainmeterMeterWindow"
   ],
   "excluded_titles": [
     "RzMonitorForegroundWindow",
@@ -11,10 +17,5 @@
       "app": "",
       "title": ""
     }
-  ],
-  "excluded_class_names": [
-    "Progman",
-    "AutoHotkeyGUI",
-    "RainmeterMeterWindow"
   ]
 }

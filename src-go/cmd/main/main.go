@@ -17,7 +17,10 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/pkg/processmonitor"
 )
 
-var natsCmd *exec.Cmd
+var (
+	natsCmd *exec.Cmd
+	cmds    []*exec.Cmd
+)
 
 func main() {
 	// Initialize structured logger
@@ -53,41 +56,50 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	var cmds []*exec.Cmd
-
-	// Add the NATS command to the list of commands to be managed
+		// Prepare all commands before starting them to avoid race conditions.
+	
 	if natsCmd != nil {
 		cmds = append(cmds, natsCmd)
 	}
 
-	for _, worker := range workers {
+	binDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal("Error getting bin directory: %v", err)
+	}
+
+	for _, workerName := range workers {
+		var exePath string
+		if runtime.GOOS == "windows" {
+			exePath = filepath.Join(binDir, workerName+".exe")
+		} else {
+			exePath = filepath.Join(binDir, workerName)
+		}
+		cmd := exec.Command(exePath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmds = append(cmds, cmd)
+	}
+
+	// Launch all processes in goroutines.
+	for _, cmd := range cmds {
 		wg.Add(1)
-		go func(workerName string) {
+		go func(c *exec.Cmd) {
 			defer wg.Done()
-			// Determine the executable path based on the OS
-			var exePath string
-			binDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-			if err != nil {
-				fmt.Printf("Error getting bin directory: %v\n", err)
+			log.Info("Starting process: %s", c.Path)
+			if err := c.Start(); err != nil {
+				log.Error("Process %s failed to start: %v", c.Path, err)
 				return
 			}
 
-			if runtime.GOOS == "windows" {
-				exePath = filepath.Join(binDir, workerName+".exe")
+			if err := c.Wait(); err != nil {
+				// A "signal: killed" error is expected on graceful shutdown, so we check for it.
+				if !strings.Contains(err.Error(), "killed") {
+					log.Error("Process %s exited with error: %v", c.Path, err)
+				}
 			} else {
-				exePath = filepath.Join(binDir, workerName)
+				log.Info("Process %s exited successfully", c.Path)
 			}
-
-			cmd := exec.Command(exePath)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmds = append(cmds, cmd)
-
-			log.Info("Starting worker: %s", workerName)
-			if err := cmd.Run(); err != nil {
-				log.Error("Worker %s failed: %v", workerName, err)
-			}
-		}(worker)
+		}(cmd)
 	}
 
 	// Handle graceful shutdown
@@ -95,8 +107,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		log.Info("Shutting down all workers in 20 seconds...")
-		time.Sleep(20 * time.Second)
+		
 		for _, cmd := range cmds {
 			if cmd.Process != nil {
 				err := cmd.Process.Kill()
@@ -239,7 +250,7 @@ func waitForNatsReady(log *logger.Logger) error {
 
 func cleanupAllProcesses(log *logger.Logger) {
 	log.Info("Cleaning up all processes...")
-	for _, cmd := range []*exec.Cmd{natsCmd} {
+		for _, cmd := range cmds {
 		if cmd.Process != nil {
 			err := cmd.Process.Kill()
 			if err != nil {

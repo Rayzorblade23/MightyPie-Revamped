@@ -21,7 +21,7 @@ IF "%1"=="--clean" SET "MODE=clean"
 echo Building Go services in %MODE% mode...
 
 REM List of services to build
-SET "services=buttonManager mouseInputHandler pieButtonExecutor settingsManager shortcutDetector shortcutSetter windowManagement main"
+SET "services=buttonManager mouseInputHandler pieButtonExecutor settingsManager shortcutDetector shortcutSetter windowManagement"
 
 IF "%MODE%"=="clean" (
     echo Cleaning output directory...
@@ -39,6 +39,9 @@ FOR %%s IN (%services%) DO (
         EXIT /B !ERRORLEVEL!
     )
 )
+
+REM Build Go backend as mightypie-backend.exe
+go build -v -o "%ASSETS_BIN_DIR%\mightypie-backend.exe" "./cmd/main"
 
 echo.
 echo Build complete.

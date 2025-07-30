@@ -130,7 +130,7 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                 .join("assets")
                 .join("src-go")
                 .join("bin")
-                .join("main.exe");
+                .join("mightypie-backend.exe");
             
             go_path
         } else {
@@ -139,7 +139,7 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                 .join("assets")
                 .join("src-go")
                 .join("bin")
-                .join("main.exe")
+                .join("mightypie-backend.exe")
         };
 
         // Get the Go executable's directory to use as working directory
@@ -189,6 +189,15 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
         if let Some(value) = option_env!("PUBLIC_NATS_STREAM") {
             command.env("PUBLIC_NATS_STREAM", value);
+        }
+
+        #[cfg(windows)]
+        use std::os::windows::process::CommandExt;
+        // Suppress terminal window for Go process on Windows (production only)
+        #[cfg(windows)]
+        if !is_dev {
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            command.creation_flags(CREATE_NO_WINDOW);
         }
 
         match command.spawn() {
