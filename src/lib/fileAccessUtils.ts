@@ -2,7 +2,7 @@ import {invoke} from "@tauri-apps/api/core";
 import {createLogger} from "$lib/logger.ts";
 
 // Create a logger for this component
-const logger = createLogger('pathsUtil');
+const logger = createLogger('FileAccessUtils');
 
 // Cache for icon data URLs
 const iconDataUrlCache: Map<string, string> = new Map();
@@ -37,22 +37,21 @@ export async function getIconDataUrl(iconPath: string): Promise<string> {
     try {
         // Skip SVG files - they should be handled by the frontend directly
         if (iconPath.endsWith('.svg')) {
-            logger.debug(`Skipping SVG file for backend processing: ${iconPath}`);
             return iconPath; // Return the original path for SVGs
         }
-        
+
         // Check if we have this icon in the cache
         if (iconDataUrlCache.has(iconPath)) {
             logger.debug(`Using cached data URL for ${iconPath}`);
             return iconDataUrlCache.get(iconPath)!;
         }
-        
+
         // Use the Tauri command to get the icon as a data URL
-        const dataUrl = await invoke<string>('get_icon_data_url', { iconPath });
-        
+        const dataUrl = await invoke<string>('get_icon_data_url', {iconPath});
+
         // Cache the result
         iconDataUrlCache.set(iconPath, dataUrl);
-        
+
         return dataUrl;
     } catch (error) {
         logger.error(`Failed to get icon data URL for ${iconPath}:`, error);

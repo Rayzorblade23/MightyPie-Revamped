@@ -12,7 +12,6 @@ pub use env_utils::{get_private_env_var, set_env_var};
 pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend};
 pub use mouse::{get_mouse_pos, set_mouse_pos};
 
-use dotenvy::from_filename;
 use env_logger::{self, Builder, Env};
 use std::env;
 use tauri::{
@@ -23,11 +22,8 @@ use tauri::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load .env file first to ensure RUST_LOG is set
-    match from_filename(".env") {
-        Ok(_) => println!("Successfully loaded .env file"),
-        Err(e) => println!("Failed to load .env file: {}", e),
-    }
+    // Environment variables are now baked into the binary at build time
+    println!("Using environment variables baked into the binary at build time");
 
     // Initialize shutdown handler
     shutdown::init();

@@ -25,30 +25,6 @@ func GetRootDir() (string, error) {
 	return projectRoot, nil
 }
 
-// Returns the absolute path to the 'static' directory within the project.
-func GetStaticDir() (string, error) {
-	projectRoot, err := GetRootDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get project root to determine static dir")
-	}
-	staticDirPath := filepath.Join(projectRoot, "static")
-
-	// It's a good idea to verify that the static directory actually exists
-	// This helps catch configuration errors early.
-	stat, err := os.Stat(staticDirPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", fmt.Errorf("static directory not found at expected path '%s' (derived from project root '%s')", staticDirPath, projectRoot)
-		}
-		return "", fmt.Errorf("error accessing static directory at '%s': %w", staticDirPath, err)
-	}
-	if !stat.IsDir() {
-		return "", fmt.Errorf("expected '%s' to be a directory, but it's not", staticDirPath)
-	}
-
-	return staticDirPath, nil
-}
-
 // GetAssetDir returns the absolute path to the 'assets' directory, typically for build assets.
 func GetAssetDir() (string, error) {
 	projectRoot, err := GetRootDir()

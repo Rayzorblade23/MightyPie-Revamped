@@ -7,6 +7,7 @@ use tauri::Manager;
 use crate::logging::log_to_file;
 use crate::env_utils::{is_debug, set_env_var};
 use crate::shutdown;
+use serde_json;
 
 pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
     // Colorized log function similar to chalk in JS
@@ -70,66 +71,53 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
         }
         
         // For development mode, we need to go up one level to find .env files in project root
-        let env_dir = if is_dev {
+        let _env_dir = if is_dev {
             project_dir
                 .parent() // src-tauri -> project root
                 .unwrap_or_else(|| Path::new("."))
                 .to_path_buf()
         } else {
+            // In production, the root is the project_dir itself
             project_dir.clone()
         };
         
-        // Load environment variables from .env files
-        let env_path = env_dir.join(".env");
-        log_info(&format!("Looking for .env at: {:?}", env_path));
-        if env_path.exists() {
-            match dotenvy::from_filename(&env_path) {
-                Ok(_) => {
-                    log_info("Successfully loaded .env file");
-                },
-                Err(e) => {
-                    log_error(&format!("Could not open env file {:?}: {}", env_path, e));
-                }
-            }
-        } else {
-            log_error(&format!(".env file not found at {:?}", env_path));
-        }
-
-        // Also check for .env.local which takes precedence
-        let env_local_path = env_dir.join(".env.local");
-        log_info(&format!("Looking for .env.local at: {:?}", env_local_path));
-        if env_local_path.exists() {
-            match dotenvy::from_filename(&env_local_path) {
-                Ok(_) => {
-                    log_info("Successfully loaded .env.local file");
-                },
-                Err(e) => {
-                    log_error(&format!(
-                        "Could not open env.local file {:?}: {}",
-                        env_local_path, e
-                    ));
-                }
-            }
-        } else {
-            log_info(&format!(".env.local file not found at {:?}", env_local_path));
-        }
-
-        // Set environment variables for the launcher
+        // Environment variables are now baked into the binary at build time
         if is_dev {
             env::set_var("APP_ENV", "development");
             
             // Set the project root directory for the Go backend to use
             if let Some(root_dir) = project_dir.parent() {
                 set_env_var("MIGHTYPIE_ROOT_DIR", root_dir.to_str().unwrap_or(""));
-                log_info(&format!("Set MIGHTYPIE_ROOT_DIR to: {:?}", root_dir));
             }
+            
+            // Set PUBLIC_DIR_ASSETS for development
+            env::set_var("PUBLIC_DIR_ASSETS", "src-tauri/assets");
         } else {
             env::set_var("APP_ENV", "production");
             env::set_var("TAURI_RESOURCE_DIR", resources_dir.to_str().unwrap());
             
             // In production, the root is the project_dir itself
             set_env_var("MIGHTYPIE_ROOT_DIR", project_dir.to_str().unwrap_or(""));
-            log_info(&format!("Set MIGHTYPIE_ROOT_DIR to: {:?}", project_dir));
+            
+            // Set PUBLIC_DIR_ASSETS for production
+            env::set_var("PUBLIC_DIR_ASSETS", "assets");
+            
+            // In production, load all baked-in environment variables from the JSON blob
+            // and set them in the process environment
+            if let Some(json) = option_env!("BAKED_ENV_JSON") {
+                match serde_json::from_str::<std::collections::HashMap<String, String>>(json) {
+                    Ok(env_map) => {
+                        for (key, value) in env_map {
+                            env::set_var(key, value);
+                        }
+                    },
+                    Err(e) => {
+                        log_error(&format!("Failed to parse BAKED_ENV_JSON: {}", e));
+                    }
+                }
+            } else {
+                log_error("BAKED_ENV_JSON not found in baked-in environment variables");
+            }
         }
 
         // Flag that we're starting from Tauri
@@ -146,8 +134,12 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
             
             go_path
         } else {
-            // In production, the Go executable should be in the resources directory
-            resources_dir.join("bin").join("main.exe")
+            // In production, the Go executable is in assets/src-go/bin/
+            project_dir
+                .join("assets")
+                .join("src-go")
+                .join("bin")
+                .join("main.exe")
         };
 
         // Get the Go executable's directory to use as working directory
@@ -174,6 +166,30 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                .stderr(Stdio::piped())
                .env("LAUNCHER_STARTED_FROM_TAURI", "1")
                .env("TAURI_PROCESS_PID", current_pid.to_string());
+
+        // Pass all current environment variables to the Go process
+        for (key, value) in std::env::vars() {
+            command.env(&key, &value);
+        }
+
+        // CRITICAL: Explicitly pass the baked-in environment variables
+        // These are baked into the binary at build time via build.rs
+        if let Some(value) = option_env!("NATS_SERVER_URL") {
+            command.env("NATS_SERVER_URL", value);
+        }
+
+        if let Some(value) = option_env!("NATS_AUTH_TOKEN") {
+            command.env("NATS_AUTH_TOKEN", value);
+        }
+
+        // Pass all PUBLIC_ variables that are baked in
+        if let Some(value) = option_env!("PUBLIC_NATSSUBJECT_STREAM") {
+            command.env("PUBLIC_NATSSUBJECT_STREAM", value);
+        }
+
+        if let Some(value) = option_env!("PUBLIC_NATS_STREAM") {
+            command.env("PUBLIC_NATS_STREAM", value);
+        }
 
         match command.spawn() {
             Ok(mut child) => {

@@ -9,9 +9,13 @@ pub fn read_button_functions() -> Result<String, String> {
     let root_dir = env::var("MIGHTYPIE_ROOT_DIR").map_err(|e| e.to_string())?;
     let assets_dir = env::var("PUBLIC_DIR_ASSETS").unwrap_or_else(|_| "src-tauri/assets".to_string());
     let button_functions_path = env::var("PUBLIC_DIR_BUTTONFUNCTIONS").unwrap_or_else(|_| "data/buttonFunctions.json".to_string());
-    let full_path = format!("{}/{}/{}", root_dir, assets_dir, button_functions_path);
-    log::info!("Reading button functions from: {}", full_path);
-    fs::read_to_string(Path::new(&full_path)).map_err(|e| e.to_string())
+    
+    // Use PathBuf for proper cross-platform path handling
+    let full_path = Path::new(&root_dir)
+        .join(&assets_dir)
+        .join(&button_functions_path);
+    
+    fs::read_to_string(&full_path).map_err(|e| e.to_string())
 }
 
 // Command to convert an icon path to a data URL

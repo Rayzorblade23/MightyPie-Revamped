@@ -152,13 +152,8 @@ func getNatsPaths(log *logger.Logger) (natsExePath, defaultConfPath string, err 
 		defaultConfPath = filepath.Join(rootDir, "src-tauri", "assets", "nats-server", "nats.conf")
 	} else {
 		log.Info("Production environment: using bundled paths for NATS.")
-		exePath, err := os.Executable()
-		if err != nil {
-			return "", "", fmt.Errorf("could not get executable path: %w", err)
-		}
-		binDir := filepath.Dir(exePath)
-		natsExePath = filepath.Join(binDir, natsExe)
-		defaultConfPath = filepath.Join(binDir, "nats.conf")
+		natsExePath = filepath.Join(os.Getenv("MIGHTYPIE_ROOT_DIR"), "assets", "nats-server", natsExe)
+		defaultConfPath = filepath.Join(os.Getenv("MIGHTYPIE_ROOT_DIR"), "assets", "nats-server", "nats.conf")
 	}
 	return natsExePath, defaultConfPath, nil
 }

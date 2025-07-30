@@ -16,6 +16,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+serde_json = "1"
+
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
@@ -35,6 +37,7 @@ tauri-plugin-dialog = "2"
 chrono = "0.4"
 lazy_static = "1.4"
 base64 = "0.22.1"
+dotenv = "0.15.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-positioner = "2"
