@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +13,14 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/buttonManagerAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/mouseInputAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/pieButtonExecutionAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/settingsManagerAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/shortcutDetectionAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/shortcutSetterAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/windowManagementAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/Rayzorblade23/MightyPie-Revamped/pkg/processmonitor"
@@ -20,14 +29,42 @@ import (
 var (
 	natsCmd *exec.Cmd
 	cmds    []*exec.Cmd
+
+	// Worker flags
+	workerFlags = map[string]*bool{
+		"buttonManager":     flag.Bool("buttonManager", false, "Run as button manager worker"),
+		"mouseInputHandler": flag.Bool("mouseInputHandler", false, "Run as mouse input handler worker"),
+		"pieButtonExecutor": flag.Bool("pieButtonExecutor", false, "Run as pie button executor worker"),
+		"settingsManager":   flag.Bool("settingsManager", false, "Run as settings manager worker"),
+		"shortcutDetector":  flag.Bool("shortcutDetector", false, "Run as shortcut detector worker"),
+		"shortcutSetter":    flag.Bool("shortcutSetter", false, "Run as shortcut setter worker"),
+		"windowManagement":  flag.Bool("windowManagement", false, "Run as window management worker"),
+	}
 )
 
 func main() {
+	// Parse command line flags
+	flag.Parse()
+
 	// Initialize structured logger
 	log := logger.New("Main")
 	logger.ReplaceStdLog("Main")
 	log.Info("Starting MightyPie...")
 	log.Info("Log Level: %s", os.Getenv("RUST_LOG"))
+	
+	// Check if we should run as a specific worker
+	for workerName, flagValue := range workerFlags {
+		if *flagValue {
+			log.Info("Running as %s worker", workerName)
+			// Workers don't need to start their own NATS server or monitor parent process
+			// They just connect to the existing NATS server
+			runWorker(workerName)
+			return
+		}
+	}
+
+	// If no worker flag is set, run as the main coordinator
+	log.Info("Running as main coordinator")
 	
 	// Start parent process monitoring
 	processmonitor.MonitorParentProcess()
@@ -40,6 +77,7 @@ func main() {
 	})
 
 	// Start NATS server and wait for it to be ready
+	// Only the main coordinator starts the NATS server
 	err := startNatsServer(log)
 	if err != nil {
 		log.Fatal("Failed to start NATS server: %v", err)
@@ -56,25 +94,21 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-		// Prepare all commands before starting them to avoid race conditions.
+	// Prepare all commands before starting them to avoid race conditions.
 	
 	if natsCmd != nil {
 		cmds = append(cmds, natsCmd)
 	}
 
-	binDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	// Get the executable path for launching worker processes
+	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatal("Error getting bin directory: %v", err)
+		log.Fatal("Error getting executable path: %v", err)
 	}
 
 	for _, workerName := range workers {
-		var exePath string
-		if runtime.GOOS == "windows" {
-			exePath = filepath.Join(binDir, workerName+".exe")
-		} else {
-			exePath = filepath.Join(binDir, workerName)
-		}
-		cmd := exec.Command(exePath)
+		// Create a command that runs this same executable with the appropriate worker flag
+		cmd := exec.Command(exePath, fmt.Sprintf("--%s", workerName))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmds = append(cmds, cmd)
@@ -85,8 +119,15 @@ func main() {
 		wg.Add(1)
 		go func(c *exec.Cmd) {
 			defer wg.Done()
-			log.Info("Starting process: %s", c.Path)
+			// Don't log NATS server process start to reduce verbosity
+			if !strings.Contains(c.Path, "nats-server") {
+				log.Debug("Starting process: %s", c.Path)
+			}
 			if err := c.Start(); err != nil {
+				// Ignore "already started" errors which can happen with NATS server
+				if strings.Contains(err.Error(), "already started") {
+					return
+				}
 				log.Error("Process %s failed to start: %v", c.Path, err)
 				return
 			}
@@ -216,6 +257,15 @@ func ensureUserNatsConfig(log *logger.Logger, userConfPath, defaultConfPath, nat
 
 // launchNatsProcess starts the NATS server process with the specified configuration.
 func launchNatsProcess(log *logger.Logger, natsExePath, userConfPath string) error {
+	// Check if NATS is already running by trying to connect to it
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:4222", 100*time.Millisecond)
+	if err == nil {
+		// NATS is already running
+		conn.Close()
+		log.Info("NATS server is already running")
+		return nil
+	}
+
 	natsToken := os.Getenv("NATS_AUTH_TOKEN")
 	if natsToken == "" {
 		return fmt.Errorf("NATS_AUTH_TOKEN environment variable not set")
@@ -228,6 +278,11 @@ func launchNatsProcess(log *logger.Logger, natsExePath, userConfPath string) err
 
 	log.Info("Starting NATS server...")
 	if err := natsCmd.Start(); err != nil {
+		// If the error is "already started", it's not actually an error
+		if strings.Contains(err.Error(), "already started") {
+			log.Info("NATS server is already running")
+			return nil
+		}
 		return fmt.Errorf("could not start NATS server: %w", err)
 	}
 	return nil
@@ -250,12 +305,69 @@ func waitForNatsReady(log *logger.Logger) error {
 
 func cleanupAllProcesses(log *logger.Logger) {
 	log.Info("Cleaning up all processes...")
-		for _, cmd := range cmds {
+	for _, cmd := range cmds {
 		if cmd.Process != nil {
 			err := cmd.Process.Kill()
 			if err != nil {
 				log.Error("Failed to kill process %d: %v", cmd.Process.Pid, err)
 			}
 		}
+	}
+}
+
+// runWorker runs the specified worker type
+func runWorker(workerType string) {
+	// Create a logger for this worker
+	log := logger.New(strings.Title(workerType))
+	logger.ReplaceStdLog(strings.Title(workerType))
+
+	// Wait for NATS server to be ready before connecting
+	// Use a shorter timeout and less verbose logging
+	for i := range 5 { // Try for up to 5 seconds
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:4222", 500*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			break
+		}
+		if i == 4 {
+			log.Fatal("NATS server did not start in time")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Create a NATS adapter for the worker
+	natsAdapter, err := natsAdapter.New(strings.Title(workerType))
+	if err != nil {
+		log.Fatal("Failed to connect to NATS: %v", err)
+	}
+
+	// Initialize and run the appropriate worker based on type
+	switch workerType {
+	case "buttonManager":
+		buttonManager := buttonManagerAdapter.New(natsAdapter)
+		buttonManager.Run()
+	case "mouseInputHandler":
+		mouseInputAdapter := mouseInputAdapter.New(natsAdapter)
+		mouseInputAdapter.Run()
+	case "pieButtonExecutor":
+		pieButtonExecutor := pieButtonExecutionAdapter.New(natsAdapter)
+		pieButtonExecutor.Run()
+	case "settingsManager":
+		settingsManager := settingsManagerAdapter.New(natsAdapter)
+		settingsManager.Run()
+	case "shortcutDetector":
+		shortcutDetectionAdapter.New(natsAdapter)
+		select {} // Block forever as in original implementation
+	case "shortcutSetter":
+		shortcutSetterAdapter.New(natsAdapter)
+		select {} // Block forever as in original implementation
+	case "windowManagement":
+		windowManagement, err := windowManagementAdapter.New(natsAdapter)
+		if err != nil {
+			log.Fatal("Failed to create WindowManagementAdapter: %v", err)
+		}
+		windowManagement.Run()
+	default:
+		panic("Unknown worker type: " + workerType)
 	}
 }
