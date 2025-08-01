@@ -29,6 +29,9 @@ importers:
       '@tauri-apps/plugin-positioner':
         specifier: ~2
         version: 2.2.0
+      '@tauri-apps/plugin-process':
+        specifier: ~2
+        version: 2.3.0
       '@tauri-apps/plugin-shell':
         specifier: ^2.2.1
         version: 2.2.1
@@ -72,9 +75,6 @@ importers:
       concurrently:
         specifier: ^9.2.0
         version: 9.2.0
-      cross-env:
-        specifier: ^10.0.0
-        version: 10.0.0
       dotenv:
         specifier: ^16.4.5
         version: 16.5.0
@@ -103,9 +103,6 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
-
-  '@epic-web/invariant@1.0.0':
-    resolution: {integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==}
 
   '@esbuild/aix-ppc64@0.25.2':
     resolution: {integrity: sha512-wCIboOL2yXZym2cgm6mlA742s9QeJ8DjGVaL39dLN4rRwrOgOyYSnOaFPhKZGLb2ngj4EyfAFjsNJwPXZvseag==}
@@ -682,6 +679,9 @@ packages:
   '@tauri-apps/plugin-positioner@2.2.0':
     resolution: {integrity: sha512-3JIWqV4U1US4nmM4PGmAHODq0ltkJ91MyANR033elKSSpX3AqKnVQnLz76xThBFHjChJrZwsXASpc2Inpu+cTg==}
 
+  '@tauri-apps/plugin-process@2.3.0':
+    resolution: {integrity: sha512-0DNj6u+9csODiV4seSxxRbnLpeGYdojlcctCuLOCgpH9X3+ckVZIEj6H7tRQ7zqWr7kSTEWnrxtAdBb0FbtrmQ==}
+
   '@tauri-apps/plugin-shell@2.2.1':
     resolution: {integrity: sha512-G1GFYyWe/KlCsymuLiNImUgC8zGY0tI0Y3p8JgBCWduR5IEXlIJS+JuG1qtveitwYXlfJrsExt3enhv5l2/yhA==}
 
@@ -912,11 +912,6 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
-
-  cross-env@10.0.0:
-    resolution: {integrity: sha512-aU8qlEK/nHYtVuN4p7UQgAwVljzMg8hB4YK5ThRqD2l/ziSnryncPNn7bMLt5cFYsKVKBh8HqLqyCoTupEUu7Q==}
-    engines: {node: '>=20'}
-    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -2110,8 +2105,6 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@epic-web/invariant@1.0.0': {}
-
   '@esbuild/aix-ppc64@0.25.2':
     optional: true
 
@@ -2581,6 +2574,10 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.4.1
 
+  '@tauri-apps/plugin-process@2.3.0':
+    dependencies:
+      '@tauri-apps/api': 2.6.0
+
   '@tauri-apps/plugin-shell@2.2.1':
     dependencies:
       '@tauri-apps/api': 2.4.1
@@ -2850,11 +2847,6 @@ snapshots:
       sha.js: 2.4.11
 
   create-require@1.1.1: {}
-
-  cross-env@10.0.0:
-    dependencies:
-      '@epic-web/invariant': 1.0.0
-      cross-spawn: 7.0.6
 
   cross-spawn@7.0.6:
     dependencies:

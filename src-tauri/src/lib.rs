@@ -1,14 +1,14 @@
 // Define modules
-mod file_fetch_utils;
 mod env_utils;
+mod file_fetch_utils;
 mod launcher;
 mod logging;
 mod mouse;
 mod shutdown;
 
 // Re-export items from modules for external use
-pub use file_fetch_utils::{get_icon_data_url, read_button_functions};
 pub use env_utils::{get_private_env_var, set_env_var};
+pub use file_fetch_utils::{get_icon_data_url, read_button_functions};
 pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend};
 pub use mouse::{get_mouse_pos, set_mouse_pos};
 

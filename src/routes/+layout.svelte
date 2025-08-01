@@ -23,6 +23,7 @@
         getConnectionStatus
     } from "$lib/natsAdapter.svelte.ts";
     import {
+        PUBLIC_APPNAME,
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
         PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
@@ -36,6 +37,9 @@
     import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsManager.svelte.ts';
     import {saturateHexColor} from "$lib/colorUtils.ts";
     import {createLogger} from "$lib/logger";
+    import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils";
+    import {getCurrentWindow} from '@tauri-apps/api/window';
+    import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
     const logger = createLogger('Layout');
@@ -200,10 +204,22 @@
         return () => stopSettingsUpdate?.();
     });
 
+    // Function to exit the application
+    const handleExit = () => {
+        logger.info("User requested application exit");
+        // Add a small delay to ensure log message is processed
+        setTimeout(() => {
+            exitApp();
+        }, 100);
+    };
+
     onMount(() => {
         if (browser) {
             const initializeConnection = async () => {
                 try {
+                    // Center the window on startup
+                    await centerAndSizeWindowOnMonitor(getCurrentWindow(), 400, 300);
+
                     logger.info("Attempting to connect to NATS...");
                     await connectToNats();
                     // The $effect watching connectionStatus will handle sending the request
@@ -257,14 +273,43 @@
     }
 </script>
 
-{#if connectionStatus === 'connected'}
+{#if connectionStatus === "connected"}
     {@render children()}
 {:else if connectionStatus === 'error'}
-    <div class="flex h-screen w-full items-center justify-center bg-gray-800 text-white">
-        <p>Error: Could not connect to the backend service. Please try restarting the application.</p>
+    <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+        <div class="flex flex-col items-center space-y-9">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
+            <div class="bg-red-800 p-4 rounded-lg max-w-md text-center text-white">
+                <p class="mb-2">Error: Could not connect to the backend service.</p>
+                <p>Please try restarting the application.</p>
+            </div>
+            <button class="w-auto px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
+                    onclick={handleExit}
+            >
+                No, thank you.
+            </button>
+        </div>
     </div>
 {:else}
-    <div class="flex h-screen w-full items-center justify-center bg-gray-800 text-white">
-        <p>Connecting to backend...</p>
+    <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+        <div class="flex flex-col items-center space-y-13">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
+
+            <div class="flex items-center">
+                <div class="flex items-center justify-center mr-3">
+                    <div class="relative h-4 w-4">
+                        <div class="absolute inset-0 rounded-full bg-purple-600 opacity-75 animate-ping"></div>
+                        <div class="relative rounded-full h-4 w-4 bg-purple-500"></div>
+                    </div>
+                </div>
+                <p class="text-zinc-900 dark:text-white">Connecting to backend...</p>
+            </div>
+
+            <button class="w-auto px-4 py-2 bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
+                    onclick={handleExit}>
+                No, thank you.
+            </button>
+        </div>
     </div>
+
 {/if}

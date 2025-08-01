@@ -1,5 +1,7 @@
 import {invoke} from "@tauri-apps/api/core";
 import {createLogger} from "$lib/logger";
+import {getCurrentWindow} from "@tauri-apps/api/window";
+import {exit} from "@tauri-apps/plugin-process";
 
 // Create a logger for this module
 const logger = createLogger('GeneralUtil');
@@ -70,5 +72,14 @@ export async function getPrivateEnvVar(key: string): Promise<string> {
     } catch (error) {
         logger.error(`Failed to fetch env var ${key}:`, error);
         throw error;
+    }
+}
+
+export async function exitApp(): Promise<void> {
+    try {
+        await getCurrentWindow().close();
+    } catch (e) {
+        console.error("Error during app close:", e);
+        await exit(1);
     }
 }

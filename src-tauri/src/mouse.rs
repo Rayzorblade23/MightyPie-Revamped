@@ -27,7 +27,9 @@ pub fn get_mouse_pos() -> Result<(i32, i32), String> {
     let guard = get_enigo_instance()?;
     let enigo = guard.as_ref().unwrap();
 
-    enigo.location().map_err(|e| format!("Failed to get mouse location: {:?}", e))
+    enigo
+        .location()
+        .map_err(|e| format!("Failed to get mouse location: {:?}", e))
 }
 
 #[tauri::command]

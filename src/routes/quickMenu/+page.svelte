@@ -15,6 +15,8 @@
     import type {Button, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
     import {createLogger} from "$lib/logger";
+    import {exit} from "@tauri-apps/plugin-process";
+    import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
     const logger = createLogger('QuickMenu');
@@ -164,7 +166,7 @@
                 onclick={navigateToSettings}>Settings
         </button>
         <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={async () => { await getCurrentWindow().close(); }}>
+                onclick={async () => { await exitApp(); }}>
             Exit
         </button>
     </div>
