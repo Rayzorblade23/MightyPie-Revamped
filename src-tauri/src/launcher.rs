@@ -1,5 +1,6 @@
 use crate::env_utils::{is_debug, set_env_var};
 use crate::logging::log_to_file;
+use crate::nats_token;
 use crate::shutdown;
 use serde_json;
 use std::env;
@@ -119,6 +120,11 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
         // Flag that we're starting from Tauri
         env::set_var("LAUNCHER_STARTED_FROM_TAURI", "true");
+
+        // Generate a dynamic NATS token and set it in the environment
+        let nats_token = nats_token::generate_token();
+        env::set_var("NATS_AUTH_TOKEN", &nats_token);
+        log_info(&format!("Generated dynamic NATS token for authentication"));
 
         // Find the Go executable path
         let go_executable_path = if is_dev {
