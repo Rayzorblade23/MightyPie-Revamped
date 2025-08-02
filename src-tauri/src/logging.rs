@@ -1,5 +1,4 @@
 use chrono;
-use log::LevelFilter;
 use std::cell::RefCell;
 use std::env;
 use std::fs::{self, OpenOptions};
@@ -250,50 +249,33 @@ pub fn log_from_frontend(level: &str, message: &str) {
         buffer.add(entry);
     }
 
-    // Get the current log level from RUST_LOG environment variable
-    let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-    let current_level = match rust_log.to_lowercase().as_str() {
-        "error" => LevelFilter::Error,
-        "warn" => LevelFilter::Warn,
-        "info" => LevelFilter::Info,
-        "debug" => LevelFilter::Debug,
-        _ => LevelFilter::Info, // Default to info if not specified
-    };
-
-    // Convert the incoming level to a LevelFilter
-    let message_level = match level {
-        "error" => LevelFilter::Error,
-        "warn" => LevelFilter::Warn,
-        "info" => LevelFilter::Info,
-        "debug" => LevelFilter::Debug,
-        _ => LevelFilter::Info, // Default to info for unknown levels
-    };
-
-    // Only log if the message level is less than or equal to the current level
-    if message_level <= current_level {
-        // Also log to console for development visibility
-        match level {
-            "error" => eprintln!(
-                "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[31mERR\x1b[0m] {}",
-                timestamp, message
-            ),
-            "warn" => eprintln!(
-                "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[33mWRN\x1b[0m] {}",
-                timestamp, message
-            ),
-            "info" => eprintln!(
-                "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[32mINF\x1b[0m] {}",
-                timestamp, message
-            ),
-            "debug" => println!(
-                "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[36mDBG\x1b[0m] {}",
-                timestamp, message
-            ),
-            _ => println!(
-                "\x1b[38;5;180m[SVELTE]\x1b[0m {} [LOG] {}",
-                timestamp, message
-            ),
-        }
+    // Log all messages from frontend regardless of level
+    // Frontend now handles its own filtering based on log level
+    match level {
+        "error" => eprintln!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[31mERR\x1b[0m] {}",
+            timestamp, message
+        ),
+        "warn" => eprintln!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[33mWRN\x1b[0m] {}",
+            timestamp, message
+        ),
+        "info" => eprintln!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[32mINF\x1b[0m] {}",
+            timestamp, message
+        ),
+        "debug" => println!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[36mDBG\x1b[0m] {}",
+            timestamp, message
+        ),
+        "trace" => println!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[35mTRC\x1b[0m] {}",
+            timestamp, message
+        ),
+        _ => println!(
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [LOG] {}",
+            timestamp, message
+        ),
     }
 }
 
@@ -328,4 +310,10 @@ pub fn get_log_dir() -> String {
         Ok(buffer) => buffer.get_log_dir().to_string_lossy().to_string(),
         Err(_) => "Unable to access log directory".to_string(),
     }
+}
+
+// Get the current log level from RUST_LOG environment variable
+#[tauri::command]
+pub fn get_log_level() -> String {
+    std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
 }

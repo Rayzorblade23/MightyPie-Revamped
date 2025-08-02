@@ -12,7 +12,7 @@ mod shutdown;
 // Re-export items from modules for external use
 pub use env_utils::{get_private_env_var, set_env_var};
 pub use file_fetch_utils::{get_icon_data_url, read_button_functions};
-pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend};
+pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend, get_log_level};
 pub use mouse::{get_mouse_pos, set_mouse_pos};
 
 use env_logger::{self, Builder, Env};
@@ -79,12 +79,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // Start the universal launcher at app initialization with standardized log format
-            let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
-            println!(
-                "\x1b[36m[TAURI ]\x1b[0m {} Starting universal launcher initialization",
-                timestamp
-            );
+            // Start the universal launcher at app initialization
             launcher::start_launcher_thread(app.handle().clone());
 
             let window = app.get_webview_window("main").unwrap();
@@ -162,6 +157,7 @@ pub fn run() {
             get_log_dir,
             read_button_functions,
             get_icon_data_url,
+            get_log_level,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

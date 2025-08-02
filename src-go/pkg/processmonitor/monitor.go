@@ -29,8 +29,7 @@ func MonitorParentProcess() {
 		appName = "MightyPieRevamped"
 	}
 	
-	log.Info("Starting process monitor for application: %s", appName)
-	log.Info("Current process PID: %d", os.Getpid())
+	log.Info("Starting process monitor for Tauri parent: %s, PID: %d", appName, os.Getppid())
 
 	// Start monitoring in a separate goroutine
 	go func() {

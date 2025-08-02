@@ -49,20 +49,21 @@ func main() {
 	// Initialize structured logger
 	log := logger.New("Main")
 	logger.ReplaceStdLog("Main")
-	log.Info("Starting MightyPie...")
-	log.Info("Log Level: %s", os.Getenv("RUST_LOG"))
 	
 	// Check if we should run as a specific worker
 	for workerName, flagValue := range workerFlags {
 		if *flagValue {
-			log.Info("Running as %s worker", workerName)
-			// Workers don't need to start their own NATS server or monitor parent process
-			// They just connect to the existing NATS server
+			// Workers only log a single line
+			log.Info("%s is running.", workerName)
 			runWorker(workerName)
 			return
 		}
 	}
 
+	// Only the main coordinator logs these messages
+	log.Info("Starting MightyPie backend...")
+	log.Info("Log Level: %s", os.Getenv("RUST_LOG"))
+	
 	// If no worker flag is set, run as the main coordinator
 	log.Info("Running as main coordinator")
 	
@@ -111,6 +112,8 @@ func main() {
 		cmd := exec.Command(exePath, fmt.Sprintf("--%s", workerName))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		// Set environment variable to identify this as a worker process
+		cmd.Env = append(os.Environ(), "MIGHTYPIE_WORKER_TYPE=worker")
 		cmds = append(cmds, cmd)
 	}
 
@@ -121,7 +124,7 @@ func main() {
 			defer wg.Done()
 			// Don't log NATS server process start to reduce verbosity
 			if !strings.Contains(c.Path, "nats-server") {
-				log.Debug("Starting process: %s", c.Path)
+				log.Debug("Starting process: %s", c.Args)
 			}
 			if err := c.Start(); err != nil {
 				// Ignore "already started" errors which can happen with NATS server

@@ -43,7 +43,7 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
     // Put launcher start code in a separate thread
     thread::spawn(move || {
-        log_info("Initializing launcher");
+        log_info("Initializing Go backend launcher");
 
         // Determine if we're in debug/dev mode or production
         let is_debug = is_debug();
@@ -126,6 +126,16 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                 }
             } else {
                 log_error("BAKED_ENV_JSON not found in baked-in environment variables");
+            }
+        }
+
+        // Check command line arguments for --log-level which should override RUST_LOG
+        let args: Vec<String> = env::args().collect();
+        for i in 0..args.len() {
+            if args[i] == "--log-level" && i + 1 < args.len() {
+                set_env_var("RUST_LOG", &args[i + 1]);
+                log_info(&format!("Set GO RUST_LOG to {} from command line", &args[i + 1]));
+                break;
             }
         }
 
@@ -238,7 +248,6 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
         // Start the Go executable
         log_info(&format!("Starting Go executable: {:?}", go_executable_path));
-        log_info(&format!("Working directory: {:?}", go_working_dir));
 
         if !go_executable_path.exists() {
             log_error(&format!(
@@ -253,7 +262,7 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
         // Get the current process ID to pass to the Go process
         let current_pid = std::process::id();
-        log_info(&format!("Current Tauri process ID: {}", current_pid));
+        log_info(&format!("Current Tauri PID: {}", current_pid));
 
         command
             .current_dir(&go_working_dir)
@@ -299,7 +308,7 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
             Ok(mut child) => {
                 let pid = child.id();
                 log_info(&format!(
-                    "Successfully started Go process with id: {:?}",
+                    "Successfully started Go process with PID: {:?}",
                     pid
                 ));
 

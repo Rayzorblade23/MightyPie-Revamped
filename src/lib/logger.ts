@@ -30,56 +30,121 @@ export function createLogger(category: string): Logger {
 }
 
 /**
- * Logger class for frontend logs
+ * Logger class for structured logging with categories
  */
-class Logger {
-    private readonly category: string;
+export class Logger {
+    private category: string;
+    private logLevel: string = 'info'; // Default log level
+    private logLevelPromise: Promise<string> | null = null;
 
     constructor(category: string) {
         this.category = category;
+        // Initialize log level from backend
+        this.refreshLogLevel();
+    }
 
-        // Ensure all methods are bound to this instance
-        this.log = this.log.bind(this);
-        this.debug = this.debug.bind(this);
-        this.info = this.info.bind(this);
-        this.warn = this.warn.bind(this);
-        this.error = this.error.bind(this);
-        this.trace = this.trace.bind(this);
+    /**
+     * Fetch the current log level from the backend
+     */
+    async refreshLogLevel(): Promise<string> {
+        if (!this.logLevelPromise) {
+            this.logLevelPromise = new Promise<string>(async (resolve) => {
+                try {
+                    if (typeof window !== 'undefined') {
+                        const {invoke} = await import('@tauri-apps/api/core');
+                        const level = await invoke<string>('get_log_level');
+                        this.logLevel = level.toLowerCase();
+                        resolve(this.logLevel);
+                    } else {
+                        resolve(this.logLevel);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch log level from backend:', e);
+                    resolve(this.logLevel); // Keep using default
+                }
+            });
+        }
+        return this.logLevelPromise;
+    }
+
+    /**
+     * Check if a log level should be displayed based on current log level
+     */
+    private async shouldLog(level: string): Promise<boolean> {
+        await this.refreshLogLevel();
+
+        const levels: Record<string, number> = {
+            'error': 0,
+            'warn': 1,
+            'info': 2,
+            'debug': 3,
+            'trace': 4,
+            'log': 2 // Treat regular log as info level
+        };
+
+        const currentLevel = levels[this.logLevel] || 2; // Default to info if unknown
+        const messageLevel = levels[level] || 2;
+
+        return messageLevel <= currentLevel;
     }
 
     log(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('info', message).catch(() => {
+        this.shouldLog('log').then(should => {
+            if (should) {
+                this.logToBackend('log', message).catch(() => {
+                });
+            }
         });
     }
 
     debug(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('debug', message).catch(() => {
+        this.shouldLog('debug').then(should => {
+            if (should) {
+                this.logToBackend('debug', message).catch(() => {
+                });
+            }
         });
     }
 
     info(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('info', message).catch(() => {
+        this.shouldLog('info').then(should => {
+            if (should) {
+                this.logToBackend('info', message).catch(() => {
+                });
+            }
         });
     }
 
     warn(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('warn', message).catch(() => {
+        this.shouldLog('warn').then(should => {
+            if (should) {
+                this.logToBackend('warn', message).catch(() => {
+                });
+            }
         });
     }
 
     error(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('error', message).catch(() => {
+        this.shouldLog('error').then(should => {
+            if (should) {
+                this.logToBackend('error', message).catch(() => {
+                });
+            }
         });
     }
 
     trace(...args: any[]): void {
         const message = `[${this.category}] ${args.map(arg => String(arg)).join(' ')}`;
-        this.logToBackend('trace', message).catch(() => {
+        this.shouldLog('trace').then(should => {
+            if (should) {
+                this.logToBackend('trace', message).catch(() => {
+                });
+            }
         });
     }
 
@@ -128,7 +193,7 @@ export function setupLogging(): void {
  */
 function replaceConsoleMethods(logger: Logger): void {
     const methods: Array<'log' | 'debug' | 'info' | 'warn' | 'error'> = [
-        'log', 'debug', 'info', 'warn', 'error'
+        'log', 'info', 'warn', 'error'
     ];
 
     for (const method of methods) {
@@ -153,9 +218,6 @@ function replaceConsoleMethods(logger: Logger): void {
             switch (method) {
                 case 'log':
                     logger.log(...args);
-                    break;
-                case 'debug':
-                    logger.debug(...args);
                     break;
                 case 'info':
                     logger.info(...args);

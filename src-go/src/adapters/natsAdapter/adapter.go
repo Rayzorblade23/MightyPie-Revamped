@@ -40,14 +40,18 @@ func New(adapterLabel string) (*NatsAdapter, error) {
 		Connection: connection,
 	}
 
-	// Ensure the JetStream stream is created, with retries
-	for {
-		if err := adapter.CreateEventsStream(); err == nil {
-			log.Debug("[%s] Successfully created or verified JetStream stream.", adapterLabel)
-			break // Stream creation successful
+	// Only create the JetStream stream in the main coordinator process
+	// Workers should just use the existing stream
+	if os.Getenv("MIGHTYPIE_WORKER_TYPE") != "worker" {
+		// Ensure the JetStream stream is created, with retries
+		for {
+			if err := adapter.CreateEventsStream(); err == nil {
+				log.Debug("[%s] Successfully created or verified JetStream stream.", adapterLabel)
+				break // Stream creation successful
+			}
+			log.Warn("[%s] Failed to create JetStream stream: %v. Retrying in 5 seconds...", adapterLabel, err)
+			time.Sleep(5 * time.Second)
 		}
-		log.Warn("[%s] Failed to create JetStream stream: %v. Retrying in 5 seconds...", adapterLabel, err)
-		time.Sleep(5 * time.Second)
 	}
 
 	return adapter, nil
