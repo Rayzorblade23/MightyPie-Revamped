@@ -1,6 +1,8 @@
 use crate::env_utils::{is_debug, set_env_var};
 use crate::logging::log_to_file;
+use crate::nats_config;
 use crate::nats_token;
+use crate::port_checker;
 use crate::shutdown;
 use serde_json;
 use std::env;
@@ -27,6 +29,15 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
 
         // Log directly to file
         let log_message = format!("[TAUERR] {} {}", timestamp, msg);
+        log_to_file(&log_message);
+    };
+
+    let log_warn = |msg: &str| {
+        let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S");
+        println!("\x1b[33m[TAUWRN]\x1b[0m {} {}", timestamp, msg);
+
+        // Log directly to file
+        let log_message = format!("[TAUWRN] {} {}", timestamp, msg);
         log_to_file(&log_message);
     };
 
@@ -125,6 +136,80 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
         let nats_token = nats_token::generate_token();
         env::set_var("NATS_AUTH_TOKEN", &nats_token);
         log_info(&format!("Generated dynamic NATS token for authentication"));
+
+        // Get app name from environment variable or use default
+        let app_name = env::var("PUBLIC_APPNAME").unwrap_or_else(|_| {
+            log_warn("PUBLIC_APPNAME not set, using default MightyPieRevamped");
+            "MightyPieRevamped".to_string()
+        });
+
+        // Find the NATS config file path (same for both dev and prod)
+        let app_data_local = env::var("LOCALAPPDATA").unwrap_or_else(|_| {
+            // Fallback to temp directory if LOCALAPPDATA is not set
+            env::temp_dir().to_string_lossy().to_string()
+        });
+        let nats_conf_path = format!("{}/{}/nats/nats.conf", app_data_local, app_name);
+        log_info(&format!("Using NATS config file at: {}", nats_conf_path));
+
+        // Parse the NATS config file to get the current port settings
+        let mut nats_config = match nats_config::parse_nats_config(&nats_conf_path) {
+            Ok(config) => {
+                log_info(&format!("Parsed NATS config from {}", nats_conf_path));
+                config
+            }
+            Err(err) => {
+                log_warn(&format!("Failed to parse NATS config: {}", err));
+                // Use default config
+                nats_config::NatsConfig::default()
+            }
+        };
+
+        // Check if the WebSocket port is available
+        if !port_checker::is_port_available(&nats_config.websocket_host, nats_config.websocket_port) {
+            log_warn(&format!("NATS WebSocket port {} is already in use", nats_config.websocket_port));
+            
+            // Try to find an available port
+            if let Some(new_port) = port_checker::find_available_port(&nats_config.websocket_host, nats_config.websocket_port + 1) {
+                log_info(&format!("Found available port for NATS WebSocket: {}", new_port));
+                nats_config.websocket_port = new_port;
+            } else {
+                log_warn("Could not find an available port for NATS WebSocket");
+            }
+        } else {
+            log_info(&format!("NATS WebSocket port {} is available", nats_config.websocket_port));
+        }
+
+        // Check if the NATS server port is available
+        if !port_checker::is_port_available(&nats_config.listen_host, nats_config.listen_port) {
+            log_warn(&format!("NATS server port {} is already in use", nats_config.listen_port));
+            
+            // Try to find an available port
+            if let Some(new_port) = port_checker::find_available_port(&nats_config.listen_host, nats_config.listen_port + 1) {
+                log_info(&format!("Found available port for NATS server: {}", new_port));
+                nats_config.listen_port = new_port;
+            } else {
+                log_warn("Could not find an available port for NATS server");
+            }
+        } else {
+            log_info(&format!("NATS server port {} is available", nats_config.listen_port));
+        }
+
+        // Update the NATS config file with the new ports if needed
+        if let Err(err) = nats_config::update_nats_config(&nats_conf_path, nats_config.websocket_port, nats_config.listen_port) {
+            log_warn(&format!("Failed to update NATS config file: {}", err));
+        } else {
+            log_info(&format!("Updated NATS config file with ports: WebSocket={}, Listen={}", 
+                nats_config.websocket_port, nats_config.listen_port));
+        }
+
+        // Set the NATS_SERVER_URL environment variable for the frontend
+        let nats_server_url = format!("ws://{}:{}", nats_config.websocket_host, nats_config.websocket_port);
+        env::set_var("NATS_SERVER_URL", &nats_server_url);
+        log_info(&format!("Set NATS_SERVER_URL to {}", nats_server_url));
+
+        // Set the NATS_PORT environment variable for the Go backend
+        env::set_var("NATS_PORT", &nats_config.listen_port.to_string());
+        log_info(&format!("Set NATS_PORT to {}", nats_config.listen_port));
 
         // Find the Go executable path
         let go_executable_path = if is_dev {

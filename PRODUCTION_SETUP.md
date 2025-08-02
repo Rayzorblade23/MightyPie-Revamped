@@ -4,19 +4,17 @@ This document outlines how environment variables and Go binaries are handled in 
 
 ## Environment Variables
 
-### Overview
+MightyPie uses environment variables for configuration. These are loaded from:
 
-Environment variables are now **baked into the Rust binary at build time** using the `build.rs` script. This approach:
+   - `.env` file in the project root
+   - Environment variables set at runtime
 
-- Works consistently in both development and production environments
-- Eliminates the need to bundle sensitive `.env` files with the production build
-- Removes runtime environment variable loading errors
+Environment variables are baked into the binary at build time, so they must be set correctly before building.
 
 ### How It Works
 
 1. During the build process, `build.rs` reads environment variables from:
    - `.env` file in the project root
-   - `.env.local` file in the project root (overrides values from `.env`)
 
 2. These variables are passed to the Rust compiler as build-time environment variables using `cargo:rustc-env` directives.
 
@@ -28,7 +26,7 @@ Environment variables are now **baked into the Rust binary at build time** using
 
 When adding new environment variables:
 
-1. Add them to your local `.env` or `.env.local` file
+1. Add them to your local `.env` file
 2. Update the `get_baked_env_vars` function in `env_utils.rs` to include the new variable
 3. Rebuild the application to bake in the new variable
 
@@ -53,12 +51,12 @@ Go executables are built to `src-tauri/assets/src-go/bin` and bundled with the a
 
 1. **Never bundle `.env` files in production** - Environment variables should be baked into the binary at build time.
 2. **Never hardcode sensitive environment variables in source code** - Use the build-time environment variable approach instead.
-3. **Always rebuild the application after changing environment variables** - Changes to `.env` or `.env.local` files require a rebuild to take effect.
+3. **Always rebuild the application after changing environment variables** - Changes to `.env` files require a rebuild to take effect.
 
 ## Troubleshooting
 
 If environment variables are not available in production:
 
-1. Ensure the variables are defined in `.env` or `.env.local` during the build process.
+1. Ensure the variables are defined in `.env` during the build process.
 2. Verify that the variable is included in the `get_baked_env_vars` function in `env_utils.rs`.
 3. Check the build logs for warnings about missing environment variables.

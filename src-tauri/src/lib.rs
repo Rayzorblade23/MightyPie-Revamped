@@ -4,7 +4,9 @@ mod file_fetch_utils;
 mod launcher;
 mod logging;
 mod mouse;
+mod nats_config;
 mod nats_token;
+mod port_checker;
 mod shutdown;
 
 // Re-export items from modules for external use

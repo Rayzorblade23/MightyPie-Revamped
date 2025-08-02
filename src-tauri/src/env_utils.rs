@@ -1,25 +1,22 @@
 use std::collections::HashMap;
 use std::env;
 use std::sync::OnceLock;
+use serde_json;
 
 // Store baked-in environment variables in a static HashMap
-static BAKED_ENV_VARS: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+static BAKED_ENV_VARS: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 // Initialize the baked-in environment variables
-fn get_baked_env_vars() -> &'static HashMap<&'static str, &'static str> {
+fn get_baked_env_vars() -> &'static HashMap<String, String> {
     BAKED_ENV_VARS.get_or_init(|| {
         let mut vars = HashMap::new();
 
-        // Add all environment variables that were baked in at build time
-        // The env! macro will cause a compile error if the variable doesn't exist
-        // We use option_env! instead which returns None if the variable doesn't exist
-        if let Some(val) = option_env!("NATS_SERVER_URL") {
-            vars.insert("NATS_SERVER_URL", val);
+        // Load from the JSON blob that was baked in at build time
+        if let Some(json_str) = option_env!("BAKED_ENV_JSON") {
+            if let Ok(json_vars) = serde_json::from_str::<HashMap<String, String>>(json_str) {
+                vars.extend(json_vars);
+            }
         }
-        if let Some(val) = option_env!("NATS_AUTH_TOKEN") {
-            vars.insert("NATS_AUTH_TOKEN", val);
-        }
-        // Add other critical environment variables as needed
 
         vars
     })
@@ -29,8 +26,8 @@ fn get_baked_env_vars() -> &'static HashMap<&'static str, &'static str> {
 pub fn get_private_env_var(key: String) -> Result<String, String> {
     // First check if we have a baked-in value from build time
     let baked_vars = get_baked_env_vars();
-    if let Some(value) = baked_vars.get(key.as_str()) {
-        return Ok((*value).to_string());
+    if let Some(value) = baked_vars.get(&key) {
+        return Ok(value.clone());
     }
 
     // If not baked in, try to get from runtime environment

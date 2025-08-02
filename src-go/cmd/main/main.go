@@ -257,35 +257,49 @@ func ensureUserNatsConfig(log *logger.Logger, userConfPath, defaultConfPath, nat
 
 // launchNatsProcess starts the NATS server process with the specified configuration.
 func launchNatsProcess(log *logger.Logger, natsExePath, userConfPath string) error {
-	// Check if NATS is already running by trying to connect to it
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:4222", 100*time.Millisecond)
-	if err == nil {
-		// NATS is already running
-		conn.Close()
-		log.Info("NATS server is already running")
-		return nil
-	}
+    // Check if NATS is already running by trying to connect to it
+    natsPort := os.Getenv("NATS_PORT")
+    if natsPort == "" {
+        natsPort = "4222" // Default port if not specified
+    }
+    
+    natsAddr := fmt.Sprintf("127.0.0.1:%s", natsPort)
+    conn, err := net.DialTimeout("tcp", natsAddr, 100*time.Millisecond)
+    if err == nil {
+        // NATS is already running
+        conn.Close()
+        log.Info("NATS server is already running on port %s", natsPort)
+        return nil
+    }
 
-	natsToken := os.Getenv("NATS_AUTH_TOKEN")
-	if natsToken == "" {
-		return fmt.Errorf("NATS_AUTH_TOKEN environment variable not set")
-	}
+    natsToken := os.Getenv("NATS_AUTH_TOKEN")
+    if natsToken == "" {
+        return fmt.Errorf("NATS_AUTH_TOKEN environment variable not set")
+    }
 
-	log.Info("Starting NATS server with config: %s", userConfPath)
-	natsCmd = exec.Command(natsExePath, "-c", userConfPath, "--auth", natsToken)
-	natsCmd.Stdout = os.Stdout
-	natsCmd.Stderr = os.Stderr
+    log.Info("Starting NATS server with config: %s", userConfPath)
+    
+    // If a custom port was specified, add it to the command line arguments
+    args := []string{"-c", userConfPath, "--auth", natsToken}
+    if natsPort != "4222" {
+        args = append(args, "--port", natsPort)
+        log.Info("Using custom NATS port: %s", natsPort)
+    }
+    
+    natsCmd = exec.Command(natsExePath, args...)
+    natsCmd.Stdout = os.Stdout
+    natsCmd.Stderr = os.Stderr
 
-	log.Info("Starting NATS server...")
-	if err := natsCmd.Start(); err != nil {
-		// If the error is "already started", it's not actually an error
-		if strings.Contains(err.Error(), "already started") {
-			log.Info("NATS server is already running")
-			return nil
-		}
-		return fmt.Errorf("could not start NATS server: %w", err)
-	}
-	return nil
+    log.Info("Starting NATS server...")
+    if err := natsCmd.Start(); err != nil {
+        // If the error is "already started", it's not actually an error
+        if strings.Contains(err.Error(), "already started") {
+            log.Info("NATS server is already running")
+            return nil
+        }
+        return fmt.Errorf("could not start NATS server: %w", err)
+    }
+    return nil
 }
 
 // waitForNatsReady waits for the NATS server to become responsive.

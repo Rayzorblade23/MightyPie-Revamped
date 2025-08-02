@@ -16,6 +16,7 @@ dependencies = [
  "log",
  "once_cell",
  "rand 0.8.5",
+ "regex",
  "serde",
  "serde_json",
  "tauri",
@@ -29,6 +30,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
+ "url",
 ]
 
 [[package]]
