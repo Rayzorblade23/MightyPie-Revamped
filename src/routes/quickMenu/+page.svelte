@@ -3,19 +3,18 @@
     import {onMount} from "svelte";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
     import {
+        PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS,
         PUBLIC_PIEBUTTON_HEIGHT,
         PUBLIC_PIEBUTTON_WIDTH,
         PUBLIC_QUICKMENU_SIZE_X,
         PUBLIC_QUICKMENU_SIZE_Y
     } from "$env/static/public";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
-    import {PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS} from "$env/static/public";
     import QuickMenuPieButton from '$lib/components/quickMenu/QuickMenuPieButton.svelte';
     import {getMenuConfiguration} from '$lib/data/configManager.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
     import {createLogger} from "$lib/logger";
-    import {exit} from "@tauri-apps/plugin-process";
     import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
@@ -119,7 +118,7 @@
     </button>
     <h1 class="text-center mb-6 font-semibold text-lg text-zinc-900 dark:text-white">Quick Menu</h1>
     <div class="rounded-xl bg-zinc-100 dark:bg-zinc-700 p-2 flex flex-col items-center w-auto h-auto">
-        <div class="grid grid-cols-3 gap-4 mx-auto">
+        <div class="grid grid-cols-3" style="column-gap: 1.1rem; row-gap: 1.1rem;">
             {#each buttonList.slice(0, 4) as [buttonID, button]}
                 <QuickMenuPieButton
                         width={buttonWidth}
@@ -151,25 +150,36 @@
             {/each}
         </div>
     </div>
-    <div class="flex flex-col gap-4 items-center px-4 py-4 w-full max-w-xs mx-auto">
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={navigateToFuzzySearch}>Fuzzy Search
-        </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={() => publishMessage(PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS, {})}>
-            Fill unassigned Button gaps
-        </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={navigateToPieMenuConfig}>Pie Menu Config
-        </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={navigateToSettings}>Settings
-        </button>
-        <button class="w-full px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
-                onclick={async () => { await exitApp(); }}>
-            Exit
-        </button>
+    <div class="flex flex-col gap-6 items-center px-4 py-8 w-full max-w-xs mx-auto">
+        <div class="grid grid-cols-2 w-4/5 max-w-xs mx-auto" style="column-gap: 1.1rem; row-gap: 1.1rem;">
+            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+                    onclick={navigateToFuzzySearch}>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/search.svg"/>
+                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Fuzzy Search</span>
+            </button>
+            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+                    onclick={() => publishMessage(PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS, {})}>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/sort-descending-2.svg"/>
+                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Fill gaps</span>
+            </button>
+            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+                    onclick={navigateToPieMenuConfig}>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/custom_pie-menu.svg"/>
+                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Pie Menu Config</span>
+            </button>
+            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+                    onclick={navigateToSettings}>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/settings.svg"/>
+                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Settings</span>
+            </button>
+        </div>
     </div>
+</div>
+<div class="fixed bottom-6 right-6 z-50">
+    <button class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 flex items-center gap-2 shadow-lg"
+            onclick={async () => { await exitApp(); }}>
+        Exit
+    </button>
 </div>
 
 <style>
