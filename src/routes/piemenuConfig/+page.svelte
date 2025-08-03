@@ -413,11 +413,11 @@
     async function openFileDialog() {
         try {
             logger.debug("Opening file dialog with app data directory path");
-            
+
             // Get app data directory from Tauri backend
             const configPath = await invoke<string>('get_app_data_dir');
             const selected = await open({multiple: false, defaultPath: configPath});
-            
+
             if (selected) {
                 if (selected.includes('buttonConfig_BACKUP')) {
                     pushUndoState();
@@ -649,9 +649,9 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700 h-8">
+<div class="w-full h-screen flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-lg overflow-hidden">
     <!-- --- Title Bar --- -->
-    <div class="title-bar relative flex items-center py-1 bg-zinc-300 dark:bg-zinc-800 rounded-t-lg border-b border-zinc-200 dark:border-zinc-700 h-8">
+    <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
         <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
         <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
             <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Pie Menu Config</span>
@@ -659,7 +659,7 @@
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
     <!-- --- Main Content --- -->
-    <div class="flex-1 w-full p-4 space-y-0">
+    <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative">
         {#if menuIndices.length > 0}
             <!-- --- UI: Menu Tabs --- -->
             <section>
@@ -682,7 +682,7 @@
                     <section class="pie-menus-section">
                         {#if sortedPagesForSelectedMenu.length > 0}
                             <div
-                                    class="flex rounded-tr-lg rounded-b-lg space-x-4 overflow-x-auto py-3 px-3 horizontal-scrollbar  bg-white dark:bg-zinc-800"
+                                    class="flex rounded-b-lg space-x-4 overflow-x-auto py-3 px-3 horizontal-scrollbar bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 shadow-md"
                                     bind:this={pagesContainer}
                                     use:horizontalScroll
                             >
@@ -693,9 +693,9 @@
                                             <button type="button"
                                                     class="page-container flex-shrink-0 rounded-lg shadow-sm bg-zinc-800 overflow-hidden border-2"
                                                     data-page-id={pageIDOfLoop}
-                                                    class:dark:border-zinc-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                    class:dark:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
                                                     class:dark:border-zinc-700={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
-                                                    class:border-zinc-400={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                    class:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
                                                     class:border-zinc-300={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
                                                     onclick={() => {
                                                     if (!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop) {
@@ -730,13 +730,13 @@
                                 </div>
                             </div>
                         {:else if pagesForSelectedMenu && pagesForSelectedMenu.size === 0 && selectedMenuID !== undefined}
-                            <div class="flex flex-col items-center justify-center py-10 text-center">
-                                <p class="text-zinc-500 dark:text-zinc-400">Menu {selectedMenuID + 1} has no
+                            <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
+                                <p class="text-zinc-900 dark:text-zinc-200">Menu {selectedMenuID + 1} has no
                                     pages.</p>
                                 <AddPageButton onClick={handleAddPage}/>
                             </div>
                         {:else if !pagesForSelectedMenu && selectedMenuID !== undefined}
-                            <p class="text-zinc-500 dark:text-zinc-400">Loading page data for
+                            <p class="text-zinc-900 dark:text-zinc-200">Loading page data for
                                 Menu {selectedMenuID + 1}
                                 ...</p>
                         {/if}
@@ -758,8 +758,8 @@
                                 </div>
                             {/if}
                         </div>
-                        <div class="flex flex-col items-stretch bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow px-4 py-3 min-w-[280px] max-w-[360px] self-start">
-                            <h3 class="font-semibold text-lg text-zinc-800 dark:text-zinc-100 mb-2 w-full text-left">
+                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[280px] max-w-[360px] self-start">
+                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
                                 Page Settings
                             </h3>
                             <ButtonTypeSelector
@@ -769,7 +769,7 @@
                                     onChange={handleResetTypeChange}
                             />
                             <button
-                                    class="mt-2 mb-2 px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                                    class="mt-2 mb-2 px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                                     onclick={handleResetPageToDefault}
                                     disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                             >
@@ -777,7 +777,7 @@
                             </button>
                             <button
                                     aria-label="Use for Quick Menu"
-                                    class="mt-2 px-4 py-2 rounded border border-zinc-300 text-zinc-700 dark:text-white transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700 flex items-center w-full relative"
+                                    class="mt-2 px-4 py-2 bg-white/10 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-zinc-700 dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-white/0 disabled:text-zinc-500 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-white/10 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                     onclick={handleUseForQuickMenu}
                                     disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                             >
@@ -790,8 +790,8 @@
                                 </span>
                             </button>
                         </div>
-                        <div class="flex flex-col items-stretch bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow px-4 py-3 min-w-[396px] max-w-[480px] self-start">
-                            <h3 class="font-semibold text-lg text-zinc-800 dark:text-zinc-100 mb-2 w-full text-left">
+                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[396px] max-w-[480px] self-start">
+                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
                                 Menu Settings</h3>
                             <div class="flex flex-row justify-between items-center w-full mt-2">
                                 <div class="flex flex-col">
@@ -801,7 +801,7 @@
                                     {/if}
                                 </div>
                                 <button
-                                        class="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 transition"
+                                        class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition shadow-sm"
                                         onclick={handlePublishShortcutSetterUpdate}
                                         disabled={selectedMenuID === undefined}
                                 >
@@ -813,7 +813,7 @@
                             <div class="flex flex-row justify-between items-center w-full mt-2">
                                 <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
                                 <button
-                                        class="w-full px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                                         style="max-width: 120px;"
                                         onclick={handleClearShortcut}
                                         disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
@@ -824,7 +824,7 @@
                             <div class="flex flex-row justify-between mt-2 items-center w-full">
                                 <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
                                 <button
-                                        class="w-full px-4 py-2 bg-rose-500 text-white rounded hover:bg-rose-600 dark:bg-rose-700 transition dark:hover:bg-rose-800"
+                                        class="w-full px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 dark:bg-rose-700 transition dark:hover:bg-rose-800 shadow-sm"
                                         style="max-width: 120px;"
                                         onclick={() => showResetAllConfirmDialog = true}
                                         title="Reset all menus to default (keeps only the first menu with default page/buttons)"
@@ -833,19 +833,19 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="flex flex-col items-stretch bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow px-4 py-3 w-auto self-start">
-                            <h3 class="font-semibold text-lg text-zinc-800 dark:text-zinc-100 mb-3 w-full text-left">
+                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
+                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
                                 Config Backup
                             </h3>
                             <div class="flex flex-col items-start gap-2 w-full">
                                 <button
-                                        class="w-full px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                                         onclick={handleBackupWithConfirmation}
                                 >
                                     Create Backup
                                 </button>
                                 <button
-                                        class="w-full px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                                         onclick={openFileDialog}
                                 >
                                     Load Backup
@@ -855,14 +855,29 @@
                     </div>
                 </div>
             {:else if selectedMenuID !== undefined}
-                <p class="text-zinc-500 dark:text-zinc-400">Loading pages for Menu {selectedMenuID + 1} or menu is
+                <p class="text-zinc-900 dark:text-zinc-200">Loading pages for Menu {selectedMenuID + 1} or menu is
                     empty.</p>
             {/if}
-            <!-- Place Undo and Done buttons as a floating group at the bottom right, but INSIDE the main {#if menuIndices.length > 0} and main content div -->
-            <div class="fixed bottom-0 right-0 z-50 flex flex-row gap-2 m-4 p-0">
+        {:else}
+            <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
+                <p class="text-zinc-900 dark:text-zinc-200 mb-4">No menus found. Configuration might be loading or
+                    empty.</p>
+                <button
+                        class="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700 shadow-sm"
+                        onclick={() => goto('/')}
+                        type="button"
+                >
+                    Back to Home
+                </button>
+            </div>
+        {/if}
+
+        <!-- Compact Action Buttons -->
+        <div class="absolute bottom-4 right-4">
+            <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
                 <button
                         aria-label="Undo"
-                        class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                         onclick={handleUndo}
                         disabled={undoHistory.length === 0}
                         type="button"
@@ -871,7 +886,7 @@
                 </button>
                 <button
                         aria-label="Discard Changes"
-                        class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
                         onclick={() => showDiscardConfirmDialog = true}
                         disabled={undoHistory.length === 0}
                         type="button"
@@ -880,62 +895,81 @@
                 </button>
                 <button
                         aria-label="Done"
-                        class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer shadow-md shadow-sm"
                         onclick={() => goto('/')}
                         type="button"
                 >
                     Done
                 </button>
             </div>
-        {:else}
-            <div class="flex flex-col items-center justify-center py-10 text-center">
-                <p class="text-zinc-500 dark:text-zinc-400 mb-4">No menus found. Configuration might be loading or
-                    empty.</p>
-                <button
-                        class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
-                        onclick={() => goto('/')}
-                        type="button"
-                >
-                    Close
-                </button>
-                <!-- Optionally, allow creating the first menu here -->
-                <!-- <button on:click={() => handleAddMenu()} class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-700">Add First Menu</button> -->
-            </div>
-        {/if}
-        <!-- --- UI: Dialogs --- -->
-        <ConfirmationDialog
-                isOpen={showRemoveMenuDialog}
-                message="Are you sure you want to remove this menu? This action cannot be undone."
-                onCancel={cancelRemoveMenu}
-                onConfirm={confirmRemoveMenu}
-        />
-        <ConfirmationDialog
-                cancelText="Save Changes"
-                confirmText="Discard Changes"
-                isOpen={showDiscardConfirmDialog}
-                message="You have unsaved changes. What would you like to do?"
-                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
-                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
-                onClose={() => { showDiscardConfirmDialog = false; }}
-                title="Unsaved Changes"
-        />
-        <ConfirmationDialog
-                cancelText="Cancel"
-                confirmText="Reset All"
-                isOpen={showResetAllConfirmDialog}
-                message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
-                onCancel={cancelResetAllMenus}
-                onConfirm={confirmResetAllMenus}
-                title="Reset All Menus?"
-        />
-        <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
-        <ConfirmationDialog
-                confirmText="OK"
-                isOpen={showBackupCreatedDialog}
-                message="A backup of the current Config has been created."
-                onCancel={() => showBackupCreatedDialog = false}
-                onConfirm={() => showBackupCreatedDialog = false}
-                title="Backup Created"
-        />
+        </div>
     </div>
+    <!-- --- UI: Dialogs --- -->
+    <ConfirmationDialog
+            isOpen={showRemoveMenuDialog}
+            message="Are you sure you want to remove this menu? This action cannot be undone."
+            onCancel={cancelRemoveMenu}
+            onConfirm={confirmRemoveMenu}
+    />
+    <ConfirmationDialog
+            cancelText="Save Changes"
+            confirmText="Discard Changes"
+            isOpen={showDiscardConfirmDialog}
+            message="You have unsaved changes. What would you like to do?"
+            onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+            onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+            onClose={() => { showDiscardConfirmDialog = false; }}
+            title="Unsaved Changes"
+    />
+    <ConfirmationDialog
+            cancelText="Cancel"
+            confirmText="Reset All"
+            isOpen={showResetAllConfirmDialog}
+            message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
+            onCancel={cancelResetAllMenus}
+            onConfirm={confirmResetAllMenus}
+            title="Reset All Menus?"
+    />
+    <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
+    <ConfirmationDialog
+            confirmText="OK"
+            isOpen={showBackupCreatedDialog}
+            message="A backup of the current Config has been created."
+            onCancel={() => showBackupCreatedDialog = false}
+            onConfirm={() => showBackupCreatedDialog = false}
+            title="Backup Created"
+    />
 </div>
+
+<style>
+    /* Add any additional styles needed for consistency */
+    :global(.horizontal-scrollbar::-webkit-scrollbar) {
+        height: 6px;
+    }
+
+    :global(.horizontal-scrollbar::-webkit-scrollbar-track) {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 3px;
+    }
+
+    :global(.horizontal-scrollbar::-webkit-scrollbar-thumb) {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+    }
+
+    :global(.horizontal-scrollbar::-webkit-scrollbar-thumb:hover) {
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    :global(.dark .horizontal-scrollbar::-webkit-scrollbar-track) {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    :global(.dark .horizontal-scrollbar::-webkit-scrollbar-thumb) {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    :global(.dark .horizontal-scrollbar::-webkit-scrollbar-thumb:hover) {
+        background: rgba(255, 255, 255, 0.3);
+    }
+</style>

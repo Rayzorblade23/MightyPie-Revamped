@@ -136,16 +136,16 @@
     {@const button = currentButtonLocal}
     {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getMenuConfiguration().get(menuID)?.get(pageID)?.has(buttonID)}
 
-    <div class="p-4 border rounded-md shadow-sm bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 w-full min-w-0">
+    <div class="p-4 border border-none bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md w-full min-w-0">
         <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Button Details</h2>
-            <p class="text-right">Slot: {slotIndex + 1} <span
+            <p class="text-right text-zinc-600 dark:text-zinc-400">Slot: {slotIndex + 1} <span
                     class="text-zinc-600 dark:text-zinc-400">(Page: {pageID + 1})</span></p>
         </div>
         <div class="text-sm space-y-2">
             {#if isTrulyEmptySlot && button.button_type === ButtonType.Disabled}
                 <p class="text-yellow-700 dark:text-yellow-400 font-medium"><strong>Status:</strong> Empty Slot</p>
-                <p class="text-zinc-600 dark:text-zinc-400 mb-2">Select a type below to configure this button.</p>
+                <p class="text-zinc-600 dark:text-zinc-300 mb-2">Select a type below to configure this button.</p>
             {/if}
 
             <ButtonTypeSelector
@@ -171,7 +171,7 @@
             {:else if currentButtonTypeValue === ButtonType.OpenSpecificPieMenuPage}
                 <OpenPageButtonConfig button={button} menuConfig={menuConfig} onUpdate={handleButtonChange}/>
             {:else if button.button_type !== ButtonType.Disabled}
-                <p class="text-zinc-600 mt-2">
+                <p class="text-zinc-600 dark:text-zinc-300 mt-2">
                     {getFriendlyButtonTypeName(button.button_type)} has no other specific properties to configure here.
                 </p>
             {/if}
@@ -180,7 +180,7 @@
     </div>
 {:else}
     <div class="p-4 text-center">
-        <p class="text-zinc-500 dark:text-zinc-400">
+        <p class="text-zinc-500 dark:text-zinc-300">
             Select a button from a pie menu preview to see its details.
         </p>
     </div>

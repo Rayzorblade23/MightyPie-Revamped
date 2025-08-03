@@ -8,8 +8,8 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
     [ButtonType.LaunchProgram]: 'border-[var(--color-accent-launch)]',
     [ButtonType.CallFunction]: 'border-[var(--color-accent-function)]',
     [ButtonType.OpenSpecificPieMenuPage]: 'border-[var(--color-accent-openpage)]',
-    [ButtonType.Disabled]: 'border-zinc-500 dark:border-grey-600',
-    default: 'border-zinc-500 dark:border-grey-600',
+    [ButtonType.Disabled]: 'border-neutral-400 dark:border-grey-600',
+    default: 'border-neutral-400 dark:border-grey-600',
 };
 
 // Returns the base button classes (can be extended if needed)
@@ -33,18 +33,18 @@ export function composePieButtonClasses({
     if (isDisabled) {
         staticBaseClasses = [
             baseButtonClasses,
-            'bg-zinc-200 text-zinc-400',
-            'dark:bg-zinc-800 dark:text-zinc-500',
+            'bg-neutral-300 text-neutral-400',
+            'dark:bg-neutral-700 dark:text-neutral-500',
             allowSelectWhenDisabled ? '' : 'select-none pointer-events-none',
         ].join(' ').trim();
-        subtextClass = 'text-zinc-400 dark:text-zinc-500 italic';
+        subtextClass = 'text-neutral-400 dark:text-neutral-500 italic';
     } else {
         staticBaseClasses = [
             baseButtonClasses,
-            'bg-white text-zinc-900',
-            'dark:bg-zinc-800 dark:text-white',
+            'bg-neutral-50 text-neutral-900',
+            'dark:bg-neutral-800 dark:text-white',
         ].join(' ');
-        subtextClass = 'text-zinc-500 dark:text-zinc-400 italic';
+        subtextClass = 'text-neutral-500 dark:text-neutral-400 italic';
     }
     const borderClass = borderClassMap[taskType ?? 'default'];
     return {

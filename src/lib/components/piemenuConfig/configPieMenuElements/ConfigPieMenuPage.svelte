@@ -222,7 +222,7 @@
 
 <!-- Main container for the Pie Menu visualization -->
 <div
-        class="pie-menu-settings-view relative bg-zinc-300 dark:bg-zinc-700"
+        class="pie-menu-settings-view relative bg-purple-100 dark:bg-zinc-900/90"
         style="width: {containerWidthPx}px; height: {containerHeightPx}px"
 >
     <RemovePageButton onClick={handleRemoveThisPage} title="Remove this page"/>
@@ -261,7 +261,7 @@
     <div class="absolute left-3 top-3 z-10 pointer-events-none">
         <div class="flex items-center gap-2 mb-2">
             <span
-                    class="text-sm font-medium px-3 py-1 rounded-md shadow bg-zinc-100 text-zinc-700 dark:bg-zinc-600 dark:text-zinc-100"
+                    class="text-sm font-medium px-3 py-1 rounded-md shadow bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                     style="display:inline-block;"
             >
                 Page {pageID + 1}

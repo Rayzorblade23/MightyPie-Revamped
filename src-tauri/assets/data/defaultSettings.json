@@ -52,8 +52,8 @@
     "label": "Pie Menu Button Highlight color",
     "isExposed": true,
     "type": "color",
-    "value": "#5f3c8e",
-    "defaultValue": "#5f3c8e"
+    "value": "#7d34b2",
+    "defaultValue": "#7d34b2"
   },
   "colorIndicator": {
     "index": 7,

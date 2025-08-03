@@ -15,6 +15,12 @@
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
     import {createLogger} from "$lib/logger";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
+    import {
+        disableAutoStart,
+        enableAutoStart,
+        getSavedAutoStartPreference,
+        syncAutoStartPreference
+    } from '$lib/autostartUtils';
 
     // Create a logger for this component
     const logger = createLogger('Settings');
@@ -26,6 +32,10 @@
 
     let settings = $state<SettingsMap>(cloneSettings(getSettings()));
     let currentWindow: Window | null = null;
+
+    // Autostart state (managed separately from settings)
+    let autoStartEnabled = $state<boolean | null>(null);
+    let autoStartLoading = $state<boolean>(true);
 
     // --- Undo/Discard State ---
     let undoHistory = $state<SettingsMap[]>([]);
@@ -81,6 +91,19 @@
                 deadzoneFunctionOptions = Object.keys(buttonFunctions).sort();
             } catch (e) {
                 logger.error("Failed to load buttonFunctions.json for deadzone options:", e);
+            }
+
+            // Load autostart setting
+            try {
+                autoStartLoading = true;
+                // Get the actual system autostart status
+                autoStartEnabled = await syncAutoStartPreference();
+            } catch (error) {
+                logger.error('Failed to load autostart setting:', error);
+                // Fall back to saved preference or default to false
+                autoStartEnabled = getSavedAutoStartPreference() ?? false;
+            } finally {
+                autoStartLoading = false;
             }
         })();
 
@@ -178,17 +201,39 @@
         }
     }
 
+    // Handle autostart toggle
+    async function handleAutoStartToggle(e: Event) {
+        const target = e.target as HTMLInputElement;
+        const newValue = target?.checked ?? false;
+
+        try {
+            autoStartLoading = true;
+            if (newValue) {
+                await enableAutoStart();
+            } else {
+                await disableAutoStart();
+            }
+            autoStartEnabled = newValue;
+        } catch (error) {
+            logger.error(`Failed to ${newValue ? 'enable' : 'disable'} autostart:`, error);
+            // Revert the UI state on error
+            autoStartEnabled = !newValue;
+        } finally {
+            autoStartLoading = false;
+        }
+    }
+
     onDestroy(() => {
         publishSettings(settings);
     });
 </script>
 
-<div class="w-full h-screen flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border-b border-zinc-200 dark:border-zinc-700">
+<div class="w-full h-screen flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-lg">
     <!-- Title Bar -->
-    <div class="title-bar relative flex items-center py-1 bg-zinc-300 dark:bg-zinc-800 rounded-t-lg border-b border-zinc-200 dark:border-zinc-700 h-8 flex-shrink-0">
+    <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
         <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
         <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
-            <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Settings</span>
+            <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-white">Settings</span>
         </div>
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
@@ -198,11 +243,43 @@
                 No settings available.</p>
         {:else}
             <div class="w-full">
+                <!-- Autostart Setting (managed separately) -->
+                <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
+                    <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
+                           for="autoStartWithSystem">Start automatically with system</label>
+                    <div class="flex-1 flex items-center gap-2 min-w-0">
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            <input
+                                    type="checkbox"
+                                    id="autoStartWithSystem"
+                                    checked={autoStartEnabled ?? false}
+                                    disabled={autoStartLoading}
+                                    class="sr-only"
+                                    onchange={handleAutoStartToggle}
+                            />
+                            <span
+                                    class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
+                                    style="opacity: {autoStartLoading ? '0.7' : '1'};"
+                            >
+                                <span
+                                        class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
+                                        class:bg-amber-400={autoStartEnabled}
+                                        class:bg-zinc-500={!autoStartEnabled}
+                                        class:dark:bg-amber-400={autoStartEnabled}
+                                        class:dark:bg-zinc-200={!autoStartEnabled}
+                                        style="transform: translateX({autoStartEnabled ? '1.0rem' : '0'});"
+                                ></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Regular Settings -->
                 {#each Object.entries(settings)
                     .sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0))
                         as [key, entry]}
                     {#if entry.isExposed}
-                        <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-2 shadow-sm border border-zinc-200 dark:border-zinc-700">
+                        <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
                             <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
                                    for={key}>{entry.label}</label>
                             <div class="flex-1 flex items-center gap-2 min-w-0">
@@ -216,11 +293,14 @@
                                                 onchange={e => handleBooleanChange(e, key)}
                                         />
                                         <span
-                                                class="block w-10 h-6 rounded-full transition-colors duration-200 relative"
-                                                style="background-color: {entry.value ? '#2563eb' : (document.documentElement.classList.contains('dark') ? '#374151' : '#d1d5db')};"
+                                                class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
                                         >
                                             <span
-                                                    class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-zinc-200 rounded-full shadow transition-transform duration-200"
+                                                    class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
+                                                    class:bg-amber-400={entry.value}
+                                                    class:bg-zinc-500={!entry.value}
+                                                    class:dark:bg-amber-400={entry.value}
+                                                    class:dark:bg-zinc-200={!entry.value}
                                                     style="transform: translateX({entry.value ? '1.0rem' : '0'});"
                                             ></span>
                                         </span>
@@ -234,7 +314,7 @@
                                         <div class="relative w-28 flex-shrink min-w-0">
                                             <span class="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none select-none">#</span>
                                             <input type="text"
-                                                   class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all shadow-sm text-zinc-900 dark:text-zinc-100 w-full"
+                                                   class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg pl-6 pr-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm text-zinc-900 dark:text-zinc-100 w-full"
                                                    value={entry.value ? entry.value.replace(/^#/, '') : ''}
                                                    oninput={e => handleHexInput(key, e)}
                                                    maxlength="6"
@@ -243,7 +323,7 @@
                                     </div>
                                 {:else if entry.type === 'number' || entry.type === 'float'}
                                     <input type="number" id={key}
-                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}/>
                                 {:else if entry.type === 'int' || entry.type === 'integer'}
@@ -251,39 +331,36 @@
                                            step="1"
                                            inputmode="numeric"
                                            pattern="^-?\\d+$"
-                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}
                                            onkeydown={handleIntKeydown}/>
                                 {:else if entry.type === 'string'}
                                     <input type="text" id={key}
-                                           class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleStringInput(key, e)}/>
-                                {:else if entry.type === 'enum' && key === 'pieMenuDeadzoneFunction'}
+                                {:else if entry.type === 'enum'}
                                     <select id={key}
-                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                            class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                             value={entry.value}
                                             onchange={e => handleEnumChange(e, key)}>
-                                        {#each deadzoneFunctionOptions as opt}
-                                            <option value={opt} selected={entry.value === opt}>{opt}</option>
-                                        {/each}
-                                    </select>
-                                {:else if entry.type === 'enum' && entry.options}
-                                    <select id={key}
-                                            class="bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
-                                            value={entry.value}
-                                            onchange={e => handleEnumChange(e, key)}>
-                                        {#each entry.options as opt}
-                                            <option value={opt} selected={entry.value === opt}>{opt}</option>
-                                        {/each}
+                                        {#if key === 'pieMenuDeadzoneFunction'}
+                                            {#each deadzoneFunctionOptions as opt}
+                                                <option value={opt} selected={entry.value === opt}>{opt}</option>
+                                            {/each}
+                                        {:else}
+                                            {#each entry.options ?? [] as opt}
+                                                <option value={opt} selected={entry.value === opt}>{opt}</option>
+                                            {/each}
+                                        {/if}
                                     </select>
                                 {:else}
                                     <span>{entry.value}</span>
                                 {/if}
                                 <div class="flex-1"></div>
                                 <button
-                                        class="w-8 h-8 flex items-center justify-center p-0 rounded bg-white/80 dark:bg-zinc-700/80 border border-zinc-300 dark:border-zinc-600 shadow hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors flex-shrink-0"
+                                        class="w-8 h-8 flex items-center justify-center p-0 mx-1 rounded-lg bg-purple-800 dark:bg-purple-950 border-none shadow hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 transition-colors flex-shrink-0"
                                         title="Reset to Default"
                                         aria-label="Reset to Default"
                                         onclick={() => handleResetToDefault(key)}
@@ -291,7 +368,7 @@
                                         type="button"
                                 >
                                     <img src="tabler_icons/restore.svg" alt="Reset to Default"
-                                         class="w-5 h-5 opacity-90 dark:invert"/>
+                                         class="w-5 h-5 opacity-90 invert"/>
                                 </button>
                             </div>
                         </div>
@@ -299,30 +376,32 @@
                 {/each}
 
                 <!-- Folder Navigation Buttons -->
-                <div class="flex flex-row gap-2 pt-4">
-                    <button
-                            class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
-                            onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appdata')}
-                    >
-                        Open App Config Folder
-                    </button>
-                    <button
-                            class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium shadow-sm border border-zinc-300 dark:border-zinc-600"
-                            onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
-                    >
-                        Open App Folder
-                    </button>
+                <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
+                    <div class="flex flex-row gap-2 w-full">
+                        <button
+                                class="w-full px-4 py-2 bg-purple-800 dark:bg-purple-950 border border-none rounded-lg flex items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 text-zinc-100 text-sm font-medium shadow-md"
+                                onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appdata')}
+                        >
+                            Open App Config Folder
+                        </button>
+                        <button
+                                class="w-full px-4 py-2 bg-purple-800 dark:bg-purple-950 border border-none rounded-lg flex items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 text-zinc-100 text-sm font-medium shadow-md"
+                                onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
+                        >
+                            Open App Folder
+                        </button>
+                    </div>
                 </div>
             </div>
         {/if}
     </div>
 
     <!-- Action Buttons Footer -->
-    <div class="flex-shrink-0 w-full p-2 bg-zinc-200/50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
+    <div class="flex-shrink-0 w-full px-2 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 border-t border-none rounded-b-2xl">
         <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
             <button
                     aria-label="Undo"
-                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md"
                     disabled={undoHistory.length === 0}
                     onclick={handleUndo}
                     type="button">
@@ -330,7 +409,7 @@
             </button>
             <button
                     aria-label="Discard Changes"
-                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700"
+                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md"
                     disabled={undoHistory.length === 0}
                     onclick={() => showDiscardConfirmDialog = true}
                     type="button">
@@ -338,7 +417,7 @@
             </button>
             <button
                     aria-label="Done"
-                    class="px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer shadow-md"
                     onclick={() => goto('/')} type="button">
                 Done
             </button>

@@ -13,8 +13,8 @@
     import Fuse from "fuse.js";
     // --- NATS Integration ---
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
-    import {goto} from "$app/navigation";
     import {createLogger} from "$lib/logger";
+    import {goto} from "$app/navigation";
 
     // Create a logger for this component
     const logger = createLogger('FuzzySearch');
@@ -142,11 +142,11 @@
     }
 </script>
 
-<div class="w-full min-h-screen flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+<div class="w-full min-h-screen flex flex-col items-center justify-start pt-12 bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
     <input
             bind:this={inputEl}
             bind:value={search}
-            class="w-96 px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
+            class="w-96 px-4 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 text-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-400 mb-4"
             onkeydown={handleKeyDown}
             placeholder="Search..."
             type="text"
@@ -159,7 +159,7 @@
             {:else}
                 {#each results as {button, menuId, pageId, buttonId}, i}
                     <div
-                            class="w-full text-left py-2 px-3 rounded cursor-pointer flex flex-col transition-colors duration-75 {selectedIndex === i ? 'bg-blue-100 dark:bg-blue-900 ring-1 ring-blue-400' : ''}"
+                            class="w-full text-left py-2 px-3 rounded cursor-pointer flex flex-col transition-colors duration-75 {selectedIndex === i ? 'bg-purple-100 dark:bg-purple-900 ring-1 ring-purple-400' : ''}"
                             onmouseenter={() => { if (mouseMoved) selectedIndex = i; }}
                             onmousedown={e => { e.preventDefault(); publishButtonClick(pageId, buttonId, button.button_type, button.properties); }}
                             aria-selected={selectedIndex === i}
@@ -169,9 +169,9 @@
                     >
                         <span class="font-semibold dark:text-white">{button.properties.button_text_upper}</span>
                         {#if button.properties.button_text_lower}
-                            <span class="text-xs text-zinc-400 mt-0.5">{button.properties.button_text_lower}</span>
+                            <span class="text-xs text-zinc-600 mt-0.5">{button.properties.button_text_lower}</span>
                         {/if}
-                        <span class="text-xs text-zinc-500">Menu {menuId + 1} / Page {pageId + 1}
+                        <span class="text-xs text-zinc-600">Menu {menuId + 1} / Page {pageId + 1}
                             / Slot {buttonId + 1}</span>
                     </div>
                 {/each}

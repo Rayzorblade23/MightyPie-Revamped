@@ -108,16 +108,20 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+<div class="w-full min-h-screen flex flex-col items-center justify-start pt-8 bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-lg relative">
     <button
             aria-label="Toggle dark mode"
-            class="absolute top-4 right-4 py-2 px-2 rounded bg-purple-500 text-white hover:bg-purple-600 dark:bg-purple-700 dark:hover:bg-purple-800 transition text-base focus:outline-none z-10"
+            class="absolute top-4 right-4 py-2 px-2 rounded-lg bg-amber-500 text-white hover:bg-orange-400 dark:bg-purple-900 dark:hover:bg-purple-800 transition text-base focus:outline-none z-10"
             onclick={toggleDark}
     >
-        {isDark ? '🌙 Dark Theme' : '☀️ Light Theme'}
+        <img 
+            alt="theme icon" 
+            class="w-5 h-5 invert"
+            src={isDark ? "/tabler_icons/moon.svg" : "/tabler_icons/sun.svg"}
+        />
     </button>
-    <h1 class="text-center mb-6 font-semibold text-lg text-zinc-900 dark:text-white">Quick Menu</h1>
-    <div class="rounded-xl bg-zinc-100 dark:bg-zinc-700 p-2 flex flex-col items-center w-auto h-auto">
+    <h1 class="text-center mb-8 font-semibold text-2xl text-white">Quick Menu</h1>
+    <div class="rounded-xl bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 p-2 flex flex-col items-center w-auto h-auto">
         <div class="grid grid-cols-3" style="column-gap: 1.1rem; row-gap: 1.1rem;">
             {#each buttonList.slice(0, 4) as [buttonID, button]}
                 <QuickMenuPieButton
@@ -150,33 +154,34 @@
             {/each}
         </div>
     </div>
-    <div class="flex flex-col gap-6 items-center px-4 py-8 w-full max-w-xs mx-auto">
-        <div class="grid grid-cols-2 w-4/5 max-w-xs mx-auto" style="column-gap: 1.1rem; row-gap: 1.1rem;">
-            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
-                    onclick={navigateToFuzzySearch}>
-                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/search.svg"/>
-                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Fuzzy Search</span>
-            </button>
-            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+
+    <div class="flex flex-col items-center px-3 py-3 w-auto h-auto bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mt-6">
+        <div class="grid grid-cols-4" style="column-gap: 1.1rem; row-gap: 1.1rem;">
+            <button class="aspect-square w-full bg-purple-800 dark:bg-purple-950 border border-none rounded-xl flex flex-col items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 group p-2 shadow-md"
                     onclick={() => publishMessage(PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS, {})}>
-                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/sort-descending-2.svg"/>
-                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Fill gaps</span>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-90 invert" src="/tabler_icons/sort-descending-2.svg"/>
+                <span class="text-xs text-zinc-100 opacity-90">Fill gaps</span>
             </button>
-            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+            <button class="aspect-square w-full bg-purple-800 dark:bg-purple-950 border border-none rounded-xl flex flex-col items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 group p-2 shadow-md"
+                    onclick={navigateToFuzzySearch}>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-90 invert" src="/tabler_icons/search.svg"/>
+                <span class="text-xs text-zinc-100 opacity-90">Fuzzy Search</span>
+            </button>
+            <button class="aspect-square w-full bg-purple-800 dark:bg-purple-950 border border-none rounded-xl flex flex-col items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 group p-2 shadow-md"
                     onclick={navigateToPieMenuConfig}>
-                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/custom_pie-menu.svg"/>
-                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Pie Menu Config</span>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-90 invert" src="/tabler_icons/custom_pie-menu.svg"/>
+                <span class="text-xs text-zinc-100 opacity-90">Pie Menu <br>Config</span>
             </button>
-            <button class="aspect-square w-full bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl flex flex-col items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 group p-2"
+            <button class="aspect-square w-full bg-purple-800 dark:bg-purple-950 border border-none rounded-xl flex flex-col items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 group p-2 shadow-md"
                     onclick={navigateToSettings}>
-                <img alt="icon" class="w-8 h-8 mb-1 opacity-80 dark:invert" src="/tabler_icons/settings.svg"/>
-                <span class="text-xs text-zinc-700 dark:text-zinc-100 opacity-80">Settings</span>
+                <img alt="icon" class="w-8 h-8 mb-1 opacity-90 invert" src="/tabler_icons/settings.svg"/>
+                <span class="text-xs text-zinc-100 opacity-90">Settings</span>
             </button>
         </div>
     </div>
 </div>
 <div class="fixed bottom-6 right-6 z-50">
-    <button class="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500 flex items-center gap-2 shadow-lg"
+    <button class="px-4 py-2 bg-purple-800 border border-none rounded-lg text-zinc-200 hover:bg-violet-800 transition active:bg-violet-900  flex items-center gap-2"
             onclick={async () => { await exitApp(); }}>
         Exit
     </button>

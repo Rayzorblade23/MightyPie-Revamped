@@ -45,7 +45,7 @@
     });
 </script>
 
-<div class="tabs flex items-center space-x-1 pt-1 border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 rounded-t-lg">
+<div class="tabs flex items-center space-x-1 pt-1 border-none bg-zinc-100 dark:bg-zinc-900 rounded-t-lg">
     <div class="flex-1 overflow-x-auto whitespace-nowrap flex flex-nowrap items-center horizontal-scrollbar"
          bind:this={scrollDiv} use:horizontalScroll>
         {#each menuIndices as menuIndex (menuIndex)}
