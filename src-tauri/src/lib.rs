@@ -10,7 +10,7 @@ mod port_checker;
 mod shutdown;
 
 // Re-export items from modules for external use
-pub use env_utils::{get_private_env_var, set_env_var};
+pub use env_utils::{get_private_env_var, set_env_var, get_app_data_dir};
 pub use file_fetch_utils::{get_icon_data_url, read_button_functions};
 pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend, get_log_level};
 pub use mouse::{get_mouse_pos, set_mouse_pos};
@@ -158,6 +158,7 @@ pub fn run() {
             read_button_functions,
             get_icon_data_url,
             get_log_level,
+            get_app_data_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

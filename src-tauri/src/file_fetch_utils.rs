@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path};
 
 // Command to read buttonFunctions.json file
 #[tauri::command]

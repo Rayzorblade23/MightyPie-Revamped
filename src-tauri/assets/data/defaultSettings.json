@@ -79,24 +79,8 @@
     "value": "#303030",
     "defaultValue": "#303030"
   },
-  "configPath": {
-    "index": 10,
-    "label": "Config Path",
-    "isExposed": false,
-    "type": "string",
-    "value": "C:\\Users\\raimo\\AppData\\Local\\MightyPieRevamped",
-    "defaultValue": "C:\\Users\\raimo\\AppData\\Local\\MightyPieRevamped"
-  },
-  "darkMode": {
-    "index": 11,
-    "label": "Dark Mode",
-    "isExposed": false,
-    "type": "bool",
-    "value": true,
-    "defaultValue": true
-  },
   "startInPieMenuConfig": {
-    "index": 12,
+    "index": 10,
     "label": "On program start show Pie Menu Config",
     "isExposed": true,
     "type": "bool",
@@ -104,7 +88,7 @@
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 13,
+    "index": 11,
     "label": "Keep open Pie Menu in place",
     "isExposed": true,
     "type": "bool",
@@ -112,7 +96,7 @@
     "defaultValue": false
   },
   "exampleFloat": {
-    "index": 14,
+    "index": 12,
     "label": "Example Float",
     "isExposed": false,
     "type": "float",
@@ -120,7 +104,7 @@
     "defaultValue": 0
   },
   "exampleInt": {
-    "index": 15,
+    "index": 13,
     "label": "Example Integer",
     "isExposed": false,
     "type": "int",
@@ -128,7 +112,7 @@
     "defaultValue": 0
   },
   "autoScrollOverflow": {
-    "index": 16,
+    "index": 14,
     "label": "When text is too long for button",
     "isExposed": true,
     "type": "enum",
@@ -141,7 +125,7 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 17,
+    "index": 15,
     "label": "Thickness of Pie Button Border",
     "isExposed": true,
     "type": "enum",

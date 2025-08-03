@@ -35,7 +35,6 @@
     import {getShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
-    import {getSettings} from "$lib/data/settingsManager.svelte.js";
     import {createLogger} from "$lib/logger";
 
     // --- Component Imports ---
@@ -49,6 +48,7 @@
     import {goto} from "$app/navigation";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
+    import {invoke} from "@tauri-apps/api/core";
 
     // Create a logger for this component
     const logger = createLogger('PieMenuConfig');
@@ -411,17 +411,24 @@
     }
 
     async function openFileDialog() {
-        const settings = getSettings();
-        const configPath = settings.configPath?.value;
-        const selected = await open({multiple: false, defaultPath: configPath});
-        if (selected) {
-            if (selected.includes('buttonConfig_BACKUP')) {
-                pushUndoState();
-                publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
-                logger.log('Published selected file path:', selected);
-            } else {
-                alert('Please select a file with "buttonConfig_BACKUP" in the name.');
+        try {
+            logger.debug("Opening file dialog with app data directory path");
+            
+            // Get app data directory from Tauri backend
+            const configPath = await invoke<string>('get_app_data_dir');
+            const selected = await open({multiple: false, defaultPath: configPath});
+            
+            if (selected) {
+                if (selected.includes('buttonConfig_BACKUP')) {
+                    pushUndoState();
+                    publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
+                    logger.log('Published selected file path:', selected);
+                } else {
+                    alert('Please select a file with "buttonConfig_BACKUP" in the name.');
+                }
             }
+        } catch (error) {
+            logger.error(`Error opening file dialog: ${error}`);
         }
     }
 

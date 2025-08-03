@@ -84,7 +84,6 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 		return nil, err
 	}
 	settingsPath := filepath.Join(appDataDir, os.Getenv("PUBLIC_DIR_SETTINGS"))
-	configDir := filepath.Dir(settingsPath)
 
 	// Ensure the settings file exists by copying the default if needed.
 	assetDir, err := core.GetAssetDir()
@@ -104,25 +103,6 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 	var settings map[string]SettingsEntry
 	if err := jsonUtils.ReadFromFile(settingsPath, &settings); err != nil {
 		return nil, err
-	}
-
-	// Ensure "configPath" entry exists in the returned map
-	configPathAdded := false
-	if _, ok := settings["configPath"]; !ok {
-		settings["configPath"] = SettingsEntry{
-			Label:        "Config Path",
-			IsExposed:    false,
-			Type:         "string",
-			Value:        configDir,
-			DefaultValue: configDir,
-		}
-		configPathAdded = true
-	}
-
-	if configPathAdded {
-		if err := WriteSettings(settings); err != nil {
-			log.Error("Failed to persist configPath to settings.json: %v", err)
-		}
 	}
 
 	return settings, nil

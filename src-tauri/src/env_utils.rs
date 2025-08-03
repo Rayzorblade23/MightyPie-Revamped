@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::OnceLock;
 use serde_json;
+use std::path::{Path};
 
 // Store baked-in environment variables in a static HashMap
 static BAKED_ENV_VARS: OnceLock<HashMap<String, String>> = OnceLock::new();
@@ -45,4 +46,15 @@ pub fn is_debug() -> bool {
 // Set an environment variable that will be inherited by child processes
 pub fn set_env_var(key: &str, value: &str) {
     env::set_var(key, value);
+}
+
+
+// Command to get the app data directory path
+#[tauri::command]
+pub fn get_app_data_dir() -> String {
+    let app_name = env::var("PUBLIC_APPNAME").unwrap_or_else(|_| "MightyPieRevamped".to_string());
+    let local_app_data = env::var("LOCALAPPDATA")
+        .unwrap_or_else(|_| env::var("APPDATA").unwrap_or_else(|_| ".".to_string()));
+
+    Path::new(&local_app_data).join(app_name).to_string_lossy().to_string()
 }
