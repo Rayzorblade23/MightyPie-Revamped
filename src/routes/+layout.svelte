@@ -75,10 +75,13 @@
     };
 
     const handleBaseConfigUpdateMessage = (message: string) => {
+        // logger.debug('[handleBaseConfigUpdateMessage] Raw message:', message);
         handleJsonMessage<ConfigData>(
             message,
             (configData) => {
+                logger.debug('[handleBaseConfigUpdateMessage] Parsed configData:', configData);
                 const newParsedConfig = parseButtonConfig(configData);
+                logger.debug('[handleBaseConfigUpdateMessage] Parsed MenuConfiguration:', newParsedConfig);
                 updateBaseMenuConfiguration(newParsedConfig);
             },
             '+layout.svelte: Base Config Update'

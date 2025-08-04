@@ -3,6 +3,7 @@ package natsAdapter
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
@@ -190,12 +191,12 @@ func (a *NatsAdapter) SubscribeJetStreamPull(subject, durableName string, handle
 
 	var sub *nats.Subscription
 	if durableName == "" {
-		// Ephemeral consumer: do not specify durable name or BindStream
-		sub, err = js.PullSubscribe(subject, "", nats.BindStream(streamName))
-	} else {
-		// Durable consumer
-		sub, err = js.PullSubscribe(subject, durableName, nats.BindStream(streamName))
+		// Use subject as durableName to make all consumers durable by default
+		// Sanitize durableName: only letters, numbers, dash, and underscore allowed
+		durableName = subject + "_durable"
+		durableName = sanitizeDurableName(durableName)
 	}
+	sub, err = js.PullSubscribe(subject, durableName, nats.BindStream(streamName))
 	if err != nil {
 		return err
 	}
@@ -215,6 +216,17 @@ func (a *NatsAdapter) SubscribeJetStreamPull(subject, durableName string, handle
 		}
 	}()
 	return nil
+}
+
+// sanitizeDurableName ensures the durable name is valid for NATS (alphanumeric, dash, underscore)
+func sanitizeDurableName(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (a *NatsAdapter) PurgeEventsStream() error {

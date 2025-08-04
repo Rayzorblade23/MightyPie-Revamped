@@ -293,9 +293,22 @@ export async function subscribeToSubject(
     }
 }
 
+// --- Singleton JetStream Subscription Registry ---
+function sanitizeDurableName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+const jetStreamRegistry: Record<string, {
+    latest: string | null,
+    handlers: Set<(msg: string) => void | Promise<void>>,
+    stop: (() => Promise<void>) | null,
+    ready: Promise<void> | null
+}> = {};
+
 /**
- * Manages an ephemeral JetStream consumer for any stream/subject, always delivering the latest message.
- * @param subject - Subject filter
+ * Subscribes to a JetStream subject using a singleton durable consumer.
+ * All handlers for the same subject/durable share a single consumer and receive the latest message.
+ * @param subject - JetStream subject
  * @param handler - Handler for the decoded latest message
  * @returns Cleanup function
  */
@@ -303,35 +316,85 @@ export async function fetchLatestFromStream(
     subject: string,
     handler: (msg: string) => void | Promise<void>
 ) {
-    if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
-    const js = natsConnection.jetstream();
-    const jsm = await natsConnection.jetstreamManager();
-    const stream = PUBLIC_NATS_STREAM;
-    // Always create ephemeral consumer with deliver_policy: 'last'
-    const consumerConfig = {
-        deliver_policy: DeliverPolicy.Last,
-        filter_subject: subject,
-        ack_policy: AckPolicy.Explicit,
-    };
-    const consumerInfo = await jsm.consumers.add(stream, consumerConfig);
-    const consumer = await js.consumers.get(stream, consumerInfo.name);
-    let cancelled = false;
-    const consumeLoop = async () => {
-        for await (const msg of await consumer.consume()) {
-            if (cancelled) break;
+    const safeDurable = sanitizeDurableName(subject + "_durable");
+    const registryKey = safeDurable;
+    if (!jetStreamRegistry[registryKey]) {
+        jetStreamRegistry[registryKey] = {
+            latest: null,
+            handlers: new Set(),
+            stop: null,
+            ready: null
+        };
+        jetStreamRegistry[registryKey].ready = (async () => {
+            if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
+            const js = natsConnection.jetstream();
+            const jsm = await natsConnection.jetstreamManager();
+            const stream = PUBLIC_NATS_STREAM;
+            const consumerOpts: any = {
+                durable_name: safeDurable,
+                ack_policy: "explicit",
+                deliver_policy: "last",
+                filter_subject: subject // Ensure only messages for this subject are delivered
+            };
+            let consumerInfo;
             try {
-                await handler(sc.decode(msg.data));
+                consumerInfo = await jsm.consumers.add(stream, consumerOpts);
+                logger.debug(`Created durable consumer: ${consumerInfo.name} on stream: ${stream}, subject: ${subject}`);
             } catch (e) {
-                logger.error("[fetchLatestFromStream] Handler error:", e);
+                logger.error(`Failed to create consumer for stream: ${stream}, subject: ${subject}, durable: ${consumerOpts.durable_name}`, e);
+                throw e;
             }
-            msg.ack();
-        }
-    };
-    await consumeLoop();
-    // Cleanup function: cancel loop and delete ephemeral consumer
+            let consumer;
+            try {
+                consumer = await js.consumers.get(stream, consumerInfo.name);
+                logger.debug(`Got consumer: ${consumerInfo.name} for stream: ${stream}, subject: ${subject}`);
+            } catch (e) {
+                logger.error(`Failed to get consumer: ${consumerInfo.name} for stream: ${stream}, subject: ${subject}`, e);
+                throw e;
+            }
+            let cancelled = false;
+            const consumeLoop = async () => {
+                for await (const msg of await consumer.consume()) {
+                    if (cancelled) break;
+                    try {
+                        const decoded = sc.decode(msg.data);
+                        jetStreamRegistry[registryKey].latest = decoded;
+                        for (const h of jetStreamRegistry[registryKey].handlers) {
+                            h(decoded);
+                        }
+                        // logger.debug(`Received message on subject: ${subject}, data: ${decoded}`);
+                    } catch (e) {
+                        logger.error("Handler error:", e);
+                    }
+                    msg.ack();
+                }
+            };
+            consumeLoop(); // Start in background, don't await
+        })();
+        jetStreamRegistry[registryKey].ready.catch((e) => {
+            logger.error(`Error in ready promise for subject: ${subject}`, e);
+        });
+        jetStreamRegistry[registryKey].stop = async () => {
+            // Do not delete the durable consumer! Just stop the loop.
+            jetStreamRegistry[registryKey].handlers.clear();
+            jetStreamRegistry[registryKey].latest = null;
+        };
+    }
+    // Wait for the consumer to be ready
+    await jetStreamRegistry[registryKey].ready;
+    // Register handler
+    jetStreamRegistry[registryKey].handlers.add(handler);
+    // If there is already a latest message, call handler immediately
+    if (jetStreamRegistry[registryKey].latest !== null) {
+        handler(jetStreamRegistry[registryKey].latest!);
+    }
+    // Cleanup function
     return async () => {
-        cancelled = true;
-        await jsm.consumers.delete(stream, consumerInfo.name);
+        jetStreamRegistry[registryKey].handlers.delete(handler);
+        if (jetStreamRegistry[registryKey].handlers.size === 0 && jetStreamRegistry[registryKey].stop) {
+            await jetStreamRegistry[registryKey].stop!();
+            delete jetStreamRegistry[registryKey];
+        }
     };
 }
 
