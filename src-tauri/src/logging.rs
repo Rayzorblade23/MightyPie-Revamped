@@ -237,44 +237,122 @@ pub fn log_to_file(message: &str) {
 // Command to log from frontend
 #[tauri::command]
 pub fn log_from_frontend(level: &str, message: &str) {
-    // Add to circular buffer
-    let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
-    let entry = LogEntry {
-        timestamp: timestamp.clone(),
-        level: level.to_string(),
-        message: message.to_string(), // Don't add [SVELTE] here as it's already in the message
-    };
-
-    if let Ok(buffer) = get_log_buffer().lock() {
-        buffer.add(entry);
+    // Use a more sophisticated approach for deduplication
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use std::sync::OnceLock;
+    
+    // Store message counts by level+message
+    static MESSAGE_COUNTS: OnceLock<Mutex<HashMap<String, u32>>> = OnceLock::new();
+    let message_counts = MESSAGE_COUNTS.get_or_init(|| Mutex::new(HashMap::new()));
+    
+    // Store the last message sequence
+    static LAST_MESSAGE_KEY: OnceLock<Mutex<String>> = OnceLock::new();
+    let last_message_key = LAST_MESSAGE_KEY.get_or_init(|| Mutex::new(String::new()));
+    
+    // Create a unique key for this level+message
+    let message_key = format!("{}:{}", level, message);
+    
+    // Try to lock the mutexes
+    if let (Ok(mut counts), Ok(mut last_key)) = (message_counts.lock(), last_message_key.lock()) {
+        // Check if this is the same as the last message
+        if message_key == *last_key {
+            // Increment the count for this message
+            let count = counts.entry(message_key.clone()).or_insert(0);
+            *count += 1;
+            
+            // Don't output anything yet, just count it
+            return;
+        } else {
+            // Different message than before
+            
+            // First, check if we need to output the previous message's count
+            if !last_key.is_empty() {
+                if let Some(count) = counts.get(&*last_key) {
+                    if *count > 0 {
+                        // Split the key back into level and message
+                        if let Some((prev_level, prev_message)) = last_key.split_once(':') {
+                            // Output the previous message with count
+                            output_svelte_log(prev_level, prev_message, *count + 1);
+                            
+                            // Also add to circular buffer with repeat count
+                            let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
+                            let entry = LogEntry {
+                                timestamp: timestamp.clone(),
+                                level: prev_level.to_string(),
+                                message: format!("{} (repeated {} times)", prev_message, count + 1),
+                            };
+                            
+                            if let Ok(buffer) = get_log_buffer().lock() {
+                                buffer.add(entry);
+                            }
+                        }
+                    }
+                }
+                
+                // Remove the previous message from counts
+                counts.remove(&*last_key);
+            }
+            
+            // Update the last message key
+            *last_key = message_key.clone();
+            
+            // Reset the count for this new message
+            counts.insert(message_key, 0);
+            
+            // Output this message normally
+            output_svelte_log(level, message, 0);
+            
+            // Add to circular buffer
+            let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
+            let entry = LogEntry {
+                timestamp: timestamp.clone(),
+                level: level.to_string(),
+                message: message.to_string(),
+            };
+            
+            if let Ok(buffer) = get_log_buffer().lock() {
+                buffer.add(entry);
+            }
+        }
     }
+}
 
-    // Log all messages from frontend regardless of level
-    // Frontend now handles its own filtering based on log level
+// Helper function to output Svelte logs with consistent formatting
+fn output_svelte_log(level: &str, message: &str, repeat_count: u32) {
+    let timestamp = chrono::Local::now().format("%Y/%m/%d %H:%M:%S").to_string();
+    
+    // Format the repeat count suffix if provided
+    let repeat_suffix = if repeat_count > 1 {
+        format!(" (repeated {} times)", repeat_count)
+    } else {
+        String::new()
+    };
+    
     match level {
         "error" => eprintln!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[31mERR\x1b[0m] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[31mERR\x1b[0m] {}{}",
+            timestamp, message, repeat_suffix
         ),
         "warn" => eprintln!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[33mWRN\x1b[0m] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[33mWRN\x1b[0m] {}{}",
+            timestamp, message, repeat_suffix
         ),
         "info" => eprintln!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[32mINF\x1b[0m] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[32mINF\x1b[0m] {}{}",
+            timestamp, message, repeat_suffix
         ),
         "debug" => println!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[36mDBG\x1b[0m] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[36mDBG\x1b[0m] {}{}",
+            timestamp, message, repeat_suffix
         ),
         "trace" => println!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[35mTRC\x1b[0m] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [\x1b[35mTRC\x1b[0m] {}{}",
+            timestamp, message, repeat_suffix
         ),
         _ => println!(
-            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [LOG] {}",
-            timestamp, message
+            "\x1b[38;5;180m[SVELTE]\x1b[0m {} [LOG] {}{}",
+            timestamp, message, repeat_suffix
         ),
     }
 }

@@ -323,18 +323,64 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                 if let Some(stdout) = stdout {
                     thread::spawn(move || {
                         let reader = BufReader::new(stdout);
+                        let mut last_line = String::new();
+                        let mut repeat_count = 0;
+
                         for line in reader.lines() {
                             if let Ok(line) = line {
-                                // Add color based on log level
-                                let colored_line = colorize_go_log(&line);
+                                // Check if this is a duplicate of the last line
+                                if line == last_line {
+                                    // Increment repeat count for duplicate
+                                    repeat_count += 1;
+                                } else {
+                                    // If we have collected duplicates, print them with count
+                                    if repeat_count > 0 {
+                                        // Add color based on log level
+                                        let colored_line = colorize_go_log(&last_line);
+                                        
+                                        // Format with [GO] prefix and print to console with repeat count
+                                        println!("\x1b[34m[  GO  ]\x1b[0m {} (repeated {} times)", 
+                                            colored_line, repeat_count + 1);
 
-                                // Format with [GO] prefix and print to console
-                                println!("\x1b[34m[  GO  ]\x1b[0m {}", colored_line);
+                                        // Log to file with [GO] prefix (without color codes)
+                                        let clean_line = strip_ansi_codes(&last_line);
+                                        log_to_file(&format!("[  GO  ] {} (repeated {} times)", 
+                                            clean_line, repeat_count + 1));
+                                        
+                                        // Reset repeat count
+                                        repeat_count = 0;
+                                    }
 
-                                // Log to file with [GO] prefix (without color codes)
-                                let clean_line = strip_ansi_codes(&line);
-                                log_to_file(&format!("[  GO  ] {}", clean_line));
+                                    // Process the new non-duplicate line
+                                    // Add color based on log level
+                                    let colored_line = colorize_go_log(&line);
+
+                                    // Format with [GO] prefix and print to console
+                                    println!("\x1b[34m[  GO  ]\x1b[0m {}", colored_line);
+
+                                    // Log to file with [GO] prefix (without color codes)
+                                    let clean_line = strip_ansi_codes(&line);
+                                    log_to_file(&format!("[  GO  ] {}", clean_line));
+                                    
+                                    // Update last line
+                                    last_line = line;
+                                }
                             }
+                        }
+                        
+                        // Handle any remaining duplicates when the stream ends
+                        if repeat_count > 0 {
+                            // Add color based on log level
+                            let colored_line = colorize_go_log(&last_line);
+                            
+                            // Format with [GO] prefix and print to console with repeat count
+                            println!("\x1b[34m[  GO  ]\x1b[0m {} (repeated {} times)", 
+                                colored_line, repeat_count + 1);
+
+                            // Log to file with [GO] prefix (without color codes)
+                            let clean_line = strip_ansi_codes(&last_line);
+                            log_to_file(&format!("[  GO  ] {} (repeated {} times)", 
+                                clean_line, repeat_count + 1));
                         }
                     });
                 }
@@ -343,18 +389,64 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
                 if let Some(stderr) = stderr {
                     thread::spawn(move || {
                         let reader = BufReader::new(stderr);
+                        let mut last_line = String::new();
+                        let mut repeat_count = 0;
+
                         for line in reader.lines() {
                             if let Ok(line) = line {
-                                // Add color based on log level
-                                let colored_line = colorize_go_log(&line);
+                                // Check if this is a duplicate of the last line
+                                if line == last_line {
+                                    // Increment repeat count for duplicate
+                                    repeat_count += 1;
+                                } else {
+                                    // If we have collected duplicates, print them with count
+                                    if repeat_count > 0 {
+                                        // Add color based on log level
+                                        let colored_line = colorize_go_log(&last_line);
+                                        
+                                        // Format with [GO] prefix and print to console with repeat count
+                                        println!("\x1b[31m[  GO  ]\x1b[0m {} (repeated {} times)", 
+                                            colored_line, repeat_count + 1);
 
-                                // Format with [GO] prefix and print to console
-                                println!("\x1b[31m[  GO  ]\x1b[0m {}", colored_line);
+                                        // Log to file with [GO] prefix (without color codes)
+                                        let clean_line = strip_ansi_codes(&last_line);
+                                        log_to_file(&format!("[  GO  ] {} (repeated {} times)", 
+                                            clean_line, repeat_count + 1));
+                                        
+                                        // Reset repeat count
+                                        repeat_count = 0;
+                                    }
 
-                                // Log to file with [GO] prefix (without color codes)
-                                let clean_line = strip_ansi_codes(&line);
-                                log_to_file(&format!("[  GO  ] {}", clean_line));
+                                    // Process the new non-duplicate line
+                                    // Add color based on log level
+                                    let colored_line = colorize_go_log(&line);
+
+                                    // Format with [GO] prefix and print to console
+                                    println!("\x1b[31m[  GO  ]\x1b[0m {}", colored_line);
+
+                                    // Log to file with [GO] prefix (without color codes)
+                                    let clean_line = strip_ansi_codes(&line);
+                                    log_to_file(&format!("[  GO  ] {}", clean_line));
+                                    
+                                    // Update last line
+                                    last_line = line;
+                                }
                             }
+                        }
+                        
+                        // Handle any remaining duplicates when the stream ends
+                        if repeat_count > 0 {
+                            // Add color based on log level
+                            let colored_line = colorize_go_log(&last_line);
+                            
+                            // Format with [GO] prefix and print to console with repeat count
+                            println!("\x1b[31m[  GO  ]\x1b[0m {} (repeated {} times)", 
+                                colored_line, repeat_count + 1);
+
+                            // Log to file with [GO] prefix (without color codes)
+                            let clean_line = strip_ansi_codes(&last_line);
+                            log_to_file(&format!("[  GO  ] {} (repeated {} times)", 
+                                clean_line, repeat_count + 1));
                         }
                     });
                 }
