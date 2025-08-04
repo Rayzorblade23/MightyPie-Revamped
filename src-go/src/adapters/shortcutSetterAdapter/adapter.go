@@ -20,6 +20,12 @@ type ShortcutSetterAdapter struct {
 	keyboardHook *setterKeyboardHook
 }
 
+// Run blocks forever to keep the worker process alive.
+func (a *ShortcutSetterAdapter) Run() {
+	log.Info("ShortcutSetterAdapter running.")
+	select {}
+}
+
 // New creates a new instance and sets up the keyboard hook and NATS adapter.
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	shortcutSetterAdapter := &ShortcutSetterAdapter{

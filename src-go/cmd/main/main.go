@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+	"github.com/nats-io/nats-server/v2/server"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/buttonManagerAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/mouseInputAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
@@ -27,8 +29,8 @@ import (
 )
 
 var (
-	natsCmd *exec.Cmd
-	cmds    []*exec.Cmd
+	natsServer *server.Server
+	cmds    []*os.Process
 
 	// Worker flags
 	workerFlags = map[string]*bool{
@@ -54,7 +56,6 @@ func main() {
 	for workerName, flagValue := range workerFlags {
 		if *flagValue {
 			// Workers only log a single line
-			log.Info("%s is running.", workerName)
 			runWorker(workerName)
 			return
 		}
@@ -97,9 +98,8 @@ func main() {
 	var wg sync.WaitGroup
 	// Prepare all commands before starting them to avoid race conditions.
 	
-	if natsCmd != nil {
-		cmds = append(cmds, natsCmd)
-	}
+	// No external natsCmd needed for embedded server.
+
 
 	// Get the executable path for launching worker processes
 	exePath, err := os.Executable()
@@ -108,42 +108,34 @@ func main() {
 	}
 
 	for _, workerName := range workers {
-		// Create a command that runs this same executable with the appropriate worker flag
-		cmd := exec.Command(exePath, fmt.Sprintf("--%s", workerName))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		// Set environment variable to identify this as a worker process
-		cmd.Env = append(os.Environ(), "MIGHTYPIE_WORKER_TYPE=worker")
-		cmds = append(cmds, cmd)
+		// Create a process that runs this same executable with the appropriate worker flag
+		procAttr := &os.ProcAttr{
+			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			Env:   append(os.Environ(), "MIGHTYPIE_WORKER_TYPE=worker"),
+		}
+		proc, err := os.StartProcess(exePath, []string{exePath, fmt.Sprintf("--%s", workerName)}, procAttr)
+		if err != nil {
+			log.Error("Failed to start worker %s: %v", workerName, err)
+			continue
+		}
+		cmds = append(cmds, proc)
 	}
 
 	// Launch all processes in goroutines.
-	for _, cmd := range cmds {
+	for _, proc := range cmds {
 		wg.Add(1)
-		go func(c *exec.Cmd) {
+		go func(p *os.Process) {
 			defer wg.Done()
-			// Don't log NATS server process start to reduce verbosity
-			if !strings.Contains(c.Path, "nats-server") {
-				log.Debug("Starting process: %s", c.Args)
-			}
-			if err := c.Start(); err != nil {
-				// Ignore "already started" errors which can happen with NATS server
-				if strings.Contains(err.Error(), "already started") {
-					return
+			// No process launch needed for embedded NATS
+			if p != nil {
+				state, err := p.Wait()
+				if err != nil {
+					log.Error("Process %d exited with error: %v", p.Pid, err)
+				} else {
+					log.Info("Process %d exited: %v", p.Pid, state)
 				}
-				log.Error("Process %s failed to start: %v", c.Path, err)
-				return
 			}
-
-			if err := c.Wait(); err != nil {
-				// A "signal: killed" error is expected on graceful shutdown, so we check for it.
-				if !strings.Contains(err.Error(), "killed") {
-					log.Error("Process %s exited with error: %v", c.Path, err)
-				}
-			} else {
-				log.Info("Process %s exited successfully", c.Path)
-			}
-		}(cmd)
+		}(proc)
 	}
 
 	// Handle graceful shutdown
@@ -152,13 +144,18 @@ func main() {
 	go func() {
 		<-c
 		
-		for _, cmd := range cmds {
-			if cmd.Process != nil {
-				err := cmd.Process.Kill()
+		for _, proc := range cmds {
+			if proc != nil {
+				err := proc.Kill()
 				if err != nil {
-					log.Error("Failed to kill process %d: %v", cmd.Process.Pid, err)
+					log.Error("Failed to kill process %d: %v", proc.Pid, err)
 				}
 			}
+		}
+		// Stop embedded NATS server if running
+		if natsServer != nil {
+			log.Info("[NATS] Shutting down embedded NATS server...")
+			natsServer.Shutdown()
 		}
 		os.Exit(0)
 	}()
@@ -166,10 +163,12 @@ func main() {
 	wg.Wait()
 }
 
-// startNatsServer initializes and starts the NATS server.
-// It orchestrates path resolution, directory setup, configuration, and launching the server process.
+// startNatsServer initializes and starts the embedded NATS server.
+// It orchestrates path resolution, directory setup, configuration, and launching the embedded server.
 func startNatsServer(log *logger.Logger) error {
-	natsExePath, defaultConfPath, err := getNatsPaths(log)
+	log.Debug("[NATS] Preparing to start embedded NATS server...")
+	// Log the actual listen URL from config after parsing
+	defaultConfPath, err := getNatsConfigPath(log)
 	if err != nil {
 		return err
 	}
@@ -183,34 +182,62 @@ func startNatsServer(log *logger.Logger) error {
 		return err
 	}
 
-	if err := launchNatsProcess(log, natsExePath, userConfPath); err != nil {
-		return err
+	log.Debug("[NATS] Parsing NATS config from: %s", userConfPath)
+	// Read config file for embedded NATS
+	opts, err := server.ProcessConfigFile(userConfPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse NATS config: %w", err)
+	}
+	log.Debug("[NATS] NATS config parsed successfully.")
+	log.Info("[NATS] Embedded NATS server will listen on: nats://%s:%d", opts.Host, opts.Port)
+
+	// Set auth token from env if present
+	natsToken := os.Getenv("NATS_AUTH_TOKEN")
+	if natsToken != "" {
+		opts.Authorization = natsToken
 	}
 
-	return waitForNatsReady(log)
+	natsPort := os.Getenv("NATS_PORT")
+	if natsPort != "" {
+		if port, err := strconv.Atoi(natsPort); err == nil {
+			opts.Port = port
+		}
+	}
+
+	log.Debug("[NATS] Starting embedded NATS server on port %d...", opts.Port)
+	natsServer = server.New(opts)
+	if natsServer == nil {
+		return fmt.Errorf("failed to create embedded NATS server")
+	}
+
+	go natsServer.Start()
+
+	// Wait for server to be ready
+	for range 10 {
+		if natsServer.ReadyForConnections(100 * time.Millisecond) {
+			log.Info("[NATS] Embedded NATS server is ready.")
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("embedded NATS server did not start in time")
 }
 
-// getNatsPaths determines the paths for the NATS executable and default config based on the environment.
-func getNatsPaths(log *logger.Logger) (natsExePath, defaultConfPath string, err error) {
-	natsExe := "nats-server"
-	if runtime.GOOS == "windows" {
-		natsExe = "nats-server.exe"
-	}
 
+// getNatsConfigPath determines the path for the default NATS config based on the environment.
+func getNatsConfigPath(log *logger.Logger) (defaultConfPath string, err error) {
 	if os.Getenv("APP_ENV") == "development" {
 		log.Info("Development environment: using dev paths for NATS.")
 		rootDir := os.Getenv("MIGHTYPIE_ROOT_DIR")
 		if rootDir == "" {
-			return "", "", fmt.Errorf("MIGHTYPIE_ROOT_DIR environment variable not set")
+			return "", fmt.Errorf("MIGHTYPIE_ROOT_DIR environment variable not set")
 		}
-		natsExePath = filepath.Join(rootDir, "src-tauri", "assets", "nats-server", natsExe)
-		defaultConfPath = filepath.Join(rootDir, "src-tauri", "assets", "nats-server", "nats.conf")
+		defaultConfPath = filepath.Join(rootDir, "src-tauri", "assets", "data", "nats.conf")
 	} else {
 		log.Info("Production environment: using bundled paths for NATS.")
-		natsExePath = filepath.Join(os.Getenv("MIGHTYPIE_ROOT_DIR"), "assets", "nats-server", natsExe)
-		defaultConfPath = filepath.Join(os.Getenv("MIGHTYPIE_ROOT_DIR"), "assets", "nats-server", "nats.conf")
+		defaultConfPath = filepath.Join(os.Getenv("MIGHTYPIE_ROOT_DIR"), "assets", "data", "nats.conf")
 	}
-	return natsExePath, defaultConfPath, nil
+	return defaultConfPath, nil
 }
 
 // setupNatsDirectories creates the necessary NATS directories in the AppData folder.
@@ -237,7 +264,7 @@ func setupNatsDirectories() (natsAppDataDir, natsDataDir, userConfPath string, e
 // ensureUserNatsConfig checks for a user-specific NATS config and creates one from the default if not found.
 func ensureUserNatsConfig(log *logger.Logger, userConfPath, defaultConfPath, natsDataDir string) error {
 	if _, err := os.Stat(userConfPath); os.IsNotExist(err) {
-		log.Info("NATS config not found in AppData, creating from default...")
+		log.Info("[NATS] NATS config not found in AppData, creating from default...")
 		defaultConfig, err := os.ReadFile(defaultConfPath)
 		if err != nil {
 			return fmt.Errorf("could not read default NATS config: %w", err)
@@ -249,84 +276,20 @@ func ensureUserNatsConfig(log *logger.Logger, userConfPath, defaultConfPath, nat
 		if err := os.WriteFile(userConfPath, []byte(configStr), 0644); err != nil {
 			return fmt.Errorf("could not write NATS config to AppData: %w", err)
 		}
-		log.Info("NATS config created in AppData: %s", userConfPath)
+		log.Info("[NATS] NATS config created in AppData: %s", userConfPath)
 	} else if err != nil {
 		return fmt.Errorf("error checking for NATS config in AppData: %w", err)
-	} else {
-		log.Info("Using existing NATS config from AppData: %s", userConfPath)
 	}
 	return nil
 }
 
-// launchNatsProcess starts the NATS server process with the specified configuration.
-func launchNatsProcess(log *logger.Logger, natsExePath, userConfPath string) error {
-    // Check if NATS is already running by trying to connect to it
-    natsPort := os.Getenv("NATS_PORT")
-    if natsPort == "" {
-        natsPort = "4222" // Default port if not specified
-    }
-    
-    natsAddr := fmt.Sprintf("127.0.0.1:%s", natsPort)
-    conn, err := net.DialTimeout("tcp", natsAddr, 100*time.Millisecond)
-    if err == nil {
-        // NATS is already running
-        conn.Close()
-        log.Info("NATS server is already running on port %s", natsPort)
-        return nil
-    }
-
-    natsToken := os.Getenv("NATS_AUTH_TOKEN")
-    if natsToken == "" {
-        return fmt.Errorf("NATS_AUTH_TOKEN environment variable not set")
-    }
-
-    log.Info("Starting NATS server with config: %s", userConfPath)
-    
-    // If a custom port was specified, add it to the command line arguments
-    args := []string{"-c", userConfPath, "--auth", natsToken}
-    if natsPort != "4222" {
-        args = append(args, "--port", natsPort)
-        log.Info("Using custom NATS port: %s", natsPort)
-    }
-    
-    natsCmd = exec.Command(natsExePath, args...)
-    natsCmd.Stdout = os.Stdout
-    natsCmd.Stderr = os.Stderr
-
-    log.Info("Starting NATS server...")
-    if err := natsCmd.Start(); err != nil {
-        // If the error is "already started", it's not actually an error
-        if strings.Contains(err.Error(), "already started") {
-            log.Info("NATS server is already running")
-            return nil
-        }
-        return fmt.Errorf("could not start NATS server: %w", err)
-    }
-    return nil
-}
-
-// waitForNatsReady waits for the NATS server to become responsive.
-func waitForNatsReady(log *logger.Logger) error {
-	log.Info("Waiting for NATS server to be ready...")
-	for range 5 {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:4222", 1*time.Second)
-		if err == nil {
-			conn.Close()
-			log.Info("NATS server is ready.")
-			return nil
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return fmt.Errorf("NATS server did not start in time")
-}
-
 func cleanupAllProcesses(log *logger.Logger) {
 	log.Info("Cleaning up all processes...")
-	for _, cmd := range cmds {
-		if cmd.Process != nil {
-			err := cmd.Process.Kill()
+	for _, proc := range cmds {
+		if proc != nil {
+			err := proc.Kill()
 			if err != nil {
-				log.Error("Failed to kill process %d: %v", cmd.Process.Pid, err)
+				log.Error("Failed to kill process %d: %v", proc.Pid, err)
 			}
 		}
 	}
@@ -334,9 +297,11 @@ func cleanupAllProcesses(log *logger.Logger) {
 
 // runWorker runs the specified worker type
 func runWorker(workerType string) {
-	// Create a logger for this worker
-	log := logger.New(strings.Title(workerType))
-	logger.ReplaceStdLog(strings.Title(workerType))
+	// Use Unicode-correct title casing for worker name
+	c := cases.Title(language.Und)
+	workerTitle := c.String(workerType)
+	log := logger.New(workerTitle)
+	logger.ReplaceStdLog(workerTitle)
 
 	// Wait for NATS server to be ready before connecting
 	// Use a shorter timeout and less verbose logging
@@ -373,11 +338,11 @@ func runWorker(workerType string) {
 		settingsManager := settingsManagerAdapter.New(natsAdapter)
 		settingsManager.Run()
 	case "shortcutDetector":
-		shortcutDetectionAdapter.New(natsAdapter)
-		select {} // Block forever as in original implementation
+		shortcutDetectionAdapter := shortcutDetectionAdapter.New(natsAdapter)
+		shortcutDetectionAdapter.Run()
 	case "shortcutSetter":
-		shortcutSetterAdapter.New(natsAdapter)
-		select {} // Block forever as in original implementation
+		shortcutSetterAdapter := shortcutSetterAdapter.New(natsAdapter)
+		shortcutSetterAdapter.Run()
 	case "windowManagement":
 		windowManagement, err := windowManagementAdapter.New(natsAdapter)
 		if err != nil {

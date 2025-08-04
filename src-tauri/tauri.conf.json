@@ -39,8 +39,8 @@
     ],
     "resources": [
       "assets/src-go/bin/*",
-      "assets/nats-server/*",
-      "assets/data/*"
+      "assets/data/*",
+      "licenses/*"
     ]
   }
 }

@@ -44,6 +44,12 @@ type ShortcutDetectionAdapter struct {
 	updateHookChan chan struct{}
 }
 
+// Run blocks forever to keep the worker process alive.
+func (a *ShortcutDetectionAdapter) Run() {
+	log.Info("ShortcutDetectionAdapter running.")
+	select {}
+}
+
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	adapter := &ShortcutDetectionAdapter{
 		natsAdapter:    natsAdapter,
