@@ -19,8 +19,10 @@ var subjectInstalledAppsInfo = os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTA
 
 // New creates a new WindowManagementAdapter instance
 func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error) {
+	// Acquire write lock before populating installedAppsInfo
+	installedAppsInfoMutex.Lock()
 	installedAppsInfo = FetchExecutableApplicationMap()
-	ProcessIcons()
+	installedAppsInfoMutex.Unlock()
 
 	// b, _ := json.MarshalIndent(installedAppsInfo, "", "  ")
 	// logger.Debug(string(b))
@@ -47,6 +49,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 
 	a.publishInstalledAppsInfo(installedAppsInfo)
 
+	// Process icons after adapter is created and trigger republish when complete
+	ProcessIcons(a)
+
 	// NATS Subscription for shortcut pressed events
 	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
 		var message core.ShortcutPressed_Message
@@ -69,6 +74,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 
 // publishInstalledAppsInfo sends the current discovered apps list to the NATS subject
 func (a *WindowManagementAdapter) publishInstalledAppsInfo(apps map[string]core.AppInfo) {
+	// Use read lock when publishing the map
+	installedAppsInfoMutex.RLock()
+	defer installedAppsInfoMutex.RUnlock()
 	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, "WindowManagement", apps)
 }
 

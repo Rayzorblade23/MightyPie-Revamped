@@ -230,6 +230,10 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 	var bestMatchInfo *core.AppInfo // Using pointer to distinguish from zero-value struct
 	var bestMatchKey string         // The AppName key from installedAppsInfo
 
+	// Protect access to installedAppsInfo with a read lock
+	installedAppsInfoMutex.RLock()
+	defer installedAppsInfoMutex.RUnlock()
+	
 	// Priority 1: Exact match of the running process's ExePath against AppInfo.ExePath
 	for appKey, appInfoEntry := range installedAppsInfo {
 		// appKey is the unique application name (e.g., "Firefox", "Firefox (1)")

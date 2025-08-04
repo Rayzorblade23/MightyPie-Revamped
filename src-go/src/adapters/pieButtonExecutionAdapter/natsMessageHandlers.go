@@ -96,7 +96,11 @@ func (a *PieButtonExecutionAdapter) handleOpenFolder(msg *nats.Msg) {
 	}
 
 	if err := openFolder(path); err != nil {
-		log.Error("Failed to open folder %s: %v", path, err)
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			log.Info("Successfully opened folder %s", path)
+		} else {
+			log.Error("Failed to open folder %s: %v", path, err)
+		}
 	}
 }
 

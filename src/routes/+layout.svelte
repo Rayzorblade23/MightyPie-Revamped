@@ -48,6 +48,7 @@
     $effect(() => {
         const baseMenuConfiguration = getBaseMenuConfiguration();
         const apps = getInstalledAppsInfo();
+        
         if (!validationHasRun && baseMenuConfiguration.size > 0 && apps.size > 0) {
             validateAndSyncConfig();
             validationHasRun = true;

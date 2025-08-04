@@ -21,6 +21,7 @@
         getSavedAutoStartPreference,
         syncAutoStartPreference
     } from '$lib/autostartUtils';
+    import StandardButton from '$lib/components/StandardButton.svelte';
 
     // Create a logger for this component
     const logger = createLogger('Settings');
@@ -399,37 +400,40 @@
     <!-- Action Buttons Footer -->
     <div class="flex-shrink-0 w-full px-2 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 border-t border-none rounded-b-2xl">
         <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
-            <button
-                    aria-label="Undo"
-                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md"
+            <StandardButton
+                    label="Undo"
+                    ariaLabel="Undo"
+                    onClick={handleUndo}
                     disabled={undoHistory.length === 0}
-                    onclick={handleUndo}
-                    type="button">
-                Undo
-            </button>
-            <button
-                    aria-label="Discard Changes"
-                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md"
+                    variant="primary"
+                    bold={true}
+            />
+            <StandardButton
+                    label="Discard Changes"
+                    ariaLabel="Discard Changes"
+                    onClick={() => showDiscardConfirmDialog = true}
                     disabled={undoHistory.length === 0}
-                    onclick={() => showDiscardConfirmDialog = true}
-                    type="button">
-                Discard Changes
-            </button>
-            <button
-                    aria-label="Done"
-                    class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer shadow-md"
-                    onclick={() => goto('/')} type="button">
-                Done
-            </button>
+                    variant="primary"
+                    bold={true}
+            />
+            <StandardButton
+                    label="Done"
+                    ariaLabel="Done"
+                    onClick={() => goto('/')}
+                    variant="primary"
+                    bold={true}
+            />
         </div>
-        <ConfirmationDialog
-                cancelText="Save Changes"
-                confirmText="Discard Changes"
-                isOpen={showDiscardConfirmDialog}
-                message="You have unsaved changes. What would you like to do?"
-                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
-                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
-                title="Unsaved Changes"
-        />
     </div>
 </div>
+
+<!-- Dialog moved outside the footer div to prevent inheriting opacity -->
+<ConfirmationDialog
+        cancelText="Save Changes"
+        confirmText="Discard Changes"
+        isOpen={showDiscardConfirmDialog}
+        message="You have unsaved changes. What would you like to do?"
+        onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+        onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+        title="Unsaved Changes"
+/>

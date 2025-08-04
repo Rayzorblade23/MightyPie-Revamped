@@ -29,6 +29,9 @@ var (
 	iconDirOnce sync.Once
 	iconDirPath string
 	iconDirErr  error
+	
+	// Mutex to protect access to installedAppsInfo
+	installedAppsInfoMutex sync.RWMutex
 )
 
 // --- Icon Storage & Path Management ---
@@ -147,6 +150,7 @@ func generateSummaryReport(total, skipped, failures uint64, skippedNames, failed
 // ExtractAndSaveIcons concurrently processes a map of applications to extract and save their icons,
 // updating appMap with the new icon paths.
 func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
+	// No need for mutex here as we're working with a local copy
 	if len(appMap) == 0 {
 		log.Info("App map is empty, icon extraction skipped.")
 		return nil
@@ -238,12 +242,12 @@ func ExtractAndSaveIcons(appMap map[string]core.AppInfo) error {
 			}
 
 			if successfullyProcessedAndIconAvailable {
+				// Only need reportMutex for report data since we're working with a local copy
 				reportMutex.Lock()
 				if entryToUpdate, ok := appMap[currentAppName]; ok {
 					if entryToUpdate.IconPath != potentialWebIconPath { // Update if different or was empty
 						entryToUpdate.IconPath = potentialWebIconPath
 						appMap[currentAppName] = entryToUpdate // Put the modified copy back
-					} else {
 					}
 				} else {
 					log.Debug("CRITICAL: App '%s' not found in appMap for update. Desired IconPath: '%s'", currentAppName, potentialWebIconPath)
@@ -269,6 +273,8 @@ func CleanOrphanedIcons(appMap map[string]core.AppInfo) error {
 
 	// Populate a set of expected icon filenames from the appMap.
 	expectedIconFiles := make(map[string]struct{}, len(appMap))
+	
+	// No need for mutex as we're working with a local copy
 	for _, appInfo := range appMap { // Iterate over the values (AppInfo structs)
 		if appInfo.IconPath != "" {
 			// appInfo.IconPath is a web-servable path like "/icons/actual_icon.png".
@@ -348,22 +354,64 @@ func GetIconPathForExe(exePath string) (string, error) {
 }
 
 // ProcessIcons orchestrates icon extraction and cleanup.
-func ProcessIcons() {
+// It accepts a WindowManagementAdapter to republish installedAppsInfo after icon processing is complete.
+func ProcessIcons(adapter *WindowManagementAdapter) {
+	// Make a safe copy of the map to work with
+	installedAppsInfoMutex.RLock()
 	if installedAppsInfo == nil { // Defensive check for nil map
+		installedAppsInfoMutex.RUnlock()
 		log.Info("No discovered apps for icon processing.")
 		return
 	}
+	
+	// Create a copy of the map to work with in the background
+	// This ensures we're not affected by any changes to installedAppsInfo while processing
+	appMapCopy := make(map[string]core.AppInfo, len(installedAppsInfo))
+	for k, v := range installedAppsInfo {
+		appMapCopy[k] = v
+	}
+	installedAppsInfoMutex.RUnlock()
+	
 	log.Info("Starting background icon processing...")
 	go func() {
-		if err := ExtractAndSaveIcons(installedAppsInfo); err != nil {
+		// Process icons on our local copy
+		if err := ExtractAndSaveIcons(appMapCopy); err != nil {
 			log.Error("CRITICAL: Icon extraction process failed: %v", err)
 		} else {
 			log.Info("Background icon extraction finished.")
 		}
-		if err := CleanOrphanedIcons(installedAppsInfo); err != nil {
+		if err := CleanOrphanedIcons(appMapCopy); err != nil {
 			log.Error("Error during icon cleanup: %v", err)
 		} else {
 			log.Info("Icon cleanup finished.")
+		}
+		
+		// Now update the main map with our processed copy
+		installedAppsInfoMutex.Lock()
+		// Create a new map to avoid modifying during iteration
+		updatedMap := make(map[string]core.AppInfo, len(installedAppsInfo))
+		// First copy the existing map
+		for k, v := range installedAppsInfo {
+			updatedMap[k] = v
+		}
+		// Then update with our processed icons
+		for k, v := range appMapCopy {
+			if existing, ok := updatedMap[k]; ok {
+				// Only update the icon path
+				if v.IconPath != "" {
+					existing.IconPath = v.IconPath
+					updatedMap[k] = existing
+				}
+			}
+		}
+		// Replace the entire map at once
+		installedAppsInfo = updatedMap
+		installedAppsInfoMutex.Unlock()
+		
+		// Republish installedAppsInfo after icon processing is complete
+		if adapter != nil {
+			log.Info("Republishing installedAppsInfo with updated icon paths")
+			adapter.publishInstalledAppsInfo(installedAppsInfo)
 		}
 	}()
 }

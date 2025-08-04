@@ -1,22 +1,34 @@
 <script lang="ts">
-    import {onDestroy, onMount} from 'svelte';
+    import { onDestroy } from 'svelte';
+    import StandardButton from '$lib/components/StandardButton.svelte';
 
-    export let isOpen: boolean;
-    export let onCancel: () => void;
+    let { isOpen, onCancel } = $props<{
+        isOpen: boolean;
+        onCancel: () => void;
+    }>();
 
     function handleKeydown(event: KeyboardEvent) {
-        if (event.key === 'Escape' && isOpen) {
+        if (event.key === 'Escape') {
             event.stopPropagation();
             event.preventDefault();
             onCancel();
         }
     }
 
-    onMount(() => {
-        window.addEventListener('keydown', handleKeydown);
+    let cleanup = $state<(() => void) | undefined>(undefined);
+
+    $effect(() => {
+        if (isOpen) {
+            window.addEventListener('keydown', handleKeydown);
+            cleanup = () => window.removeEventListener('keydown', handleKeydown);
+        } else if (cleanup) {
+            cleanup();
+            cleanup = undefined;
+        }
     });
+
     onDestroy(() => {
-        window.removeEventListener('keydown', handleKeydown);
+        if (cleanup) cleanup();
     });
 </script>
 
@@ -27,10 +39,14 @@
                 Shortcut
             </div>
             <div class="text-zinc-500 dark:text-zinc-300">Waiting for input...</div>
-            <button class="mt-6 px-4 py-2 bg-zinc-300 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded hover:bg-zinc-400 dark:hover:bg-zinc-600"
-                    on:click={onCancel}>
-                Cancel
-            </button>
+            <div class="flex justify-center mt-4">
+                <StandardButton
+                    label="Cancel"
+                    variant="primary"
+                    onClick={onCancel}
+                    style="margin-top: 1.5rem;"
+                />
+            </div>
         </div>
     </div>
 {/if}

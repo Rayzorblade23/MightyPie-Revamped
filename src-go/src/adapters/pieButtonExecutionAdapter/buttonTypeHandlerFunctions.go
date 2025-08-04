@@ -53,7 +53,6 @@ func (a *PieButtonExecutionAdapter) handleShowProgramWindow(executionInfo *pieBu
 		log.Info("ShowProgramWindow (Right Click STUB) for app '%s'", appNameKey)
 		return nil
 	case ClickTypeMiddleUp:
-		log.Error("Attempting to close window for app '%s'", appNameKey)
 		if windowProps.WindowHandle > 0 {
 			hwnd := uintptr(windowProps.WindowHandle)
 			if err := WindowHandle(hwnd).Close(); err != nil {

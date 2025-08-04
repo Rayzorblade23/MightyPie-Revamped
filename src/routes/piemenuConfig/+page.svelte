@@ -36,6 +36,7 @@
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
     import {createLogger} from "$lib/logger";
+    import StandardButton from '$lib/components/StandardButton.svelte';
 
     // --- Component Imports ---
     import MenuTabs from "$lib/components/piemenuConfig/MenuTabs.svelte";
@@ -49,6 +50,7 @@
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
     import {invoke} from "@tauri-apps/api/core";
+    import NotificationDialog from "$lib/components/ui/NotificationDialog.svelte";
 
     // Create a logger for this component
     const logger = createLogger('PieMenuConfig');
@@ -349,7 +351,7 @@
                     (active as HTMLElement).blur();
                     return;
                 }
-                if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen) return;
+                if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen || showBackupCreatedDialog) return;
                 // Use the same logic as Discard Changes button for unsaved changes
                 if (undoHistory.length === 0) {
                     goto('/');
@@ -768,13 +770,13 @@
                                     buttonTypeFriendlyNames={buttonTypeFriendlyNames}
                                     onChange={handleResetTypeChange}
                             />
-                            <button
-                                    class="mt-2 mb-2 px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                                    onclick={handleResetPageToDefault}
+                            <StandardButton
+                                    label="Reset Page with Type"
+                                    onClick={handleResetPageToDefault}
                                     disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
-                            >
-                                Reset Page with Type
-                            </button>
+                                    style="margin-top: 0.5rem; margin-bottom: 0.5rem;"
+                                    variant="primary"
+                            />
                             <button
                                     aria-label="Use for Quick Menu"
                                     class="mt-2 px-4 py-2 bg-white/10 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-zinc-700 dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-white/0 disabled:text-zinc-500 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-white/10 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
@@ -800,37 +802,33 @@
                                         <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
                                     {/if}
                                 </div>
-                                <button
-                                        class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition shadow-sm"
-                                        onclick={handlePublishShortcutSetterUpdate}
+                                <StandardButton
+                                        variant="special"
+                                        onClick={handlePublishShortcutSetterUpdate}
                                         disabled={selectedMenuID === undefined}
-                                >
-                                    {selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
+                                        label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
                                         ? shortcutLabels[selectedMenuID]
                                         : 'Set Shortcut'}
-                                </button>
+                                />
                             </div>
                             <div class="flex flex-row justify-between items-center w-full mt-2">
                                 <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
-                                <button
-                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                                        style="max-width: 120px;"
-                                        onclick={handleClearShortcut}
+                                <StandardButton
+                                        label="Clear"
+                                        onClick={handleClearShortcut}
                                         disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
-                                >
-                                    Clear
-                                </button>
+                                        style="max-width: 120px;"
+                                        variant="primary"
+                                />
                             </div>
                             <div class="flex flex-row justify-between mt-2 items-center w-full">
                                 <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
-                                <button
-                                        class="w-full px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 dark:bg-rose-700 transition dark:hover:bg-rose-800 shadow-sm"
+                                <StandardButton
+                                        label="Reset"
+                                        variant="warning"
+                                        onClick={() => showResetAllConfirmDialog = true}
                                         style="max-width: 120px;"
-                                        onclick={() => showResetAllConfirmDialog = true}
-                                        title="Reset all menus to default (keeps only the first menu with default page/buttons)"
-                                >
-                                    Reset All
-                                </button>
+                                />
                             </div>
                         </div>
                         <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
@@ -838,18 +836,18 @@
                                 Config Backup
                             </h3>
                             <div class="flex flex-col items-start gap-2 w-full">
-                                <button
-                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                                        onclick={handleBackupWithConfirmation}
-                                >
-                                    Create Backup
-                                </button>
-                                <button
-                                        class="w-full px-4 py-2 rounded-lg border border-none bg-purple-800 dark:bg-purple-950 text-zinc-100 transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                                        onclick={openFileDialog}
-                                >
-                                    Load Backup
-                                </button>
+                                <StandardButton
+                                        label="Create Backup"
+                                        onClick={handleBackupWithConfirmation}
+                                        style={`width: 100%;`}
+                                        variant="primary"
+                                />
+                                <StandardButton
+                                        label="Load Backup"
+                                        onClick={openFileDialog}
+                                        style={`width: 100%;`}
+                                        variant="primary"
+                                />
                             </div>
                         </div>
                     </div>
@@ -875,32 +873,29 @@
         <!-- Compact Action Buttons -->
         <div class="absolute bottom-4 right-4">
             <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
-                <button
-                        aria-label="Undo"
-                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                        onclick={handleUndo}
+                <StandardButton
+                        label="Undo"
+                        ariaLabel="Undo"
+                        onClick={handleUndo}
                         disabled={undoHistory.length === 0}
-                        type="button"
-                >
-                    Undo
-                </button>
-                <button
-                        aria-label="Discard Changes"
-                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 shadow-md shadow-sm"
-                        onclick={() => showDiscardConfirmDialog = true}
+                        variant="primary"
+                        bold={true}
+                />
+                <StandardButton
+                        label="Discard Changes"
+                        ariaLabel="Discard Changes"
+                        onClick={() => showDiscardConfirmDialog = true}
                         disabled={undoHistory.length === 0}
-                        type="button"
-                >
-                    Discard Changes
-                </button>
-                <button
-                        aria-label="Done"
-                        class="px-4 py-2 rounded-lg bg-purple-800 dark:bg-purple-950 border border-none text-zinc-100 font-semibold text-lg transition hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 focus:outline-none cursor-pointer shadow-md shadow-sm"
-                        onclick={() => goto('/')}
-                        type="button"
-                >
-                    Done
-                </button>
+                        variant="primary"
+                        bold={true}
+                />
+                <StandardButton
+                        label="Done"
+                        ariaLabel="Done"
+                        onClick={() => goto('/')}
+                        variant="primary"
+                        bold={true}
+                />
             </div>
         </div>
     </div>
@@ -931,12 +926,10 @@
             title="Reset All Menus?"
     />
     <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
-    <ConfirmationDialog
-            confirmText="OK"
+    <NotificationDialog
             isOpen={showBackupCreatedDialog}
             message="A backup of the current Config has been created."
-            onCancel={() => showBackupCreatedDialog = false}
-            onConfirm={() => showBackupCreatedDialog = false}
+            onClose={() => showBackupCreatedDialog = false}
             title="Backup Created"
     />
 </div>
