@@ -4,6 +4,7 @@ use crate::nats_config;
 use crate::nats_token;
 use crate::port_checker;
 use crate::shutdown;
+use crate::admin;
 use serde_json;
 use std::env;
 use std::io::{BufRead, BufReader};
@@ -44,6 +45,13 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
     // Put launcher start code in a separate thread
     thread::spawn(move || {
         log_info("Initializing Go backend launcher");
+
+        // Log admin status (informational only, no action taken)
+        if admin::is_running_as_admin() {
+            log_info("Application is running with administrator privileges");
+        } else {
+            log_info("Application is running without administrator privileges");
+        }
 
         // Determine if we're in debug/dev mode or production
         let is_debug = is_debug();
@@ -204,13 +212,8 @@ pub fn start_launcher_thread(app_handle: tauri::AppHandle) {
             log_info(&format!("NATS server port {} is available", nats_config.listen_port));
         }
 
-        // Update the NATS config file with the new ports if needed
-        if let Err(err) = nats_config::update_nats_config(&nats_conf_path, nats_config.websocket_port, nats_config.listen_port) {
-            log_warn(&format!("Failed to update NATS config file: {}", err));
-        } else {
-            log_info(&format!("Updated NATS config file with ports: WebSocket={}, Listen={}", 
-                nats_config.websocket_port, nats_config.listen_port));
-        }
+        log_info(&format!("Using ports: WebSocket={}, Listen={}", 
+            nats_config.websocket_port, nats_config.listen_port));
 
         // Set the NATS_SERVER_URL environment variable for the frontend
         let nats_server_url = format!("ws://{}:{}", nats_config.websocket_host, nats_config.websocket_port);

@@ -8,14 +8,16 @@ mod nats_config;
 mod nats_token;
 mod port_checker;
 mod shutdown;
-mod autostart;
+mod admin;
+mod task_scheduler;
 
 // Re-export items from modules for external use
 pub use env_utils::{get_private_env_var, set_env_var, get_app_data_dir};
 pub use file_fetch_utils::{get_icon_data_url, read_button_functions};
 pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend, get_log_level};
 pub use mouse::{get_mouse_pos, set_mouse_pos};
-pub use autostart::{enable_autostart, disable_autostart, is_autostart_enabled};
+pub use admin::{is_running_as_admin, restart_as_admin};
+pub use task_scheduler::{create_startup_task, remove_startup_task, is_startup_task_enabled, is_startup_task_admin};
 
 use env_logger::{self, Builder, Env};
 use std::env;
@@ -146,7 +148,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             println!("{}, {argv:?}, {cwd}", app.package_info().name);
         }))
@@ -162,9 +163,12 @@ pub fn run() {
             get_icon_data_url,
             get_log_level,
             get_app_data_dir,
-            enable_autostart,
-            disable_autostart,
-            is_autostart_enabled
+            is_running_as_admin,
+            restart_as_admin,
+            create_startup_task,
+            remove_startup_task,
+            is_startup_task_enabled,
+            is_startup_task_admin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

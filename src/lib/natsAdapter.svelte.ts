@@ -295,8 +295,39 @@ export async function subscribeToSubject(
 
 // --- Singleton JetStream Subscription Registry ---
 function sanitizeDurableName(name: string): string {
-    return name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return name.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
 }
+
+// Track if streams are ready
+let streamsReady = false;
+const streamReadyPromise = new Promise<void>((resolve) => {
+    // This will be resolved when streams are confirmed ready
+    const checkStreamsInterval = setInterval(async () => {
+        if (isNatsConnected() && natsConnection) {
+            try {
+                const jsm = await natsConnection.jetstreamManager();
+                const streamInfo = await jsm.streams.info(PUBLIC_NATS_STREAM);
+                if (streamInfo) {
+                    logger.info(`JetStream stream ${PUBLIC_NATS_STREAM} is ready`);
+                    streamsReady = true;
+                    clearInterval(checkStreamsInterval);
+                    resolve();
+                }
+            } catch (e) {
+                logger.debug(`Waiting for JetStream stream ${PUBLIC_NATS_STREAM} to be ready...`);
+            }
+        }
+    }, 500); // Check every 500ms
+    
+    // Clear interval after 30 seconds to prevent infinite checking
+    setTimeout(() => {
+        clearInterval(checkStreamsInterval);
+        if (!streamsReady) {
+            logger.warn(`Timed out waiting for JetStream stream ${PUBLIC_NATS_STREAM}`);
+            resolve(); // Resolve anyway to prevent hanging
+        }
+    }, 30000);
+});
 
 const jetStreamRegistry: Record<string, {
     latest: string | null,
@@ -327,23 +358,48 @@ export async function fetchLatestFromStream(
         };
         jetStreamRegistry[registryKey].ready = (async () => {
             if (!isNatsConnected() || !natsConnection) throw new Error("Not connected to NATS");
+            
+            // Wait for streams to be ready before attempting to create consumers
+            logger.debug(`Waiting for JetStream streams to be ready before creating consumer for ${subject}`);
+            await streamReadyPromise;
+            
             const js = natsConnection.jetstream();
             const jsm = await natsConnection.jetstreamManager();
             const stream = PUBLIC_NATS_STREAM;
             const consumerOpts: any = {
                 durable_name: safeDurable,
-                ack_policy: "explicit",
-                deliver_policy: "last",
+                ack_policy: AckPolicy.Explicit,
+                deliver_policy: DeliverPolicy.Last,
                 filter_subject: subject // Ensure only messages for this subject are delivered
             };
+            
+            // Retry consumer creation with exponential backoff
+            const maxRetries = 5;
+            let retryCount = 0;
             let consumerInfo;
-            try {
-                consumerInfo = await jsm.consumers.add(stream, consumerOpts);
-                logger.debug(`Created durable consumer: ${consumerInfo.name} on stream: ${stream}, subject: ${subject}`);
-            } catch (e) {
-                logger.error(`Failed to create consumer for stream: ${stream}, subject: ${subject}, durable: ${consumerOpts.durable_name}`, e);
-                throw e;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    consumerInfo = await jsm.consumers.add(stream, consumerOpts);
+                    logger.debug(`Created durable consumer: ${consumerInfo.name} on stream: ${stream}, subject: ${subject}`);
+                    break; // Success, exit the retry loop
+                } catch (e: any) {
+                    retryCount++;
+                    if (e.message?.includes('stream not found') && retryCount < maxRetries) {
+                        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff with 10s max
+                        logger.warn(`Stream not found for ${subject}, retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        logger.error(`Failed to create consumer for stream: ${stream}, subject: ${subject}, durable: ${consumerOpts.durable_name}`, e);
+                        throw e;
+                    }
+                }
             }
+            
+            if (!consumerInfo) {
+                throw new Error(`Failed to create consumer for ${subject} after ${maxRetries} attempts`);
+            }
+            
             let consumer;
             try {
                 consumer = await js.consumers.get(stream, consumerInfo.name);

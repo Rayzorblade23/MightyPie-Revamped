@@ -18,10 +18,14 @@
     import {
         disableAutoStart,
         enableAutoStart,
-        getSavedAutoStartPreference,
+        getSavedAdminRightsPreference,
+        getSavedAutoStartPreference, isRunningAsAdmin,
+        restartWithAdminRights,
+        syncAdminRightsPreference,
         syncAutoStartPreference
-    } from '$lib/autostartUtils';
+    } from "$lib/autostartUtils";
     import StandardButton from '$lib/components/StandardButton.svelte';
+    import ElevationDialog from '$lib/components/ui/ElevationDialog.svelte';
 
     // Create a logger for this component
     const logger = createLogger('Settings');
@@ -36,7 +40,13 @@
 
     // Autostart state (managed separately from settings)
     let autoStartEnabled = $state<boolean | null>(null);
-    let autoStartLoading = $state<boolean>(true);
+    let adminRightsEnabled = $state<boolean | null>(null);
+    let autoStartLoading = $state<boolean>(false);
+    let adminRightsLoading = $state<boolean>(false);
+
+    // State for elevation dialog
+    let showElevationDialog = $state<boolean>(false);
+    let pendingElevationAction = $state<(() => Promise<void>) | null>(null);
 
     // --- Undo/Discard State ---
     let undoHistory = $state<SettingsMap[]>([]);
@@ -94,24 +104,44 @@
                 logger.error("Failed to load buttonFunctions.json for deadzone options:", e);
             }
 
-            // Load autostart setting
-            try {
-                autoStartLoading = true;
-                // Get the actual system autostart status
-                autoStartEnabled = await syncAutoStartPreference();
-            } catch (error) {
-                logger.error('Failed to load autostart setting:', error);
-                // Fall back to saved preference or default to false
-                autoStartEnabled = getSavedAutoStartPreference() ?? false;
-            } finally {
-                autoStartLoading = false;
-            }
+            // Initialize settings
+            initSettings();
+
+            // Initialize autostart and admin rights state
+            initAutoStartState();
         })();
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
     });
+
+    // Initialize settings
+    function initSettings() {
+        // Load settings from storage
+        settings = cloneSettings(getSettings());
+    }
+
+    // Initialize autostart and admin rights state
+    async function initAutoStartState() {
+        try {
+            // First try to get saved preferences from local storage
+            const savedAutoStart = getSavedAutoStartPreference();
+            const savedAdminRights = getSavedAdminRightsPreference();
+
+            // Use saved preferences initially to avoid UI flicker
+            autoStartEnabled = savedAutoStart ?? false;
+            adminRightsEnabled = savedAdminRights ?? false;
+
+            // Then sync with actual system state
+            autoStartEnabled = await syncAutoStartPreference();
+            adminRightsEnabled = await syncAdminRightsPreference();
+        } catch (error) {
+            logger.error('Failed to initialize autostart state:', error);
+            autoStartEnabled = false;
+            adminRightsEnabled = false;
+        }
+    }
 
     function pushUndoState() {
         undoHistory = [...undoHistory, cloneSettings(settings)];
@@ -203,25 +233,116 @@
     }
 
     // Handle autostart toggle
-    async function handleAutoStartToggle(e: Event) {
-        const target = e.target as HTMLInputElement;
-        const newValue = target?.checked ?? false;
-
+    async function handleAutoStartToggle(e: MouseEvent) {
+        // Always prevent the default behavior first
+        e.preventDefault();
+        e.stopPropagation();
+        
         try {
-            autoStartLoading = true;
-            if (newValue) {
-                await enableAutoStart();
-            } else {
-                await disableAutoStart();
+            // Check if we're running as admin
+            const isAdmin = await isRunningAsAdmin();
+            
+            if (!isAdmin) {
+                // If not admin, show elevation dialog without changing toggle state
+                logger.info('Not running as admin, showing elevation dialog');
+                
+                // Set up the elevation action
+                pendingElevationAction = async () => {
+                    await restartWithAdminRights();
+                };
+                
+                // Show the dialog
+                showElevationDialog = true;
+                return;
             }
-            autoStartEnabled = newValue;
+            
+            // If we are admin, proceed with the toggle
+            try {
+                autoStartLoading = true;
+                
+                // Toggle the state
+                const newValue = !autoStartEnabled;
+                
+                if (newValue) {
+                    await enableAutoStart(adminRightsEnabled ?? false);
+                    autoStartEnabled = true;
+                } else {
+                    await disableAutoStart();
+                    autoStartEnabled = false;
+                }
+            } catch (error) {
+                logger.error(`Failed to toggle autostart:`, error);
+            } finally {
+                autoStartLoading = false;
+            }
         } catch (error) {
-            logger.error(`Failed to ${newValue ? 'enable' : 'disable'} autostart:`, error);
-            // Revert the UI state on error
-            autoStartEnabled = !newValue;
-        } finally {
-            autoStartLoading = false;
+            logger.error('Error in handleAutoStartToggle:', error);
         }
+    }
+
+    // Handle admin rights toggle
+    async function handleAdminRightsToggle(e: MouseEvent) {
+        // Always prevent the default behavior first
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+            // If autostart is not enabled, don't do anything
+            if (!autoStartEnabled) {
+                return;
+            }
+            
+            // Check if we're running as admin
+            const isAdmin = await isRunningAsAdmin();
+            
+            if (!isAdmin) {
+                // If not admin, show elevation dialog without changing toggle state
+                logger.info('Not running as admin, showing elevation dialog');
+                
+                // Set up the elevation action
+                pendingElevationAction = async () => {
+                    await restartWithAdminRights();
+                };
+                
+                // Show the dialog
+                showElevationDialog = true;
+                return;
+            }
+            
+            // If we are admin, proceed with the toggle
+            try {
+                adminRightsLoading = true;
+                
+                // Toggle the state
+                const newValue = !adminRightsEnabled;
+                
+                // If autostart is enabled, update the task with new admin rights setting
+                await enableAutoStart(newValue);
+                adminRightsEnabled = newValue;
+            } catch (error) {
+                logger.error(`Failed to toggle admin rights:`, error);
+            } finally {
+                adminRightsLoading = false;
+            }
+        } catch (error) {
+            logger.error('Error in handleAdminRightsToggle:', error);
+        }
+    }
+
+    // Handle elevation dialog confirm
+    function handleElevationConfirm() {
+        if (pendingElevationAction) {
+            pendingElevationAction().catch(error => {
+                logger.error('Failed to restart with admin rights:', error);
+            });
+        }
+    }
+
+    // Handle elevation dialog cancel
+    function handleElevationCancel() {
+        // Just close the dialog and do nothing else
+        showElevationDialog = false;
+        pendingElevationAction = null;
     }
 
     onDestroy(() => {
@@ -253,22 +374,52 @@
                             <input
                                     type="checkbox"
                                     id="autoStartWithSystem"
-                                    checked={autoStartEnabled ?? false}
+                                    checked={autoStartEnabled}
                                     disabled={autoStartLoading}
                                     class="sr-only"
-                                    onchange={handleAutoStartToggle}
+                                    onclick={handleAutoStartToggle}
                             />
                             <span
                                     class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
-                                    style="opacity: {autoStartLoading ? '0.7' : '1'};"
                             >
                                 <span
-                                        class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
+                                        class="block w-4 h-4 mt-1 ml-1 rounded-full transition-transform duration-200 absolute"
                                         class:bg-amber-400={autoStartEnabled}
                                         class:bg-zinc-500={!autoStartEnabled}
                                         class:dark:bg-amber-400={autoStartEnabled}
                                         class:dark:bg-zinc-200={!autoStartEnabled}
                                         style="transform: translateX({autoStartEnabled ? '1.0rem' : '0'});"
+                                ></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Admin Rights Setting (managed separately) -->
+                <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
+                    <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
+                           for="adminRightsWithSystem">Start with admin rights</label>
+                    <div class="flex-1 flex items-center gap-2 min-w-0">
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            <input
+                                    type="checkbox"
+                                    id="adminRightsWithSystem"
+                                    checked={adminRightsEnabled}
+                                    disabled={adminRightsLoading || !autoStartEnabled}
+                                    class="sr-only"
+                                    onclick={handleAdminRightsToggle}
+                            />
+                            <span
+                                    class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
+                                    class:opacity-50={!autoStartEnabled}
+                            >
+                                <span
+                                        class="block w-4 h-4 mt-1 ml-1 rounded-full transition-transform duration-200 absolute"
+                                        class:bg-amber-400={adminRightsEnabled && autoStartEnabled}
+                                        class:bg-zinc-500={!adminRightsEnabled || !autoStartEnabled}
+                                        class:dark:bg-amber-400={adminRightsEnabled && autoStartEnabled}
+                                        class:dark:bg-zinc-200={!adminRightsEnabled || !autoStartEnabled}
+                                        style="transform: translateX({adminRightsEnabled && autoStartEnabled ? '1.0rem' : '0'});"
                                 ></span>
                             </span>
                         </label>
@@ -401,27 +552,27 @@
     <div class="flex-shrink-0 w-full px-2 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 border-t border-none rounded-b-2xl">
         <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
             <StandardButton
-                    label="Undo"
                     ariaLabel="Undo"
+                    bold={true}
+                    disabled={undoHistory.length === 0}
+                    label="Undo"
                     onClick={handleUndo}
-                    disabled={undoHistory.length === 0}
                     variant="primary"
-                    bold={true}
             />
             <StandardButton
-                    label="Discard Changes"
                     ariaLabel="Discard Changes"
-                    onClick={() => showDiscardConfirmDialog = true}
-                    disabled={undoHistory.length === 0}
-                    variant="primary"
                     bold={true}
+                    disabled={undoHistory.length === 0}
+                    label="Discard Changes"
+                    onClick={() => showDiscardConfirmDialog = true}
+                    variant="primary"
             />
             <StandardButton
-                    label="Done"
                     ariaLabel="Done"
+                    bold={true}
+                    label="Done"
                     onClick={() => goto('/')}
                     variant="primary"
-                    bold={true}
             />
         </div>
     </div>
@@ -436,4 +587,12 @@
         onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
         onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
         title="Unsaved Changes"
+/>
+
+<!-- Elevation Dialog -->
+<ElevationDialog
+        isOpen={showElevationDialog}
+        message="This operation requires administrator privileges to modify the Windows Task Scheduler. Do you want to restart the application with elevated privileges?"
+        onCancel={handleElevationCancel}
+        onConfirm={handleElevationConfirm}
 />

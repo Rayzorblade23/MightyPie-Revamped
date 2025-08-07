@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -189,21 +190,71 @@ func startNatsServer(log *logger.Logger) error {
 		return fmt.Errorf("failed to parse NATS config: %w", err)
 	}
 	log.Debug("[NATS] NATS config parsed successfully.")
-	log.Info("[NATS] Embedded NATS server will listen on: nats://%s:%d", opts.Host, opts.Port)
-
-	// Set auth token from env if present
-	natsToken := os.Getenv("NATS_AUTH_TOKEN")
-	if natsToken != "" {
-		opts.Authorization = natsToken
-	}
-
+	
+	// Always use environment variables for critical connection settings
+	// This ensures frontend and backend are using the same values
 	natsPort := os.Getenv("NATS_PORT")
-	if natsPort != "" {
-		if port, err := strconv.Atoi(natsPort); err == nil {
-			opts.Port = port
-		}
+	if natsPort == "" {
+		log.Fatal("[NATS] NATS_PORT environment variable not set - cannot continue")
+		return fmt.Errorf("NATS_PORT environment variable not set")
 	}
+	
+	port, err := strconv.Atoi(natsPort)
+	if err != nil {
+		log.Fatal("[NATS] Invalid NATS_PORT value: %s - cannot continue", natsPort)
+		return fmt.Errorf("invalid NATS_PORT value: %s", natsPort)
+	}
+	
+	// Override the port from config with environment variable
+	opts.Port = port
+	
+	// Parse NATS_SERVER_URL to get WebSocket port
+	natsServerURL := os.Getenv("NATS_SERVER_URL")
+	if natsServerURL == "" {
+		log.Fatal("[NATS] NATS_SERVER_URL environment variable not set - cannot continue")
+		return fmt.Errorf("NATS_SERVER_URL environment variable not set")
+	}
+	
+	parsedURL, err := url.Parse(natsServerURL)
+	if err != nil {
+		log.Fatal("[NATS] Failed to parse NATS_SERVER_URL: %v - cannot continue", err)
+		return fmt.Errorf("failed to parse NATS_SERVER_URL: %w", err)
+	}
+	
+	// Extract port from URL
+	hostPort := parsedURL.Host
+	_, portStr, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		log.Fatal("[NATS] Failed to extract host:port from NATS_SERVER_URL: %v - cannot continue", err)
+		return fmt.Errorf("failed to extract host:port from NATS_SERVER_URL: %w", err)
+	}
+	
+	wsPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatal("[NATS] Failed to parse WebSocket port from NATS_SERVER_URL: %v - cannot continue", err)
+		return fmt.Errorf("failed to parse WebSocket port from NATS_SERVER_URL: %w", err)
+	}
+	
+	// Configure WebSocket options
+	wsOpts := server.WebsocketOpts{
+		Host:  "127.0.0.1",
+		Port:  wsPort,
+		NoTLS: true,
+	}
+	opts.Websocket = wsOpts
+	log.Info("[NATS] WebSocket will listen on port %d from NATS_SERVER_URL", wsPort)
+	
+	// Set auth token from env
+	natsToken := os.Getenv("NATS_AUTH_TOKEN")
+	if natsToken == "" {
+		log.Fatal("[NATS] NATS_AUTH_TOKEN environment variable not set - cannot continue")
+		return fmt.Errorf("NATS_AUTH_TOKEN environment variable not set")
+	}
+	opts.Authorization = natsToken
 
+	log.Info("[NATS] Embedded NATS server will listen on: nats://%s:%d", opts.Host, opts.Port)
+	log.Info("[NATS] WebSocket will listen on: ws://%s:%d", opts.Websocket.Host, opts.Websocket.Port)
+	
 	log.Debug("[NATS] Starting embedded NATS server on port %d...", opts.Port)
 	natsServer = server.New(opts)
 	if natsServer == nil {
@@ -303,18 +354,31 @@ func runWorker(workerType string) {
 	log := logger.New(workerTitle)
 	logger.ReplaceStdLog(workerTitle)
 
+	// Get NATS port from environment variable
+	natsPort := os.Getenv("NATS_PORT")
+	natsHost := "127.0.0.1"
+	natsAddress := fmt.Sprintf("%s:%s", natsHost, natsPort)
+
 	// Wait for NATS server to be ready before connecting
-	// Use a shorter timeout and less verbose logging
-	for i := range 5 { // Try for up to 5 seconds
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:4222", 500*time.Millisecond)
+	// Use a longer timeout and more verbose logging
+	maxAttempts := 20 // Increased from 5 to 20 attempts
+	attemptDelay := 500 * time.Millisecond
+	connectionTimeout := 500 * time.Millisecond
+	
+	log.Debug("Waiting for NATS server to be ready at %s (max %d attempts)...", natsAddress, maxAttempts)
+	
+	for i := 0; i < maxAttempts; i++ {
+		conn, err := net.DialTimeout("tcp", natsAddress, connectionTimeout)
 		if err == nil {
 			conn.Close()
+			log.Debug("NATS server is ready after %d attempts", i+1)
 			break
 		}
-		if i == 4 {
-			log.Fatal("NATS server did not start in time")
+		if i == maxAttempts-1 {
+			log.Fatal("NATS server did not start in time after %d attempts", maxAttempts)
 		}
-		time.Sleep(500 * time.Millisecond)
+		log.Debug("NATS server not ready yet, attempt %d of %d. Waiting %v...", i+1, maxAttempts, attemptDelay)
+		time.Sleep(attemptDelay)
 	}
 
 	// Create a NATS adapter for the worker

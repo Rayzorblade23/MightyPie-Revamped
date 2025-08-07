@@ -104,26 +104,3 @@ fn parse_host_port(addr: &str) -> Option<(String, String)> {
         None
     }
 }
-
-/// Update a NATS configuration file with new port values
-pub fn update_nats_config<P: AsRef<Path>>(path: P, websocket_port: u16, listen_port: u16) -> io::Result<()> {
-    let config_content = std::fs::read_to_string(&path)?;
-    
-    // Replace the websocket port
-    let websocket_port_regex = regex::Regex::new(r"websocket\s*\{[^}]*port\s*:\s*(\d+)").unwrap();
-    let updated_content = websocket_port_regex.replace(&config_content, |caps: &regex::Captures| {
-        let original = caps.get(0).unwrap().as_str();
-        let port_part = caps.get(1).unwrap().as_str();
-        original.replace(port_part, &websocket_port.to_string())
-    });
-    
-    // Replace the listen port
-    let listen_regex = regex::Regex::new(r"listen\s*:\s*([^:]+):(\d+)").unwrap();
-    let final_content = listen_regex.replace(&updated_content, |caps: &regex::Captures| {
-        let host = caps.get(1).unwrap().as_str();
-        format!("listen: {}:{}", host, listen_port)
-    });
-    
-    std::fs::write(path, final_content.as_ref())?;
-    Ok(())
-}
