@@ -86,7 +86,6 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		log.Info("INFO: Config written and reloaded from disk.")
 		// PrintConfig(buttonConfig, false)
 
-		a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", loadedConfig)
 		a.natsAdapter.PublishMessage(windowUpdateSubject, "ButtonManager", windowsList)
 	})
 

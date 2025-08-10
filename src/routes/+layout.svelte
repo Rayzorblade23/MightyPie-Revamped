@@ -45,11 +45,20 @@
     const logger = createLogger('Layout');
 
     let validationHasRun = false;
+
+    // Track if we have apps info available for validation
+    let hasAppsInfo = $state(false);
+
     $effect(() => {
         const baseMenuConfiguration = getBaseMenuConfiguration();
         const apps = getInstalledAppsInfo();
-        
-        if (!validationHasRun && baseMenuConfiguration.size > 0 && apps.size > 0) {
+
+        // Update apps info tracking
+        hasAppsInfo = apps.size > 0;
+
+        // Run validation whenever we have both menu config and apps info
+        if (!validationHasRun && baseMenuConfiguration.size > 0 && hasAppsInfo) {
+            logger.debug("Running initial config validation...");
             validateAndSyncConfig();
             validationHasRun = true;
         }
@@ -83,6 +92,12 @@
                 const newParsedConfig = parseButtonConfig(configData);
                 logger.debug('[handleBaseConfigUpdateMessage] Parsed MenuConfiguration:', newParsedConfig);
                 updateBaseMenuConfiguration(newParsedConfig);
+
+                // Run validation immediately if we have apps info
+                if (hasAppsInfo && newParsedConfig.size > 0) {
+                    logger.debug("Running config validation after receiving new base config");
+                    validateAndSyncConfig();
+                }
             },
             '+layout.svelte: Base Config Update'
         );
