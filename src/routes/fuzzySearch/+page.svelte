@@ -169,9 +169,9 @@
                     >
                         <span class="font-semibold dark:text-white">{button.properties.button_text_upper}</span>
                         {#if button.properties.button_text_lower}
-                            <span class="text-xs text-zinc-600 mt-0.5">{button.properties.button_text_lower}</span>
+                            <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{button.properties.button_text_lower}</span>
                         {/if}
-                        <span class="text-xs text-zinc-600">Menu {menuId + 1} / Page {pageId + 1}
+                        <span class="text-xs text-zinc-600 dark:text-zinc-400">Menu {menuId + 1} / Page {pageId + 1}
                             / Slot {buttonId + 1}</span>
                     </div>
                 {/each}
