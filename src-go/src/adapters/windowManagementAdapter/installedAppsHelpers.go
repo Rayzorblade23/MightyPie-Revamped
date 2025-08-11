@@ -15,7 +15,7 @@ import (
 func prepareCombinedAppList(
 	exeApps []AppEntry,
 	startMenuApps []AppEntry,
-	seenExeTargets map[string]bool, // This map is now modified by addSystemApps
+	seenExeTargets map[string]ShortcutInfo, // This map is now modified by addSystemApps
 ) []AppEntry {
 	// Estimate capacity. Consider that systemApps might add a few more.
 	estimatedCapacity := len(exeApps) + len(startMenuApps) + len(systemApps) // Using global systemApps map for count
@@ -30,9 +30,9 @@ func prepareCombinedAppList(
 	// Add Start Menu apps, avoiding duplicates already found (either as EXE targets or added system apps).
 	for _, smApp := range startMenuApps {
 		lowerIdentifier := strings.ToLower(smApp.Path)
-		if !seenExeTargets[lowerIdentifier] {
+		if _, exists := seenExeTargets[lowerIdentifier]; !exists {
 			combined = append(combined, smApp)
-			seenExeTargets[lowerIdentifier] = true
+			seenExeTargets[lowerIdentifier] = ShortcutInfo{HasArguments: false, AppIndex: len(combined) - 1}
 		}
 	}
 	return combined

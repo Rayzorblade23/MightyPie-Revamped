@@ -148,7 +148,7 @@ func getStartMenuDirs() []string {
 // addSystemApps adds hardcoded system executables to the apps list
 // if they exist on disk and their paths haven't been seen yet.
 // It updates seenExeTargets for any apps it adds.
-func addSystemApps(apps []AppEntry, seenExeTargets map[string]bool) []AppEntry {
+func addSystemApps(apps []AppEntry, seenExeTargets map[string]ShortcutInfo) []AppEntry {
 	systemPaths := map[string]string{ // Base exe name -> Full Path
 		"explorer.exe": `C:\Windows\explorer.exe`,
 		"taskmgr.exe":  `C:\Windows\System32\taskmgr.exe`,
@@ -179,7 +179,7 @@ func addSystemApps(apps []AppEntry, seenExeTargets map[string]bool) []AppEntry {
 				// URI will be empty for these traditional executables
 			})
 			// Mark this path as seen so it won't be added again by later stages (e.g., Start Menu scan)
-			seenExeTargets[lowerFullPath] = true
+			seenExeTargets[lowerFullPath] = ShortcutInfo{HasArguments: false, AppIndex: len(apps) - 1}
 		}
 	}
 	return apps
@@ -258,7 +258,7 @@ func selectPrimaryExecutable(appName string, exePaths []string) string {
 
 // processLnkEntry resolves, validates, and filters a single LNK file entry.
 // It ensures the final path is absolute before checking existence and storing.
-func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]bool) *AppEntry {
+func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]ShortcutInfo) *AppEntry {
 	linkName := strings.TrimSuffix(info.Name(), filepath.Ext(info.Name()))
 	resolvedPathFromLnk, err := resolveLnkTarget(linkPath)
 	if err != nil || resolvedPathFromLnk == "" {
@@ -275,9 +275,28 @@ func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]b
 	// Use the final absolute path for all subsequent checks and storage
 	lowerAbsPath := strings.ToLower(absPath)
 
-	if seenTargets[lowerAbsPath] {
-		return nil
-	} // Duplicate target path check
+	// Check if this shortcut has arguments
+	linkFile, err := lnk.File(linkPath)
+	hasArgs := err == nil && linkFile.StringData.CommandLineArguments != ""
+	
+	// Check if we've already seen this target path
+	if info, exists := seenTargets[lowerAbsPath]; exists {
+		// If current shortcut has arguments, skip it (keep the existing one)
+		if hasArgs {
+			return nil
+		}
+		
+		// If this shortcut doesn't have arguments and previous had arguments, replace it
+		if info.HasArguments {
+			log.Debug("Using shortcut without arguments '%s' instead of previous one with arguments (index: %d)", linkName, info.AppIndex)
+			// Return this entry to replace the previous one with arguments
+			// The index will be used in getExeApps to remove the old entry
+			return &AppEntry{Name: linkName, Path: absPath, ReplaceIndex: info.AppIndex}
+		} else {
+			// Both shortcuts don't have arguments, keep the first one
+			return nil
+		}
+	}
 	if isUnwantedEntry(linkName, absPath) {
 		linkFile, err := lnk.File(linkPath)
 		if err == nil && linkFile.StringData.CommandLineArguments != "" {
@@ -287,9 +306,9 @@ func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]b
 				resolvedExe := resolveExePath(filepath.Dir(absPath), exeName)
 				if resolvedExe != "" {
 					lowerResolvedExe := strings.ToLower(resolvedExe)
-					if !seenTargets[lowerResolvedExe] {
-						seenTargets[lowerResolvedExe] = true
-						return &AppEntry{Name: linkName, Path: resolvedExe, ResolvedFromArguments: true}
+					if _, exists := seenTargets[lowerResolvedExe]; !exists {
+						seenTargets[lowerResolvedExe] = ShortcutInfo{HasArguments: true, AppIndex: -1}
+						return &AppEntry{Name: linkName, Path: resolvedExe, ResolvedFromArguments: true, ReplaceIndex: -1}
 					}
 				}
 			}
@@ -308,24 +327,44 @@ func processLnkEntry(linkPath string, info os.FileInfo, seenTargets map[string]b
 		return nil
 	}
 
-	// Mark seen and return valid entry using the final absolute path
-	seenTargets[lowerAbsPath] = true
+	// Store whether this shortcut has arguments in the seenTargets map
+	seenTargets[lowerAbsPath] = ShortcutInfo{HasArguments: false, AppIndex: -1} // Default to no arguments
+	
+	// Check if this shortcut has arguments and update the map if it does
+	argLinkFile, argErr := lnk.File(linkPath)
+	if argErr == nil && argLinkFile.StringData.CommandLineArguments != "" {
+		seenTargets[lowerAbsPath] = ShortcutInfo{HasArguments: true, AppIndex: -1}
+	}
+	
+	// Return valid entry using the final absolute path
 	return &AppEntry{Name: linkName, Path: absPath} // Store the absolute path
+}
+
+// ShortcutInfo tracks information about a shortcut for better deduplication
+type ShortcutInfo struct {
+	HasArguments bool
+	AppIndex     int  // Index in the apps slice, -1 if not added yet
 }
 
 // getExeApps finds applications by scanning .lnk files in standard Start Menu directories.
 // It resolves LNK targets, filters unwanted entries, verifies target existence, and deduplicates.
 // Returns:
 // - []AppEntry: List of valid applications found via LNK files.
-// - map[string]bool: Set of lowercase absolute target paths seen (for deduplication).
+// - map[string]ShortcutInfo: Map of lowercase absolute target paths to shortcut info (for deduplication).
 // - map[string]string: Map from lowercase absolute target path to the original LNK file path.
-func getExeApps() ([]AppEntry, map[string]bool, map[string]string) {
-	var apps []AppEntry
-	seenTargets := make(map[string]bool)
-	// Map from lowercase absolute target path -> original LNK file path
-	lnkFilePaths := make(map[string]string)
+func getExeApps() ([]AppEntry, map[string]ShortcutInfo, map[string]string) {
+	// First pass: collect all valid shortcuts
+	type ShortcutData struct {
+		Entry    AppEntry
+		LnkPath  string
+		HasArgs  bool
+	}
+	
+	// Map from lowercase target path to all shortcuts targeting that path
+	allShortcuts := make(map[string][]ShortcutData)
 	dirs := getStartMenuDirs()
 
+	// First pass: collect all shortcuts without any filtering by arguments
 	for _, dir := range dirs {
 		_ = filepath.Walk(dir, func(linkPath string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
@@ -339,15 +378,120 @@ func getExeApps() ([]AppEntry, map[string]bool, map[string]string) {
 				return nil // Not a LNK file
 			}
 
-			// Process the LNK file using the helper
-			if appEntry := processLnkEntry(linkPath, info, seenTargets); appEntry != nil {
-				apps = append(apps, *appEntry)
-				// Store the mapping from the resolved absolute path back to the LNK file
-				lnkFilePaths[strings.ToLower(appEntry.Path)] = linkPath
+			// Get target path and check if it's valid
+			absPath, err := resolveLnkTarget(linkPath)
+			if err != nil || absPath == "" {
+				return nil // Invalid or empty target
 			}
+
+			// Get shortcut name (filename without extension)
+			linkName := strings.TrimSuffix(filepath.Base(linkPath), filepath.Ext(linkPath))
+
+			// Filter unwanted entries
+			if isUnwantedEntry(linkName, absPath) {
+				// Check if this unwanted entry has arguments that point to a valid exe
+				linkFile, err := lnk.File(linkPath)
+				if err == nil && linkFile.StringData.CommandLineArguments != "" {
+					args := linkFile.StringData.CommandLineArguments
+					exeName := extractExeFromArgs(args)
+					if exeName != "" {
+						resolvedExe := resolveExePath(filepath.Dir(absPath), exeName)
+						if resolvedExe != "" {
+							// Found a valid exe in the arguments
+							lowerResolvedExe := strings.ToLower(resolvedExe)
+							allShortcuts[lowerResolvedExe] = append(allShortcuts[lowerResolvedExe], ShortcutData{
+								Entry:    AppEntry{Name: linkName, Path: resolvedExe, ResolvedFromArguments: true},
+								LnkPath:  linkPath,
+								HasArgs:  true,
+							})
+						}
+					}
+				}
+				return nil
+			}
+
+			// Extension check
+			targetExt := strings.ToLower(filepath.Ext(absPath))
+			if targetExt != ".exe" && targetExt != ".bat" && targetExt != ".com" {
+				return nil
+			}
+
+			// Final check for existence and type using the absolute path
+			statInfo, err := os.Stat(absPath)
+			if err != nil || statInfo.IsDir() {
+				return nil
+			}
+
+			// Check if this shortcut has arguments
+			hasArgs := false
+			argLinkFile, argErr := lnk.File(linkPath)
+			if argErr == nil && argLinkFile.StringData.CommandLineArguments != "" {
+				hasArgs = true
+			}
+
+			// Store this shortcut in our collection
+			lowerAbsPath := strings.ToLower(absPath)
+			allShortcuts[lowerAbsPath] = append(allShortcuts[lowerAbsPath], ShortcutData{
+				Entry:    AppEntry{Name: linkName, Path: absPath},
+				LnkPath:  linkPath,
+				HasArgs:  hasArgs,
+			})
+
 			return nil
 		})
 	}
+
+	// Second pass: select the best shortcut for each target path
+	var apps []AppEntry
+	seenTargets := make(map[string]ShortcutInfo)
+	lnkFilePaths := make(map[string]string)
+
+	// Process all collected shortcuts
+	for targetPath, shortcuts := range allShortcuts {
+		// Check if we have any shortcuts without arguments
+		hasNoArgShortcut := false
+		bestShortcutIndex := 0
+
+		// First, look for shortcuts without arguments
+		for i, sc := range shortcuts {
+			if !sc.HasArgs {
+				hasNoArgShortcut = true
+				bestShortcutIndex = i
+				break
+			}
+		}
+
+		// If we found a shortcut without arguments, log any discarded shortcuts with arguments
+		if hasNoArgShortcut {
+			bestShortcut := shortcuts[bestShortcutIndex]
+			
+			// Log discarded shortcuts with arguments
+			for _, sc := range shortcuts {
+				if sc.HasArgs {
+					log.Debug("Discarding shortcut with arguments: '%s' (from '%s') in favor of: '%s' (from '%s')", 
+						sc.Entry.Name, sc.LnkPath, bestShortcut.Entry.Name, bestShortcut.LnkPath)
+				}
+			}
+
+			// Add the best shortcut to our final list
+			apps = append(apps, bestShortcut.Entry)
+			appIndex := len(apps) - 1
+			
+			// Update maps
+			lnkFilePaths[targetPath] = bestShortcut.LnkPath
+			seenTargets[targetPath] = ShortcutInfo{HasArguments: false, AppIndex: appIndex}
+		} else if len(shortcuts) > 0 {
+			// If all shortcuts have arguments, just use the first one
+			bestShortcut := shortcuts[0]
+			apps = append(apps, bestShortcut.Entry)
+			appIndex := len(apps) - 1
+			
+			// Update maps
+			lnkFilePaths[targetPath] = bestShortcut.LnkPath
+			seenTargets[targetPath] = ShortcutInfo{HasArguments: true, AppIndex: appIndex}
+		}
+	}
+
 	// Return all three results
 	return apps, seenTargets, lnkFilePaths
 }
