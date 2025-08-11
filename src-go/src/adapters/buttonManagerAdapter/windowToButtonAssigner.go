@@ -1,12 +1,11 @@
 package buttonManagerAdapter
 
-
-
 import (
 	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
@@ -132,6 +131,7 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 	processedButtons map[string]bool,
 	fullUpdatedConfig ConfigData,
 ) {
+
 	if len(availableWindows) == 0 {
 		return
 	}
@@ -175,20 +175,64 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 				if props.WindowHandle == InvalidHandle {
 					foundHandle := -1
 					var foundWinInfo core.WindowInfo
+					isEdgeButton := strings.Contains(strings.ToLower(props.ButtonTextLower), "edge")
+					if isEdgeButton {
+						log.Info("[DEBUG] ShowProgramWindow button '%s' (text: '%s') looking for window", buttonKey, props.ButtonTextLower)
+					}
 					for handle, winInfo := range availableWindows {
 						if windowsConsumed[handle] {
 							continue
 						}
 						isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
 						if isEdge {
-							// Try matching by window title
-							if winInfo.Title == props.ButtonTextLower {
-								foundHandle = handle
-								foundWinInfo = winInfo
-								break
+							log.Info("[DEBUG] Found Edge window - Handle: %X, Title: '%s', AppName: '%s'",
+								handle, winInfo.Title, winInfo.AppName)
+							if isEdge {
+								// Try matching by window title using multiple strategies
+
+								// Strategy 1: Exact title match
+								if winInfo.Title == props.ButtonTextLower {
+									log.Info("[DEBUG] MATCH: Edge window title '%s' exactly matches button text '%s'",
+										winInfo.Title, props.ButtonTextLower)
+									foundHandle = handle
+									foundWinInfo = winInfo
+									break
+								}
+
+								// Strategy 2: Button text is contained in window title
+								if strings.Contains(winInfo.Title, props.ButtonTextLower) {
+									log.Info("[DEBUG] MATCH: Edge window title '%s' contains button text '%s'",
+										winInfo.Title, props.ButtonTextLower)
+									foundHandle = handle
+									foundWinInfo = winInfo
+									break
+								}
+
+								// Strategy 3: Title prefix match (before first ' - ')
+								titleParts := strings.Split(winInfo.Title, " - ")
+								if len(titleParts) > 0 && titleParts[0] == props.ButtonTextLower {
+									log.Info("[DEBUG] MATCH: Edge window title prefix '%s' matches button text '%s'",
+										titleParts[0], props.ButtonTextLower)
+									foundHandle = handle
+									foundWinInfo = winInfo
+									break
+								}
+
+								log.Info("[DEBUG] NO MATCH: Edge window title '%s' does not match button text '%s' using any strategy",
+									winInfo.Title, props.ButtonTextLower)
+							} else {
+								if winInfo.AppName == props.ButtonTextLower {
+									log.Info("[DEBUG] MATCH: Window AppName '%s' matches button text '%s'",
+										winInfo.AppName, props.ButtonTextLower)
+									foundHandle = handle
+									foundWinInfo = winInfo
+									break
+								} else if isEdgeButton {
+									log.Info("[DEBUG] NO MATCH: Window AppName '%s' does not match button text '%s'",
+										winInfo.AppName, props.ButtonTextLower)
+								}
 							}
 						} else {
-							// Default: match by AppName
 							if winInfo.AppName == props.ButtonTextLower {
 								foundHandle = handle
 								foundWinInfo = winInfo
@@ -358,8 +402,9 @@ func updateButtonWithWindowInfo(button *Button, winInfo core.WindowInfo, newHand
 
 		isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
 		if isEdge {
-			props.ButtonTextUpper = ""
-			props.ButtonTextLower = winInfo.Title
+			// For Edge windows, set ButtonTextUpper to window title but keep ButtonTextLower unchanged
+			props.ButtonTextUpper = winInfo.Title
+			// ButtonTextLower remains unchanged (keeps the original button text)
 		} else {
 			props.ButtonTextUpper = winInfo.Title
 			props.ButtonTextLower = winInfo.AppName
