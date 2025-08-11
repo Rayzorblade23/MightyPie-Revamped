@@ -66,9 +66,28 @@
 
     let {children} = $props();
     let connectionStatus = $state('Idle');
+    let minDisplayTimeMs = 3000; // 3 seconds display time for success screen
+    let showSuccessScreen = $state(false);
 
     $effect(() => {
-        connectionStatus = getConnectionStatus();
+        const actualStatus = getConnectionStatus();
+
+        // Handle connection status changes
+        if (actualStatus === 'connected' && connectionStatus !== 'connected') {
+            // When connection is successful, show the success screen
+            connectionStatus = 'connected';
+            showSuccessScreen = true;
+
+            // After 3 seconds, hide the success screen
+            setTimeout(() => {
+                showSuccessScreen = false;
+            }, minDisplayTimeMs);
+        } else if (actualStatus !== 'connected') {
+            // For non-connected states, update immediately
+            connectionStatus = actualStatus;
+            showSuccessScreen = false;
+        }
+
         logger.debug("NATS connection status:", connectionStatus);
     });
 
@@ -292,12 +311,31 @@
     }
 </script>
 
-{#if connectionStatus === "connected"}
-    {@render children()}
-{:else if connectionStatus === 'error'}
+{#if showSuccessScreen}
     <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
-        <div class="flex flex-col items-center space-y-9">
+        <div class="flex flex-col items-center space-y-13">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
+
+            <div class="flex items-center">
+                <div class="flex items-center justify-center mr-3">
+                    <div class="relative h-4 w-4">
+                        <div class="absolute inset-0 rounded-full bg-green-600 opacity-75 animate-ping"></div>
+                        <div class="relative rounded-full h-4 w-4 bg-green-500"></div>
+                    </div>
+                </div>
+                <p class="text-zinc-900 dark:text-white">Startup successful!</p>
+            </div>
+        </div>
+    </div>
+{:else if connectionStatus === "connected"}
+    {@render children()}
+{:else if connectionStatus === "error"}
+    <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+        <div class="flex flex-col items-center space-y-5">
+            <h1 class="text-2xl mb-4 font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
+            <div class="mb-4 text-zinc-700 dark:text-zinc-400">
+                <p>(╯°□°）╯︵ ┻━┻</p>
+            </div>
             <div class="bg-red-800 p-4 rounded-lg max-w-md text-center text-white">
                 <p class="mb-2">Error: Could not connect to the backend service.</p>
                 <p>Please try restarting the application.</p>
@@ -305,7 +343,7 @@
             <button class="w-auto px-4 py-2  bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
                     onclick={handleExit}
             >
-                No, thank you.
+                Exit
             </button>
         </div>
     </div>
@@ -330,5 +368,4 @@
             </button>
         </div>
     </div>
-
 {/if}
