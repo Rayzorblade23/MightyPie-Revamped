@@ -369,7 +369,7 @@ export async function fetchLatestFromStream(
             const consumerOpts: any = {
                 durable_name: safeDurable,
                 ack_policy: AckPolicy.Explicit,
-                deliver_policy: DeliverPolicy.Last,
+                deliver_policy: DeliverPolicy.LastPerSubject,
                 filter_subject: subject // Ensure only messages for this subject are delivered
             };
             
@@ -398,6 +398,34 @@ export async function fetchLatestFromStream(
             
             if (!consumerInfo) {
                 throw new Error(`Failed to create consumer for ${subject} after ${maxRetries} attempts`);
+            }
+            
+            // Explicitly fetch the latest message from the stream for this subject
+            try {
+                logger.debug(`Explicitly fetching latest message for subject: ${subject}`);
+                
+                // Try to get the last message directly from the stream using the JetStreamManager
+                const streamInfo = await jsm.streams.info(stream);
+                if (streamInfo) {
+                    // Use direct message retrieval from the stream
+                    try {
+                        const lastMsg = await jsm.streams.getMessage(stream, {
+                            last_by_subj: subject
+                        });
+                        
+                        if (lastMsg) {
+                            const decoded = sc.decode(lastMsg.data);
+                            jetStreamRegistry[registryKey].latest = decoded;
+                            logger.debug(`Fetched latest message for subject: ${subject}`);
+                        } else {
+                            logger.debug(`No message found for subject: ${subject}`);
+                        }
+                    } catch (e) {
+                        logger.warn(`Failed to get last message for subject: ${subject}`, e);
+                    }
+                }
+            } catch (e) {
+                logger.error(`Error fetching latest message for subject: ${subject}`, e);
             }
             
             let consumer;
