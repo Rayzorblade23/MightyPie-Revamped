@@ -292,6 +292,11 @@ func getWindowInfo(hwnd win.HWND) (WindowMapping, string) {
 				}
 			}
 		}
+		// Check if this is ApplicationFrameHost.exe or any executable in System32 directory
+		if strings.Contains(strings.ToLower(exePathFromProcess), "\\system32\\") {
+			identifiedAppName = "Windows System"
+		}
+
 		// Only log once per exePath per session
 		if !seenUnknownApps[exePathFromProcess] {
 			log.Info("Running process")
