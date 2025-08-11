@@ -33,7 +33,7 @@ var (
 	unwantedKeywords = []string{
 		"uninstall", "uninst", "remove", "setup", "install", "update", "updater", "patch",
 		"crash", "debug", "wizard", "bootstrapper", "vcredist", "redist", "dotnet", "report",
-		"readme", "eula", "license",		
+		"readme", "eula", "license", "windows performance toolkit", "app certification kit",
 	}
 	nonExecExtensions = []string{
 		".txt", ".pdf", ".html", ".htm", ".url", ".lnk", ".log", ".ini", ".xml", ".chm", ".msi",

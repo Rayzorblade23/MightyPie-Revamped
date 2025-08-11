@@ -278,8 +278,21 @@
                             style="min-width:0;"
                     />
                     {#if buttonTextLower}
-                        <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
-                              style="font-size: {buttonTextUpper ? subTextSize : textSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px; ">{buttonTextLower}</span>
+                        {#if buttonTextUpper}
+                            <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
+                                  style="font-size: {subTextSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px;">
+                                {buttonTextLower}
+                            </span>
+                        {:else}
+                            <AutoScrollText
+                                text={"Start " + buttonTextLower}
+                                enabled={autoScrollOverflow}
+                                mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                                isButtonHovered={isHovered}
+                                className="w-full {finalSubtextClass}"
+                                style="min-width:0; font-size: {textSize}rem; padding-bottom: 0; margin: 0;"
+                            />
+                        {/if}
                     {/if}
                 </span>
             {/if}
@@ -359,8 +372,21 @@
                         style="min-width:0;"
                 />
                 {#if buttonTextLower}
-                    <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
-                          style="font-size: {buttonTextUpper ? subTextSize : textSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px; ">{buttonTextLower}</span>
+                    {#if buttonTextUpper}
+                        <span class="w-full whitespace-nowrap overflow-hidden text-ellipsis leading-tight {finalSubtextClass}"
+                              style="font-size: {subTextSize}rem; padding-bottom: {borderWidth + 2}px; margin-top: -1px;">
+                            {buttonTextLower}
+                        </span>
+                    {:else}
+                        <AutoScrollText
+                            text={"Start " + buttonTextLower}
+                            enabled={autoScrollOverflow}
+                            mode={getSettings().autoScrollOverflow?.value === getSettings().autoScrollOverflow?.options?.[1] ? 'hover' : 'normal'}
+                            isButtonHovered={isHovered}
+                            className="w-full {finalSubtextClass}"
+                            style="min-width:0; font-size: {textSize}rem; padding-bottom: 0; margin: 0;"
+                        />
+                    {/if}
                 {/if}
             </span>
         {/if}
