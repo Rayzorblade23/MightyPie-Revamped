@@ -2,6 +2,7 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
+	"net/url"
 	"os/exec"
 	"strings"
 	"time"
@@ -63,7 +64,13 @@ func SetExplorerWindowPositions(states []ExplorerWindowState) error {
 		if !strings.HasPrefix(path, "file:///") {
 			continue
 		}
-		winPath := strings.ReplaceAll(path[8:], "/", "\\")
+		// Convert URL to Windows path and decode URL-encoded characters
+		decodedPath, err := url.QueryUnescape(path[8:])
+		if err != nil {
+			// If decoding fails, use the original path
+			decodedPath = path[8:]
+		}
+		winPath := strings.ReplaceAll(decodedPath, "/", "\\")
 		hwndVar, _ := oleutil.GetProperty(item, "HWND")
 		hwnd := win.HWND(uintptr(hwndVar.Val))
 		openWindows = append(openWindows, openWin{Path: winPath, HWND: hwnd})
@@ -170,8 +177,13 @@ func GetExplorerWindows() ([]ExplorerWindowState, error) {
 		if !strings.HasPrefix(path, "file:///") {
 			continue
 		}
-		// Convert URL to Windows path
-		winPath := strings.ReplaceAll(path[8:], "/", "\\")
+		// Convert URL to Windows path and decode URL-encoded characters
+		decodedPath, err := url.QueryUnescape(path[8:])
+		if err != nil {
+			// If decoding fails, use the original path
+			decodedPath = path[8:]
+		}
+		winPath := strings.ReplaceAll(decodedPath, "/", "\\")
 		// Get HWND
 		hwndVar, _ := oleutil.GetProperty(item, "HWND")
 		hwnd := win.HWND(uintptr(hwndVar.Val))
