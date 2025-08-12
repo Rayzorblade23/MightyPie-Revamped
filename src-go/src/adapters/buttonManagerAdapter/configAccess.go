@@ -1,6 +1,7 @@
 package buttonManagerAdapter
 
 import (
+	"slices"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -153,6 +154,18 @@ func ReadButtonConfig() (ConfigData, error) {
 		return defaultConfig, nil
 	}
 
+	// Validate and repair the configuration structure
+	configChanged := validateAndRepairConfig(config)
+	
+	// If the config was changed during validation, write it back to disk
+	if configChanged {
+		log.Info("Button configuration was updated during validation, writing changes to file")
+		if err := WriteButtonConfig(config); err != nil {
+			log.Error("Failed to write validated button config: %v", err)
+			// Continue with the validated config in memory even if write fails
+		}
+	}
+
 	return config, nil
 }
 
@@ -163,4 +176,155 @@ func LoadConfigFromFile(path string) (ConfigData, error) {
 		return nil, fmt.Errorf("failed to unmarshal config from '%s': %w", path, err)
 	}
 	return config, nil
+}
+
+// validateAndRepairConfig checks that each page has exactly 8 buttons (indexes 0-7)
+// and validates button types and properties. It returns true if any changes were made.
+func validateAndRepairConfig(config ConfigData) bool {
+	if config == nil {
+		return false
+	}
+
+	configChanged := false
+	
+	// Iterate through all menus in the config
+	for menuID, menuConfig := range config {
+		// Iterate through all pages in this menu
+		for pageID, pageConfig := range menuConfig {
+			// Ensure each page has buttons 0-7
+			for buttonIdx := range 8 {
+				buttonID := fmt.Sprintf("%d", buttonIdx)
+
+				// Check if this button exists in the page
+				button, exists := pageConfig[buttonID]
+				if !exists {
+					// Button doesn't exist, create a default ShowAnyWindow button
+					log.Warn("Missing button '%s' in page '%s' of menu '%s', adding default ShowAnyWindow button", 
+						buttonID, pageID, menuID)
+					
+					// Create a default ShowAnyWindow button
+					pageConfig[buttonID] = Button{
+						ButtonType: "show_any_window",
+						Properties: mustMarshalProperties(core.ShowAnyWindowProperties{
+							ButtonTextUpper: "",
+							ButtonTextLower: "",
+							IconPath:        "",
+							WindowHandle:    InvalidHandle,
+						}),
+					}
+					configChanged = true
+					continue
+				}
+
+				// Validate button type
+				validButtonType := validateButtonType(button.ButtonType)
+				if !validButtonType {
+					log.Warn("Invalid button type '%s' for button '%s' in page '%s' of menu '%s', resetting to default ShowAnyWindow button", 
+						button.ButtonType, buttonID, pageID, menuID)
+					
+					// Reset to a default ShowAnyWindow button
+					pageConfig[buttonID] = Button{
+						ButtonType: "show_any_window",
+						Properties: mustMarshalProperties(core.ShowAnyWindowProperties{
+							ButtonTextUpper: "",
+							ButtonTextLower: "",
+							IconPath:        "",
+							WindowHandle:    InvalidHandle,
+						}),
+					}
+					configChanged = true
+					continue
+				}
+				
+				// Validate button properties based on its type
+				if !validateButtonProperties(button) {
+					log.Warn("Invalid properties for button '%s' in page '%s' of menu '%s' with type '%s', resetting to default ShowAnyWindow button", 
+						buttonID, pageID, menuID, button.ButtonType)
+					
+					// Reset to a default ShowAnyWindow button
+					pageConfig[buttonID] = Button{
+						ButtonType: "show_any_window",
+						Properties: mustMarshalProperties(core.ShowAnyWindowProperties{
+							ButtonTextUpper: "",
+							ButtonTextLower: "",
+							IconPath:        "",
+							WindowHandle:    InvalidHandle,
+						}),
+					}
+					configChanged = true
+				}
+			}
+		}
+	}
+
+	return configChanged
+}
+
+// validateButtonType checks if the button type is one of the valid types
+func validateButtonType(buttonType string) bool {
+	validTypes := []string{
+		"show_program_window",
+		"show_any_window",
+		"call_function",
+		"launch_program",
+		"open_page_in_menu",
+		"disabled",
+	}
+
+	return slices.Contains(validTypes, buttonType)
+}
+
+// validateButtonProperties checks if the button properties match the expected structure for its type
+func validateButtonProperties(button Button) bool {
+	// For each button type, try to unmarshal the properties into the expected struct
+	// If it fails, the properties don't match the expected structure
+	switch button.ButtonType {
+	case "show_any_window":
+		var props core.ShowAnyWindowProperties
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal ShowAnyWindowProperties: %v", err)
+			return false
+		}
+		return true
+
+	case "show_program_window":
+		var props core.ShowProgramWindowProperties
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal ShowProgramWindowProperties: %v", err)
+			return false
+		}
+		return true
+
+	case "call_function":
+		var props core.CallFunctionProperties
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal CallFunctionProperties: %v", err)
+			return false
+		}
+		return true
+
+	case "launch_program":
+		var props core.LaunchProgramProperties
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal LaunchProgramProperties: %v", err)
+			return false
+		}
+		return true
+
+	case "open_page_in_menu":
+		var props core.OpenSpecificPieMenuPage
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal OpenSpecificPieMenuPage: %v", err)
+			return false
+		}
+		return true
+
+	case "disabled":
+		// Disabled buttons don't need specific properties
+		return true
+
+	default:
+		// Unknown button type
+		return false
+	}
 }

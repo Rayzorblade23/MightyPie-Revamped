@@ -1,6 +1,7 @@
 package settingsManagerAdapter
 
 import (
+	"slices"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -100,9 +101,73 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 		return nil, fmt.Errorf("failed to copy default settings if needed: %w", err)
 	}
 
+	// Load default settings for validation
+	var defaultSettings map[string]SettingsEntry
+	if err := jsonUtils.ReadFromFile(defaultSettingsPath, &defaultSettings); err != nil {
+		return nil, fmt.Errorf("failed to read default settings for validation: %w", err)
+	}
+
+	// Load user settings
 	var settings map[string]SettingsEntry
 	if err := jsonUtils.ReadFromFile(settingsPath, &settings); err != nil {
 		return nil, err
+	}
+
+	// Initialize settings map if it's nil
+	if settings == nil {
+		settings = make(map[string]SettingsEntry)
+	}
+
+	// Validate that all default settings exist in the user settings
+	settingsChanged := false
+	for key, defaultEntry := range defaultSettings {
+		// Check if the key exists in user settings
+		userEntry, exists := settings[key]
+		if !exists {
+			// Key doesn't exist, add it with default values
+			log.Warn("Missing setting '%s' in settings.json, adding with default value", key)
+			settings[key] = defaultEntry
+			settingsChanged = true
+			continue
+		}
+
+		// Validate the entry has the correct structure
+		if userEntry.Type != defaultEntry.Type {
+			log.Warn("Setting '%s' has incorrect type '%s', expected '%s', resetting to default", 
+				key, userEntry.Type, defaultEntry.Type)
+			settings[key] = defaultEntry
+			settingsChanged = true
+			continue
+		}
+
+		// For enum types, validate that the value is one of the options
+		if userEntry.Type == "enum" && len(defaultEntry.Options) > 0 {
+			valueStr, ok := userEntry.Value.(string)
+			if !ok {
+				log.Warn("Setting '%s' has non-string value for enum type, resetting to default", key)
+				settings[key] = defaultEntry
+				settingsChanged = true
+				continue
+			}
+
+			validOption := slices.Contains(defaultEntry.Options, valueStr)
+
+			if !validOption {
+				log.Warn("Setting '%s' has invalid enum value '%s', resetting to default", 
+					key, valueStr)
+				settings[key] = defaultEntry
+				settingsChanged = true
+			}
+		}
+	}
+
+	// If settings were changed during validation, write them back to the file
+	if settingsChanged {
+		log.Info("Settings were updated during validation, writing changes to file")
+		if err := WriteSettings(settings); err != nil {
+			log.Error("Failed to write validated settings: %v", err)
+			// Continue with the validated settings in memory even if write fails
+		}
 	}
 
 	return settings, nil
@@ -123,14 +188,14 @@ func settingsEqual(a, b map[string]SettingsEntry) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for k, v := range a {
-		bv, ok := b[k]
+	for key, aEntry := range a {
+		bEntry, ok := b[key]
 		if !ok {
 			return false
 		}
-		avBytes, _ := json.Marshal(v)
-		bvBytes, _ := json.Marshal(bv)
-		if string(avBytes) != string(bvBytes) {
+		aBytes, _ := json.Marshal(aEntry)
+		bBytes, _ := json.Marshal(bEntry)
+		if string(aBytes) != string(bBytes) {
 			return false
 		}
 	}
