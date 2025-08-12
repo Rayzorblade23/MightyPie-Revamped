@@ -5,6 +5,7 @@
     import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
     import {createLogger} from "$lib/logger";
     import {getInstalledAppsInfo} from '$lib/data/installedAppsInfoManager.svelte.ts';
+    import {onMount} from 'svelte';
 
     // Child components
     import ButtonTypeSelector from './selectors/ButtonTypeSelector.svelte';
@@ -51,11 +52,52 @@
         [ButtonType.OpenResource]: "Open Resource",
         [ButtonType.Disabled]: "Disabled",
     };
+
+    // Add explanations for each button type
+    const buttonTypeExplanations: Record<ButtonType, string> = {
+        [ButtonType.ShowProgramWindow]: "This button is assigned windows that belong to the specified application.\n\nLeft-click brings the window to the foreground.\nLeft-click while the window is focused will minimize the window.\nMiddle-click closes the window.",
+        [ButtonType.ShowAnyWindow]: "This button is assigned any open window.\n\nLeft-click brings the window to the foreground.\nLeft-click while the window is focused will minimize the window.\nMiddle-click closes the window.",
+        [ButtonType.CallFunction]: "Executes a predefined function from the available functions list.",
+        [ButtonType.LaunchProgram]: "Launches a program from the list of installed applications.",
+        [ButtonType.OpenSpecificPieMenuPage]: "Opens any page in any menu.\nDisplays a custom text label.",
+        [ButtonType.OpenResource]: "Opens a file or folder specified by the resource path, using the default application.\nDisplays a custom text label.",
+        [ButtonType.Disabled]: "This button is disabled and will not perform any action when clicked.",
+    };
+
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
 
     let availableFunctionsData = $state<AvailableFunctionsMap>({});
 
     let typedAvailableFunctions = $derived(availableFunctionsData);
+
+    // State for tooltip visibility
+    let showTooltip = $state(false);
+    let questionMarkButton = $state<HTMLElement | null>(null);
+
+    // Function to toggle tooltip visibility
+    function toggleTooltip(event: MouseEvent) {
+        event.stopPropagation();
+        showTooltip = !showTooltip;
+    }
+
+    // Close tooltip when clicking outside
+    function handleClickOutside(event: MouseEvent) {
+        if (showTooltip && 
+            questionMarkButton && 
+            event.target instanceof Node && 
+            !questionMarkButton.contains(event.target)) {
+            showTooltip = false;
+        }
+    }
+
+    // Add global click handler when component is mounted
+    onMount(() => {
+        document.addEventListener('click', handleClickOutside);
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    });
 
     $effect(() => {
         (async () => {
@@ -87,6 +129,11 @@
     // Derived state
     let currentButtonLocal = $derived(selectedButtonDetails?.button); // The actual button object
     let currentButtonTypeValue = $derived(currentButtonLocal?.button_type); // Just the type for conditional rendering
+
+    // Get current button type explanation
+    let currentButtonTypeExplanation = $derived(
+        currentButtonTypeValue !== undefined ? buttonTypeExplanations[currentButtonTypeValue as ButtonType] : ""
+    );
 
     // Event Handlers
     function handleTypeChange(newType: ButtonType) {
@@ -150,6 +197,26 @@
                 <p class="text-zinc-600 dark:text-zinc-300 mb-2">Select a type below to configure this button.</p>
             {/if}
 
+            {#if !selectedButtonDetails}
+                <p class="text-zinc-600 dark:text-zinc-300 mb-2">Select a button to configure.</p>
+            {:else if !currentButtonTypeValue}
+                <p class="text-zinc-600 dark:text-zinc-300 mb-2">Select a type below to configure this button.</p>
+            {/if}
+
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Button Type:</span>
+                <div class="relative">
+                    <button
+                            class="flex items-center justify-center w-4 h-4 mr-1 rounded-full bg-purple-800 dark:bg-purple-950 text-zinc-100 hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 transition-colors text-xs font-medium"
+                            onclick={toggleTooltip}
+                            aria-label="Show button type explanation"
+                            bind:this={questionMarkButton}
+                    >
+                        ?
+                    </button>
+                </div>
+            </div>
+
             <ButtonTypeSelector
                     currentType={currentButtonTypeValue}
                     {buttonTypeKeys}
@@ -187,5 +254,17 @@
         <p class="text-zinc-500 dark:text-zinc-300">
             Select a button from a pie menu preview to see its details.
         </p>
+    </div>
+{/if}
+
+{#if showTooltip && questionMarkButton}
+    {@const buttonRect = questionMarkButton.getBoundingClientRect()}
+    <div class="fixed inset-0 z-[100] pointer-events-none">
+        <div 
+            class="absolute bg-white dark:bg-zinc-800 p-3 rounded-md shadow-lg w-80 text-sm text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 whitespace-pre-line pointer-events-auto"
+            style="left: {Math.max(10, buttonRect.right - 320)}px; top: {Math.max(10, buttonRect.top - 10)}px; transform: translateY(-100%);"
+        >
+            {currentButtonTypeExplanation}
+        </div>
     </div>
 {/if}

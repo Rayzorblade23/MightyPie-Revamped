@@ -1,7 +1,7 @@
 {
   "Maximize": {
     "icon_path": "/tabler_icons/window-maximize.svg",
-    "description": "Maximizes the window below the cursor."
+    "description": "Maximizes the window below the cursor. Restores if already maximized."
   },
   "Minimize": {
     "icon_path": "/tabler_icons/window-minimize.svg",

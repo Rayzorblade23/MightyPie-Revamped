@@ -652,9 +652,9 @@
     });
 </script>
 
-<div class="w-full h-screen flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-lg overflow-hidden">
+<div class="w-full h-screen flex flex-col rounded-2xl shadow-lg overflow-hidden">
     <!-- --- Title Bar --- -->
-    <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
+    <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-2xl border-b border-none h-8 flex-shrink-0">
         <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
         <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
             <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Pie Menu Config</span>
@@ -662,7 +662,7 @@
         <div class="flex-1 h-full" data-tauri-drag-region></div>
     </div>
     <!-- --- Main Content --- -->
-    <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative">
+    <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative bg-gradient-to-br from-amber-500 to-purple-700">
         {#if menuIndices.length > 0}
             <!-- --- UI: Menu Tabs --- -->
             <section>
