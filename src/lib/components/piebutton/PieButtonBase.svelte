@@ -229,15 +229,15 @@
                 {#if properties?.icon_path}
                     {#if properties.icon_path.endsWith('.svg') && svgPromise}
                         {#await svgPromise}
-                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5"
+                            <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5"
                                  style="aspect-ratio: 1/1;">
                                 ⌛ <!-- Loading indicator -->
                             </div>
                         {:then svgContent}
-                            <span class="h-full flex-shrink-0 flex items-center justify-center p-0.5"
+                            <span class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5"
                                   style="aspect-ratio: 1/1;">{@html svgContent}</span>
                         {:catch error}
-                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                            <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-red-500"
                                  style="aspect-ratio: 1/1;"
                                  title="{error instanceof Error ? error.message : 'Error loading SVG'}">
                                 ⚠️ <!-- Error indicator -->
@@ -245,7 +245,7 @@
                         {/await}
                     {:else if properties.icon_path}
                         {#await getIconDataUrl(properties.icon_path)}
-                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-gray-400"
+                            <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-gray-400"
                                  style="aspect-ratio: 1/1;">
                                 <!-- Loading indicator -->
                                 <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -255,10 +255,10 @@
                             </div>
                         {:then dataUrl}
                             <img src={dataUrl} alt="button icon"
-                                 class="h-full flex-shrink-0 object-contain p-1"
+                                 class="h-full flex-shrink-0 object-contain pl-0.5 pt-0.5 pb-0.5"
                                  style="aspect-ratio: 1/1;"/>
                         {:catch error}
-                            <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                            <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-red-500"
                                  style="aspect-ratio: 1/1;"
                                  title="{error instanceof Error ? error.message : 'Error loading icon'}">
                                 ⚠️ <!-- Error indicator -->
@@ -267,7 +267,7 @@
                     {/if}
                 {/if}
 
-                <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
+                <span class="piebutton-flex-parent flex flex-col flex-1 pl-1.5 pr-0.5 min-w-0 items-start text-left p-0.5"
                       style="font-size: {textSize}rem;">
                     <AutoScrollText
                             text={buttonTextUpper}
@@ -323,15 +323,15 @@
             {#if properties?.icon_path}
                 {#if properties.icon_path.endsWith('.svg') && svgPromise}
                     {#await svgPromise}
-                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5"
+                        <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5"
                              style="aspect-ratio: 1/1;">
                             ⌛ <!-- Loading indicator -->
                         </div>
                     {:then svgContent}
-                        <span class="h-full flex-shrink-0 flex items-center justify-center p-0.5"
+                        <span class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5"
                               style="aspect-ratio: 1/1;">{@html svgContent}</span>
                     {:catch error}
-                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                        <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-red-500"
                              style="aspect-ratio: 1/1;"
                              title="{error instanceof Error ? error.message : 'Error loading SVG'}">
                             ⚠️ <!-- Error indicator -->
@@ -339,7 +339,7 @@
                     {/await}
                 {:else if properties.icon_path}
                     {#await getIconDataUrl(properties.icon_path)}
-                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-gray-400"
+                        <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-gray-400"
                              style="aspect-ratio: 1/1;">
                             <!-- Loading indicator -->
                             <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -349,10 +349,10 @@
                         </div>
                     {:then dataUrl}
                         <img src={dataUrl} alt="button icon"
-                             class="h-full flex-shrink-0 object-contain p-1"
+                             class="h-full flex-shrink-0 object-contain pl-0.5 pt-0.5 pb-0.5"
                              style="aspect-ratio: 1/1;"/>
                     {:catch error}
-                        <div class="h-full flex-shrink-0 flex items-center justify-center p-0.5 text-red-500"
+                        <div class="h-full flex-shrink-0 flex items-center justify-center pl-0.5 pt-0.5 pb-0.5 text-red-500"
                              style="aspect-ratio: 1/1;"
                              title="{error instanceof Error ? error.message : 'Error loading icon'}">
                             ⚠️ <!-- Error indicator -->
@@ -361,7 +361,7 @@
                 {/if}
             {/if}
 
-            <span class="piebutton-flex-parent flex flex-col flex-1 pl-1 min-w-0 items-start text-left"
+            <span class="piebutton-flex-parent flex flex-col flex-1 pl-1.5 pr-0.5 min-w-0 items-start text-left p-0.5"
                   style="font-size: {textSize}rem;">
                 <AutoScrollText
                         text={buttonTextUpper}

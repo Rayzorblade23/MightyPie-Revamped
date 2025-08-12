@@ -61,6 +61,13 @@ type OpenSpecificPieMenuPage struct {
 	PageID          int    `json:"page_id"`
 }
 
+type OpenResourceProperties struct {
+	ButtonTextUpper string `json:"button_text_upper"` // display name
+	ButtonTextLower string `json:"button_text_lower"` // empty string
+	IconPath        string `json:"icon_path"`
+	ResourcePath    string `json:"resource_path"`
+}
+
 // ShortcutPressed_Message is a NATS message published when a shortcut is pressed or released.
 // It is also used for opening a specific page in a pie menu.
 // ButtonType represents the type of a button in a pie menu.
@@ -72,6 +79,7 @@ const (
 	ButtonTypeCallFunction      ButtonType = "call_function"
 	ButtonTypeLaunchProgram     ButtonType = "launch_program"
 	ButtonTypeOpenPageInMenu    ButtonType = "open_page_in_menu"
+	ButtonTypeOpenResource      ButtonType = "open_resource"
 	ButtonTypeDisabled          ButtonType = "disabled"
 )
 

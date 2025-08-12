@@ -268,6 +268,7 @@ func validateButtonType(buttonType string) bool {
 		"call_function",
 		"launch_program",
 		"open_page_in_menu",
+		"open_resource",
 		"disabled",
 	}
 
@@ -315,6 +316,14 @@ func validateButtonProperties(button Button) bool {
 		var props core.OpenSpecificPieMenuPage
 		if err := json.Unmarshal(button.Properties, &props); err != nil {
 			log.Warn("Failed to unmarshal OpenSpecificPieMenuPage: %v", err)
+			return false
+		}
+		return true
+
+	case "open_resource":
+		var props core.OpenResourceProperties
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal OpenResourceProperties: %v", err)
 			return false
 		}
 		return true

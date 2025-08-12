@@ -214,6 +214,18 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
 						)
 					}
+				case core.ButtonTypeOpenResource:
+					props, err := GetButtonProperties[core.OpenResourceProperties](button)
+					if err != nil {
+						log.Error("Failed to get props for OpenResource (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
+						buttonSpecificDetails = "<Error reading props>"
+					} else {
+						buttonSpecificDetails = formatProperties(
+							fmt.Sprintf("Name: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
+							fmt.Sprintf("Resource: '%s'", shortenPath(props.ResourcePath, maxPathDisplayLength, shorten)),
+							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
+						)
+					}
 				case core.ButtonTypeDisabled:
 					buttonSpecificDetails = "(Disabled)"
 				default:

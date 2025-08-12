@@ -254,20 +254,47 @@ func (a *PieButtonExecutionAdapter) handleOpenPageInMenu(executionInfo *pieButto
 	return nil
 }
 
-// unmarshalProperties safely converts the generic properties map into a specific struct.
-func unmarshalProperties(props any, target any) error {
-	// 1. Type assert to the expected map type
-	propsMap, _ := props.(map[string]any)
-
-	// 2. Marshal the map back to JSON bytes
-	propsBytes, err := json.Marshal(propsMap)
-	if err != nil {
-		return fmt.Errorf("failed to marshal intermediate properties map: %v", err)
+func (a *PieButtonExecutionAdapter) handleOpenResource(executionInfo *pieButtonExecute_Message) error {
+	var resourceProps core.OpenResourceProperties
+	if err := unmarshalProperties(executionInfo.Properties, &resourceProps); err != nil {
+		return fmt.Errorf("failed to process properties for open_resource: %w", err)
 	}
 
-	// 3. Unmarshal the JSON bytes into the target struct
+	log.Info("Button %d - Action: OpenResource - ClickType: %s", executionInfo.ButtonIndex, executionInfo.ClickType)
+	log.Info("↳ Resource Path: %s", resourceProps.ResourcePath)
+
+	// Only respond to left-click
+	if executionInfo.ClickType == ClickTypeLeftUp {
+		// Check if the resource path exists
+		if _, err := os.Stat(resourceProps.ResourcePath); os.IsNotExist(err) {
+			return fmt.Errorf("resource path does not exist: %s", resourceProps.ResourcePath)
+		}
+
+		// Open the file or folder using the system's default application
+		err := openFolder(resourceProps.ResourcePath)
+		
+		// The explorer.exe command often returns exit status 1 even when successful
+		// We'll log the error but not return it as an error to avoid false negatives
+		if err != nil && err.Error() == "exit status 1" {
+			log.Info("Resource opened: %s", resourceProps.ResourcePath)
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+// unmarshalProperties safely converts the generic properties map into a specific struct.
+func unmarshalProperties(props any, target any) error {
+	// Convert the properties to JSON and then unmarshal into the target struct
+	propsBytes, err := json.Marshal(props)
+	if err != nil {
+		return fmt.Errorf("failed to marshal properties: %w", err)
+	}
+
 	if err := json.Unmarshal(propsBytes, target); err != nil {
-		return fmt.Errorf("failed to unmarshal properties into target type %T: %v", target, err)
+		return fmt.Errorf("failed to unmarshal properties: %w", err)
 	}
 
 	return nil

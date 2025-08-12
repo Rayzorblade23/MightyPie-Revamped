@@ -159,6 +159,7 @@
             colorAccentLaunch: '--color-accent-launch',
             colorAccentFunction: '--color-accent-function',
             colorAccentOpenPage: '--color-accent-openpage',
+            colorAccentResource: '--color-accent-resource',
             colorPieButtonHighlight: '--color-button-hover-bg',
         };
         for (const [key, cssVar] of Object.entries(map)) {

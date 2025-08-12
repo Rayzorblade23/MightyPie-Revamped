@@ -6,6 +6,7 @@ import {
     type CallFunctionProperties,
     type DisabledProperties,
     type LaunchProgramProperties,
+    type OpenResourceProperties,
     type OpenSpecificPieMenuPageProperties,
     type ShowAnyWindowProperties,
     type ShowProgramWindowProperties
@@ -57,6 +58,15 @@ const BUTTON_PROPERTIES_MAP = {
             menu_id: 0,
             page_id: 0,
         } as OpenSpecificPieMenuPageProperties,
+    },
+    [ButtonType.OpenResource]: {
+        button_type: ButtonType.OpenResource,
+        properties: {
+            button_text_upper: "Give your button a name ...",
+            button_text_lower: "",
+            icon_path: "",
+            resource_path: "C:\\Windows\\explorer.exe",
+        } as OpenResourceProperties,
     },
     [ButtonType.Disabled]: {
         button_type: ButtonType.Disabled,

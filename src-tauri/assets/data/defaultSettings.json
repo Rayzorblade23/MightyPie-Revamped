@@ -39,8 +39,16 @@
     "value": "#abf7ab",
     "defaultValue": "#abf7ab"
   },
-  "pieMenuDeadzoneFunction": {
+  "colorAccentResource": {
     "index": 5,
+    "label": "Button Accent: Open-Resource",
+    "isExposed": true,
+    "type": "color",
+    "value": "#54c9c7",
+    "defaultValue": "#54c9c7"
+  },
+  "pieMenuDeadzoneFunction": {
+    "index": 6,
     "label": "Pie Menu Center function (left-click)",
     "isExposed": true,
     "type": "enum",
@@ -48,7 +56,7 @@
     "defaultValue": "Forwards"
   },
   "colorPieButtonHighlight": {
-    "index": 6,
+    "index": 7,
     "label": "Pie Menu Button Highlight color",
     "isExposed": true,
     "type": "color",
@@ -56,7 +64,7 @@
     "defaultValue": "#7d34b2"
   },
   "colorIndicator": {
-    "index": 7,
+    "index": 8,
     "label": "Pie Menu Indicator color",
     "isExposed": true,
     "type": "color",
@@ -64,7 +72,7 @@
     "defaultValue": "#5f3c8e"
   },
   "colorRingFill": {
-    "index": 8,
+    "index": 9,
     "label": "Center Ring Fill color",
     "isExposed": true,
     "type": "color",
@@ -72,7 +80,7 @@
     "defaultValue": "#202020"
   },
   "colorRingStroke": {
-    "index": 9,
+    "index": 10,
     "label": "Center Ring Outline color",
     "isExposed": true,
     "type": "color",
@@ -80,7 +88,7 @@
     "defaultValue": "#303030"
   },
   "startInPieMenuConfig": {
-    "index": 10,
+    "index": 11,
     "label": "On program start show Pie Menu Config",
     "isExposed": true,
     "type": "bool",
@@ -88,7 +96,7 @@
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 11,
+    "index": 12,
     "label": "Keep open Pie Menu in place",
     "isExposed": true,
     "type": "bool",
@@ -96,7 +104,7 @@
     "defaultValue": false
   },
   "exampleFloat": {
-    "index": 12,
+    "index": 13,
     "label": "Example Float",
     "isExposed": false,
     "type": "float",
@@ -104,7 +112,7 @@
     "defaultValue": 0
   },
   "exampleInt": {
-    "index": 13,
+    "index": 14,
     "label": "Example Integer",
     "isExposed": false,
     "type": "int",
@@ -112,7 +120,7 @@
     "defaultValue": 0
   },
   "autoScrollOverflow": {
-    "index": 14,
+    "index": 15,
     "label": "When text is too long for button",
     "isExposed": true,
     "type": "enum",
@@ -125,7 +133,7 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 15,
+    "index": 16,
     "label": "Thickness of Pie Button Border",
     "isExposed": true,
     "type": "enum",

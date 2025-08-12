@@ -23,7 +23,7 @@ export const getVariantClass = (variant: ButtonVariant): string => {
 export const focusStyles = "focus:outline focus:outline-amber-500 focus:border-amber-500 focus:border-2";
 
 // Common button styles
-export const commonButtonStyles = "px-4 py-2 rounded-lg border border-none text-lg transition cursor-pointer shadow-md";
+export const commonButtonStyles = "px-4 py-2 rounded-lg border border-none text-base transition cursor-pointer shadow-md";
 
 // Disabled button styles
 export const disabledStyles = "disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500";

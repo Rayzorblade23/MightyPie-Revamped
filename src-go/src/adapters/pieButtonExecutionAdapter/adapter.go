@@ -105,6 +105,9 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 		return a.handleCallFunction(executionInfo)
 	case core.ButtonTypeOpenPageInMenu:
 		return a.handleOpenPageInMenu(executionInfo)
+	case core.ButtonTypeOpenResource:
+		log.Info("Button %d - Opening resource: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
+		return a.handleOpenResource(executionInfo)
 	case core.ButtonTypeLaunchProgram:
 		log.Info("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 		return a.handleLaunchProgram(executionInfo)

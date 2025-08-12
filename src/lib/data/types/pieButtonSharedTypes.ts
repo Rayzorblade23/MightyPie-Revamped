@@ -9,7 +9,8 @@ export type ButtonPropertiesUnion =
     | import('./pieButtonTypes.ts').ShowAnyWindowProperties
     | import('./pieButtonTypes.ts').CallFunctionProperties
     | import('./pieButtonTypes.ts').LaunchProgramProperties
-    | import('./pieButtonTypes.ts').OpenSpecificPieMenuPageProperties;
+    | import('./pieButtonTypes.ts').OpenSpecificPieMenuPageProperties
+    | import('./pieButtonTypes.ts').OpenResourceProperties;
 
 /**
  * Base props shared by all pie button components

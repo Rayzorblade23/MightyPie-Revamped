@@ -11,6 +11,7 @@
     import CallFunctionButtonConfig from './buttonConfigs/CallFunctionButtonConfig.svelte'; // New
     import ShowProgramButtonConfig from './buttonConfigs/ShowProgramButtonConfig.svelte'; // New
     import OpenPageButtonConfig from './buttonConfigs/OpenPageButtonConfig.svelte';
+    import OpenResourceButtonConfig from './buttonConfigs/OpenResourceButtonConfig.svelte';
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
 
     // Create a logger for this component
@@ -47,6 +48,7 @@
         [ButtonType.CallFunction]: "Call Function",
         [ButtonType.LaunchProgram]: "Launch Program",
         [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
+        [ButtonType.OpenResource]: "Open Resource",
         [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
@@ -170,6 +172,8 @@
                 />
             {:else if currentButtonTypeValue === ButtonType.OpenSpecificPieMenuPage}
                 <OpenPageButtonConfig button={button} menuConfig={menuConfig} onUpdate={handleButtonChange}/>
+            {:else if currentButtonTypeValue === ButtonType.OpenResource}
+                <OpenResourceButtonConfig button={button} onUpdate={handleButtonChange}/>
             {:else if button.button_type !== ButtonType.Disabled}
                 <p class="text-zinc-600 dark:text-zinc-300 mt-2">
                     {getFriendlyButtonTypeName(button.button_type)} has no other specific properties to configure here.

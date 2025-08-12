@@ -551,6 +551,7 @@
         [ButtonType.CallFunction]: "Call Function",
         [ButtonType.LaunchProgram]: "Launch Program",
         [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
+        [ButtonType.OpenResource]: "Open Resource",
         [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];

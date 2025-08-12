@@ -14,6 +14,7 @@ export enum ButtonType {
     CallFunction = 'call_function',
     LaunchProgram = 'launch_program',
     OpenSpecificPieMenuPage = 'open_page_in_menu',
+    OpenResource = 'open_resource',
     Disabled = 'disabled',
 }
 
@@ -61,6 +62,12 @@ export interface DisabledProperties {
     icon_path?: string; // always empty string
 }
 
+export interface OpenResourceProperties {
+    button_text_upper: string; // display name
+    button_text_lower: string; // " - Open Resource - "
+    icon_path: string;
+    resource_path: string;
+}
 
 export type Button =
     | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
@@ -68,7 +75,8 @@ export type Button =
     | { button_type: ButtonType.CallFunction; properties: CallFunctionProperties }
     | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
     | { button_type: ButtonType.Disabled; properties: DisabledProperties }
-    | { button_type: ButtonType.OpenSpecificPieMenuPage; properties: OpenSpecificPieMenuPageProperties };
+    | { button_type: ButtonType.OpenSpecificPieMenuPage; properties: OpenSpecificPieMenuPageProperties }
+    | { button_type: ButtonType.OpenResource; properties: OpenResourceProperties };
 
 export type ButtonPropertiesUnion =
     | ShowProgramWindowProperties
@@ -76,7 +84,8 @@ export type ButtonPropertiesUnion =
     | CallFunctionProperties
     | LaunchProgramProperties
     | OpenSpecificPieMenuPageProperties
-    | DisabledProperties;
+    | DisabledProperties
+    | OpenResourceProperties;
 
 // Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }
 export type ConfigData = Record<string, Record<string, Record<string, ButtonData>>>;

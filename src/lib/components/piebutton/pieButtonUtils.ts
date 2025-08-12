@@ -8,6 +8,7 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
     [ButtonType.LaunchProgram]: 'border-[var(--color-accent-launch)]',
     [ButtonType.CallFunction]: 'border-[var(--color-accent-function)]',
     [ButtonType.OpenSpecificPieMenuPage]: 'border-[var(--color-accent-openpage)]',
+    [ButtonType.OpenResource]: 'border-[var(--color-accent-resource)]',
     [ButtonType.Disabled]: 'border-neutral-400 dark:border-grey-600',
     default: 'border-neutral-400 dark:border-grey-600',
 };
