@@ -11,15 +11,10 @@
         calculatePieButtonPosition,
         detectActivePieSlice
     } from "$lib/components/piemenu/piemenuUtils.ts";
-    import {
-        type IPiemenuClickMessage,
-        type IPiemenuOpenedMessage,
-        mouseEvents
-    } from "$lib/data/types/piemenuTypes.ts";
+    import {type IPiemenuClickMessage, mouseEvents} from "$lib/data/types/piemenuTypes.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE,
         PUBLIC_NATSSUBJECT_PIEMENU_CLICK,
-        PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
         PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
         PUBLIC_PIEBUTTON_HEIGHT as BUTTON_HEIGHT,
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
@@ -52,11 +47,12 @@
     // New state for controlling transitions
     let showButtons = $state(false);
 
-    let {menuID, pageID, animationKey = 0, opacity = 1}: {
+    let {menuID, pageID, animationKey = 0, opacity = 1, onClose}: {
         menuID: number;
         pageID: number;
         animationKey?: number;
         opacity?: number;
+        onClose: () => void;
     } = $props();
 
     const indicatorSVG = $derived.by(async () => await getIndicatorSVG());
@@ -79,7 +75,7 @@
 
             if (clickMsg.click == mouseEvents.right_up) {
                 logger.debug(`Right click in Slice: ${activeSlice}!`);
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
+                onClose(); // Use callback instead of direct publishing
                 await getCurrentWindow().hide();
                 return;
             }
@@ -103,7 +99,7 @@
                     };
                     publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, deadzoneMessage);
                 }
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
+                onClose(); // Use callback instead of direct publishing
                 await getCurrentWindow().hide();
                 return;
             }
@@ -111,7 +107,7 @@
             if (clickMsg.click == mouseEvents.middle_up) {
                 logger.debug(`Middle click in Slice: ${activeSlice}!`);
                 if (activeSlice === -1) {
-                    publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false})
+                    onClose(); // Use callback instead of direct publishing
                     logger.debug("Deadzone clicked! Open piemenuConfig.");
                     await goto('/quickMenu');
                     return;
@@ -159,7 +155,7 @@
                     // For all other button types, schedule the hide action
                     upTimerId = setTimeout(() => {
                         if (destroyed) return;
-                        publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+                        onClose(); // Use callback instead of direct publishing
                         opacity = 0;
                         showButtons = false;
                         getCurrentWindow().hide();
@@ -314,7 +310,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 0 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -343,7 +338,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 1 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -372,7 +366,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 2 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -401,7 +394,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 3 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -430,7 +422,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 4 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -459,7 +450,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 5 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -488,7 +478,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 6 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}
@@ -517,7 +506,6 @@
                 class="button-container"
                 style="position: absolute; left: {button.x}px; top: {button.y}px;"
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 7 }}
-                out:scale={{ start: 1, opacity: 0, duration: 150 }}
         >
             <PieButton
                     menuID={menuID}

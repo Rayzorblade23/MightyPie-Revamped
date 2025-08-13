@@ -5,6 +5,7 @@
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/data/types/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
+        PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT,
         PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
         PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
         PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
@@ -13,7 +14,7 @@
     } from "$env/static/public";
     import {hasPageForMenu} from "$lib/data/configManager.svelte.ts";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
-    import {onMount} from "svelte";
+    import {onDestroy, onMount} from "svelte";
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import {goto} from "$app/navigation";
@@ -36,6 +37,10 @@
     // Reference to PieMenu component
     let pieMenuComponent: any = null;
 
+    // Heartbeat interval for mouse hook safety
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = $state(null);
+    const HEARTBEAT_INTERVAL = 3000; // Send heartbeat every 3 seconds
+
     let keepPieMenuAnchored = $state(false);
 
     $effect(() => {
@@ -46,39 +51,83 @@
             settings?.startInPieMenuConfig?.value && !sessionStorage.getItem('alreadyRedirectedToConfig')
         ) {
             sessionStorage.setItem('alreadyRedirectedToConfig', '1');
-            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+            setPieMenuState(false);
 
             goto('/piemenuConfig', {replaceState: true});
         }
     });
 
+    // Centralized function to set pie menu state and manage heartbeat
+    function setPieMenuState(isOpen: boolean, newPageID?: number) {
+        if (isOpen) {
+            // Opening the pie menu
+            if (newPageID !== undefined) {
+                pageID = newPageID;
+            }
+            isPieMenuVisible = true;
+            logger.debug("PieMenu state: VISIBLE, PageID:", pageID);
+            if (isNatsReady) {
+                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
+                // Start heartbeat when pie menu is visible and mouse hook is enabled
+                startHeartbeat();
+            }
+            // Set opacity to 1 after a short delay to ensure animations have started
+            setTimeout(() => {
+                pieMenuOpacity = 1;
+            }, 50);
+        } else {
+            // Closing the pie menu
+            if (isPieMenuVisible) {
+                isPieMenuVisible = false;
+                pageID = 0;
+                logger.debug("PieMenu state: HIDDEN");
+                if (isNatsReady) {
+                    publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+                    // Stop heartbeat when pie menu is hidden and mouse hook is disabled
+                    stopHeartbeat();
+                }
+                // Set opacity to 0 when hiding
+                pieMenuOpacity = 0;
+            }
+        }
+    }
+
+    // Start sending heartbeats when pie menu is visible
+    function startHeartbeat() {
+        // Clear any existing interval first
+        stopHeartbeat();
+
+        logger.debug("Starting mouse hook safety heartbeat");
+        // Start sending heartbeats
+        heartbeatInterval = setInterval(() => {
+            if (isNatsReady) {
+                publishMessage(PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT, {timestamp: Date.now()});
+            }
+        }, HEARTBEAT_INTERVAL);
+    }
+
+    // Stop sending heartbeats when pie menu is hidden
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+            logger.debug("Stopped mouse hook safety heartbeat");
+        }
+    }
+
+    // Use the centralized function instead of direct handlers
     const handlePieMenuVisible = async (newPageID?: number) => {
-        if (newPageID !== undefined) {
-            pageID = newPageID;
-        }
-        isPieMenuVisible = true;
-        logger.debug("PieMenu state: VISIBLE, PageID:", pageID);
-        if (isNatsReady) {
-            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: true});
-        }
-        // Set opacity to 1 after a short delay to ensure animations have started
-        setTimeout(() => {
-            pieMenuOpacity = 1;
-        }, 50);
+        setPieMenuState(true, newPageID);
     };
 
     const handlePieMenuHidden = async () => {
-        if (isPieMenuVisible) {
-            isPieMenuVisible = false;
-            pageID = 0;
-            logger.debug("PieMenu state: HIDDEN");
-            if (isNatsReady) {
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
-            }
-            // Set opacity to 0 when hiding
-            pieMenuOpacity = 0;
-        }
+        setPieMenuState(false);
     };
+
+    // Ensure heartbeat is stopped when component is destroyed
+    onDestroy(() => {
+        stopHeartbeat();
+    });
 
     const handleShortcutMessage = async (message: string) => {
         const currentWindow = getCurrentWindow();
@@ -187,7 +236,7 @@
             const navigateToPageMsg: string = JSON.parse(message);
 
             logger.debug(`[NATS] Navigate to page: ${navigateToPageMsg}`);
-            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+            setPieMenuState(false);
 
             setTimeout(() => {
                 goto(`/${navigateToPageMsg}`, {replaceState: true});
@@ -249,7 +298,7 @@
         const handleKeyDown = async (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 logger.debug("Escape pressed: closing PieMenu and hiding window.");
-                publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+                setPieMenuState(false);
                 await getCurrentWindow().hide();
             }
         };
@@ -276,8 +325,13 @@
             role="dialog"
     >
         <h2 class="sr-only" id="piemenu-title">Pie Menu</h2>
-        <PieMenu animationKey={animationKey} bind:this={pieMenuComponent} menuID={menuID}
-                 opacity={pieMenuOpacity}
-                 pageID={pageID}/>
+        <PieMenu
+                animationKey={animationKey}
+                bind:this={pieMenuComponent}
+                menuID={menuID}
+                onClose={() => setPieMenuState(false)}
+                opacity={pieMenuOpacity}
+                pageID={pageID}
+        />
     </div>
 </main>

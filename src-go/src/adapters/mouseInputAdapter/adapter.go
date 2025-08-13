@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
@@ -24,9 +25,27 @@ type piemenuClick_Message struct {
 	Click string `json:"click"`
 }
 
+type heartbeat_Message struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
 type MouseInputAdapter struct {
 	natsAdapter *natsAdapter.NatsAdapter
 }
+
+const (
+	// Maximum time to wait for a heartbeat before disabling the hook
+	HeartbeatTimeoutSeconds = 9 // Allow for some network delays
+	
+	// How often to check for missed heartbeats (more efficient than resetting timer)
+	HeartbeatCheckIntervalMs = 500 // Check every 500ms
+)
+
+var (
+	lastHeartbeatTime time.Time
+	heartbeatTimer    *time.Ticker
+	heartbeatDone     chan bool
+)
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 	a := &MouseInputAdapter{
@@ -42,14 +61,72 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 
 		log.Debug("Pie Menu opened: %+v", message)
 
-		if message.PiemenuOpened {
-			SetMouseHookState(true)
-		} else if !message.PiemenuOpened {
-			SetMouseHookState(false)
-		}
+		// Set the mouse hook state based on the message
+		// The heartbeat monitoring will be started/stopped in SetMouseHookState
+		SetMouseHookState(message.PiemenuOpened)
 	})
+	
+	// Subscribe to heartbeat messages
+	natsAdapter.SubscribeToSubject(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT"), core.GetTypeName(a), func(msg *nats.Msg) {
+		var heartbeat heartbeat_Message
+		if err := json.Unmarshal(msg.Data, &heartbeat); err != nil {
+			log.Error("Failed to decode heartbeat: %v", err)
+			return
+		}
+		
+		// Update the last heartbeat time
+		lastHeartbeatTime = time.Now()
+		log.Debug("Received heartbeat: %v", heartbeat.Timestamp)
+	})
+	
 	return &MouseInputAdapter{
 		natsAdapter: natsAdapter,
+	}
+}
+
+// Start monitoring for missed heartbeats
+func startHeartbeatMonitoring() {
+	// Stop any existing monitoring
+	stopHeartbeatMonitoring()
+	
+	log.Debug("Starting heartbeat monitoring")
+	
+	// Initialize the last heartbeat time
+	lastHeartbeatTime = time.Now()
+	
+	// Create a ticker that periodically checks for heartbeats
+	heartbeatTimer = time.NewTicker(HeartbeatCheckIntervalMs * time.Millisecond)
+	heartbeatDone = make(chan bool)
+	
+	// Start a goroutine to monitor heartbeats
+	go func() {
+		for {
+			select {
+			case <-heartbeatDone:
+				return
+			case <-heartbeatTimer.C:
+				// Check if we've exceeded the timeout
+				if hookEnabled && time.Since(lastHeartbeatTime) > time.Duration(HeartbeatTimeoutSeconds)*time.Second {
+					timeSinceLastHeartbeat := time.Since(lastHeartbeatTime)
+					log.Warn("No heartbeat received for %v seconds, disabling mouse hook as safety measure", timeSinceLastHeartbeat.Seconds())
+					
+					// Disable the mouse hook as a safety measure
+					SetMouseHookState(false)
+				}
+			}
+		}
+	}()
+}
+
+// Stop the heartbeat monitoring
+func stopHeartbeatMonitoring() {
+	if heartbeatTimer != nil {
+		heartbeatTimer.Stop()
+		heartbeatDone <- true
+		close(heartbeatDone)
+		heartbeatTimer = nil
+		heartbeatDone = nil
+		log.Debug("Stopped heartbeat monitoring")
 	}
 }
 
@@ -155,7 +232,11 @@ func SetMouseHookState(enable bool) {
 	hookEnabled = enable
 	if hookEnabled {
 		log.Debug("Mouse hook enabled")
+		// Reset heartbeat timer when hook is enabled
+		startHeartbeatMonitoring()
 	} else {
 		log.Debug("Mouse hook disabled")
+		// Stop heartbeat monitoring when hook is disabled
+		stopHeartbeatMonitoring()
 	}
 }
