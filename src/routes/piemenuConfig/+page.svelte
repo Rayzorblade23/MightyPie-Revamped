@@ -502,6 +502,7 @@
         pushUndoState();
         const result = addMenuToMenuConfiguration(baseMenuConfig);
         baseMenuConfig = result.newConfig;
+        updateBaseMenuConfiguration(baseMenuConfig);
         selectedMenuID = result.newMenuID;
     }
 
@@ -519,6 +520,7 @@
         const newConfig = removeMenuFromMenuConfiguration(baseMenuConfig, selectedMenuID);
         if (newConfig) {
             baseMenuConfig = newConfig;
+            updateBaseMenuConfiguration(baseMenuConfig);
             const indices = Array.from(baseMenuConfig.keys());
             selectedMenuID = indices.length > 0 ? indices[0] : undefined;
         }
