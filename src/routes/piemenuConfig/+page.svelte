@@ -780,13 +780,13 @@
                             />
                             <button
                                     aria-label="Use for Quick Menu"
-                                    class="mt-2 px-4 py-2 bg-white/10 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-zinc-700 dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-white/0 disabled:text-zinc-500 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-white/10 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                    class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                     onclick={handleUseForQuickMenu}
                                     disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                             >
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[1.25rem]">
                                     <img src="/tabler_icons/star.svg" alt="star icon"
-                                         class="inline w-5 h-5 align-text-bottom dark:invert"/>
+                                         class="inline w-5 h-5 align-text-bottom invert"/>
                                 </span>
                                 <span class="mx-auto w-full text-center block">
                                     {#if isQuickMenuFavorite}Used for Quick Menu{:else}Use for Quick Menu{/if}
@@ -903,7 +903,7 @@
     <!-- --- UI: Dialogs --- -->
     <ConfirmationDialog
             isOpen={showRemoveMenuDialog}
-            message="Are you sure you want to remove this menu? This action cannot be undone."
+            message="Are you sure you want to remove this menu?"
             onCancel={cancelRemoveMenu}
             onConfirm={confirmRemoveMenu}
     />

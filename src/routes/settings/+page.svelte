@@ -475,7 +475,7 @@
                                     </div>
                                 {:else if entry.type === 'number' || entry.type === 'float'}
                                     <input type="number" id={key}
-                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}/>
                                 {:else if entry.type === 'int' || entry.type === 'integer'}
@@ -483,18 +483,18 @@
                                            step="1"
                                            inputmode="numeric"
                                            pattern="^-?\\d+$"
-                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleNumberChange(e, key)}
                                            onkeydown={handleIntKeydown}/>
                                 {:else if entry.type === 'string'}
                                     <input type="text" id={key}
-                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                           class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                            value={entry.value}
                                            onchange={e => handleStringInput(key, e)}/>
                                 {:else if entry.type === 'enum'}
                                     <select id={key}
-                                            class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                            class="custom-select pl-3 py-1 bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                             value={entry.value}
                                             onchange={e => handleEnumChange(e, key)}>
                                         {#if key === 'pieMenuDeadzoneFunction'}

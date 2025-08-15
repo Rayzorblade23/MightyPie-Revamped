@@ -25,7 +25,7 @@
 <div class="mt-1">
     <select
             id="buttonTypeSelect"
-            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm disabled:bg-zinc-100 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+            class="custom-select mt-1 block w-full pl-3 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm disabled:bg-zinc-100 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
             value={currentType ?? ''}
             onchange={handleChange}
             {disabled}

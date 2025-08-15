@@ -19,7 +19,7 @@
 
     // Use the same default as in pieButtonDefaults
     const defaultDisplayName = getDefaultButton(ButtonType.OpenResource).properties.button_text_upper;
-    const defaultResourcePath = getDefaultButton(ButtonType.OpenResource).properties.resource_path;
+    const defaultResourcePath = (getDefaultButton(ButtonType.OpenResource).properties as OpenResourceProperties).resource_path;
 
     let displayName = $derived.by(() => {
         if (button.properties.button_text_upper === defaultDisplayName) {
@@ -46,7 +46,7 @@
                     extensions: ['*']
                 }]
             });
-            
+
             if (selected && !Array.isArray(selected)) {
                 handleChange(RESOURCE_PATH_KEY, selected);
             }
@@ -61,7 +61,7 @@
                 multiple: false,
                 directory: true
             });
-            
+
             if (selected && !Array.isArray(selected)) {
                 handleChange(RESOURCE_PATH_KEY, selected);
             }
@@ -78,7 +78,7 @@
         </label>
         <div class="relative">
             <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="openResourceButtonText"
                     oninput={e => { handleChange(DISPLAY_NAME_KEY, e.currentTarget.value || defaultDisplayName); }}
                     type="text"
@@ -88,14 +88,14 @@
             />
         </div>
     </div>
-    
+
     <div class="mt-3 space-y-1 relative">
         <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1" for="resourcePath">
             Resource Path:
         </label>
         <div class="flex flex-col gap-2">
             <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="resourcePath"
                     oninput={e => { handleChange(RESOURCE_PATH_KEY, e.currentTarget.value); }}
                     type="text"
@@ -105,16 +105,16 @@
             />
             <div class="flex gap-2">
                 <StandardButton
-                    label="Browse Files"
-                    onClick={handleBrowseForFile}
-                    variant="primary"
-                    style="flex: 1;"
+                        label="Browse Files"
+                        onClick={handleBrowseForFile}
+                        variant="primary"
+                        style="flex: 1;"
                 />
                 <StandardButton
-                    label="Browse Folders"
-                    onClick={handleBrowseForFolder}
-                    variant="primary"
-                    style="flex: 1;"
+                        label="Browse Folders"
+                        onClick={handleBrowseForFolder}
+                        variant="primary"
+                        style="flex: 1;"
                 />
             </div>
         </div>

@@ -70,7 +70,7 @@
                 Menu:
             </label>
             <select
-                    class="block w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                    class="custom-select block w-full pl-3 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
                     id="openPageMenuId"
                     oninput={e => { selectedMenuId = +e.currentTarget.value; handleChange(MENU_ID_KEY, selectedMenuId); }}
                     value={selectedMenuId}
@@ -86,7 +86,7 @@
                 Page:
             </label>
             <select
-                    class="block w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                    class="custom-select block w-full pl-3 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
                     id="openPagePageId"
                     oninput={e => { selectedPageId = +e.currentTarget.value; handleChange(PAGE_ID_KEY, selectedPageId); }}
                     value={selectedPageId}
@@ -104,7 +104,7 @@
         </label>
         <div class="relative">
             <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="openPageButtonText"
                     oninput={e => { displayName = e.currentTarget.value; handleChange(DISPLAY_NAME_KEY, displayName); }}
                     type="text"
