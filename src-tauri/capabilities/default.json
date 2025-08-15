@@ -41,7 +41,6 @@
     "core:menu:default",
     "core:tray:default",
     "shell:allow-open",
-    "log:default",
     "dialog:default",
     "fs:default",
     {
@@ -179,9 +178,6 @@
     "fs:read-dirs",
     "fs:allow-open",
     "fs:allow-read",
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled",
     "fs:allow-write",
     "fs:allow-write-file",
     "fs:default",

@@ -5,6 +5,7 @@ node_modules
 /package
 .env.local
 !.env.example
+.windsurfrules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
