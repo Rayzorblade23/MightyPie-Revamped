@@ -27,15 +27,18 @@ pub fn create_startup_task(run_as_admin: bool) -> Result<(), String> {
         .to_str()
         .ok_or_else(|| "Invalid executable path".to_string())?;
 
+    // Quote the path for schtasks /TR to avoid splitting on spaces (e.g., "C:\\Program Files\\...")
+    let quoted_exe_path = format!("\"{}\"", exe_path_str);
+
     // First delete any existing task
     // Ignore errors if the task doesn't exist
     let _ = run_hidden_command("schtasks", &["/Delete", "/TN", TASK_NAME, "/F"]);
 
     // Create the new task with fixed arguments
     let result = if run_as_admin {
-        run_hidden_command("schtasks", &["/Create", "/TN", TASK_NAME, "/TR", exe_path_str, "/SC", "ONLOGON", "/RL", "HIGHEST", "/F"])
+        run_hidden_command("schtasks", &["/Create", "/TN", TASK_NAME, "/TR", &quoted_exe_path, "/SC", "ONLOGON", "/RL", "HIGHEST", "/F"])
     } else {
-        run_hidden_command("schtasks", &["/Create", "/TN", TASK_NAME, "/TR", exe_path_str, "/SC", "ONLOGON", "/F"])
+        run_hidden_command("schtasks", &["/Create", "/TN", TASK_NAME, "/TR", &quoted_exe_path, "/SC", "ONLOGON", "/F"])
     }?;
     
     if !result.0 {
