@@ -95,17 +95,29 @@ func (a *PieButtonExecutionAdapter) handleOpenFolder(msg *nats.Msg) {
 		return
 	}
 
+	// Try to open the folder with our improved function
 	if err := openFolder(path); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			log.Info("Successfully opened folder %s", path)
-		} else {
-			log.Error("Failed to open folder %s: %v", path, err)
-		}
+		log.Error("Failed to open folder %s: %v", path, err)
+	} else {
+		log.Info("Successfully opened folder %s", path)
 	}
 }
 
-// openFolder opens the specified path in the default file explorer.
+
+// openFolder opens folders reliably by cleaning the path and invoking the shell.
+// Implementation: `cmd /c start "" <path>` so the shell handles spaces and shell folders.
 func openFolder(path string) error {
-	cmd := exec.Command("explorer", path)
-	return cmd.Run()
+    // Clean extended-length prefix if present
+    original := path
+    cleanPath := path
+    if len(path) > 4 && path[0:4] == "\\\\?\\" {
+        cleanPath = path[4:]
+        log.Debug("Stripped \\?\\ prefix: %s -> %s", original, cleanPath)
+    } else {
+        log.Debug("No extended prefix: %s", cleanPath)
+    }
+
+    // Use cmd start without embedding quotes; Go will quote args with spaces correctly
+    log.Debug("Opening via shell: cmd /c start \"\" %s", cleanPath)
+    return exec.Command("cmd", "/c", "start", "", cleanPath).Run()
 }

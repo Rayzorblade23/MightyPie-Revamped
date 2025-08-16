@@ -540,7 +540,7 @@
                                 class="w-full px-4 py-2 bg-purple-800 dark:bg-purple-950 border border-none rounded-lg flex items-center justify-center hover:bg-violet-800 dark:hover:bg-violet-950 transition active:bg-purple-700 dark:active:bg-indigo-950 text-zinc-100 text-sm font-medium shadow-md"
                                 onclick={() => publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER, 'appfolder')}
                         >
-                            Open App Folder
+                            Open Installation Folder
                         </button>
                     </div>
                 </div>
