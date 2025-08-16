@@ -54,11 +54,15 @@ func (a *PieButtonExecutionAdapter) BringAllExplorerWindowsToForeground() error 
 
 // ForwardsButtonClick simulates a press and release of the XBUTTON1 (Forwards) mouse button.
 func (a *PieButtonExecutionAdapter) ForwardsButtonClick() error {
+	// Give the UI a brief moment to defocus/hide before sending the XBUTTON click
+	time.Sleep(150 * time.Millisecond)
 	return sendXButtonClick(XBUTTON2)
 }
 
 // BackwardsButtonClick simulates a press and release of the XBUTTON2 (Backwards) mouse button.
 func (a *PieButtonExecutionAdapter) BackwardsButtonClick() error {
+	// Give the UI a brief moment to defocus/hide before sending the XBUTTON click
+	time.Sleep(150 * time.Millisecond)
 	return sendXButtonClick(XBUTTON1)
 }
 

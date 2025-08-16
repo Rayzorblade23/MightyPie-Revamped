@@ -40,6 +40,8 @@
     // Heartbeat interval for mouse hook safety
     let heartbeatInterval: ReturnType<typeof setInterval> | null = $state(null);
     const HEARTBEAT_INTERVAL = 3000; // Send heartbeat every 3 seconds
+    // Diagnostics: count heartbeats sent in the current interval
+    let heartbeatSendCount = 0;
 
     let keepPieMenuAnchored = $state(false);
 
@@ -85,7 +87,7 @@
                 if (isNatsReady) {
                     publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
                     // Stop heartbeat when pie menu is hidden and mouse hook is disabled
-                    stopHeartbeat();
+                    stopHeartbeat("setPieMenuState: closing");
                 }
                 if (!lightClose) {
                     // Only do the full reset on normal closes
@@ -99,24 +101,38 @@
 
     // Start sending heartbeats when pie menu is visible
     function startHeartbeat() {
-        // Clear any existing interval first
-        stopHeartbeat();
+        // Clear any existing interval first (diagnostic reason)
+        stopHeartbeat("startHeartbeat: pre-clear existing interval");
 
-        logger.debug("Starting mouse hook safety heartbeat");
+        heartbeatSendCount = 0;
+        logger.debug(`Starting mouse hook safety heartbeat (creating interval). isNatsReady=${isNatsReady}`);
+
         // Start sending heartbeats
         heartbeatInterval = setInterval(() => {
             if (isNatsReady) {
-                publishMessage(PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT, {timestamp: Date.now()});
+                heartbeatSendCount++;
+                publishMessage(PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT, {
+                    timestamp: Date.now(),
+                    count: heartbeatSendCount
+                });
+                logger.debug(`[HB] Sent heartbeat #${heartbeatSendCount} to ${PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT}`);
+            } else {
+                logger.debug(`[HB] Skipped send (NATS not ready). count=${heartbeatSendCount}`);
             }
         }, HEARTBEAT_INTERVAL);
+
     }
 
     // Stop sending heartbeats when pie menu is hidden
-    function stopHeartbeat() {
+    function stopHeartbeat(reason?: string) {
+        const hadInterval = Boolean(heartbeatInterval);
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
             heartbeatInterval = null;
-            logger.debug("Stopped mouse hook safety heartbeat");
+        }
+        if (!reason?.startsWith('startHeartbeat')) {
+            const msg = `Stopped mouse hook safety heartbeat. reason=${reason ?? '(none)'} hadInterval=${hadInterval} finalCount=${heartbeatSendCount}`;
+            logger.debug(msg);
         }
     }
 
@@ -129,9 +145,13 @@
         setPieMenuState(false);
     };
 
-    // Ensure heartbeat is stopped when component is destroyed
+    // Ensure backend knows menu is closed and heartbeat stops on unmount
     onDestroy(() => {
-        stopHeartbeat();
+        if (isNatsReady) {
+            publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
+            logger.debug("[onDestroy] Failsafe: sent piemenuOpened=false");
+        }
+        stopHeartbeat("onDestroy: component unmount");
     });
 
     const handleShortcutMessage = async (message: string) => {
@@ -278,20 +298,6 @@
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
 
-        (async () => {
-            const currentWindow = getCurrentWindow();
-            const tauriWindowInitiallyVisible = await currentWindow.isVisible();
-            if (document.hidden) {
-                if (isPieMenuVisible) await handlePieMenuHidden();
-            } else {
-                if (tauriWindowInitiallyVisible) {
-                    if (!isPieMenuVisible) await handlePieMenuVisible(0);
-                } else {
-                    if (isPieMenuVisible) await handlePieMenuHidden();
-                }
-            }
-        })();
-
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
@@ -310,6 +316,33 @@
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
+        };
+    });
+
+    // Block browser back/forward triggered by mouse X1/X2 buttons
+    onMount(() => {
+        const block = (event: Event) => {
+            const button = (event as MouseEvent).button;
+            // Quick guard: ignore everything except X1/X2
+            if (button !== 3 && button !== 4) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        };
+
+        // Use capture + non-passive so preventDefault works before default navigation
+        const opts: AddEventListenerOptions = {capture: true, passive: false};
+        window.addEventListener('pointerdown', block, opts);
+        window.addEventListener('pointerup', block, opts);
+        window.addEventListener('mousedown', block, opts);
+        window.addEventListener('mouseup', block, opts);
+        window.addEventListener('auxclick', block, opts);
+
+        return () => {
+            window.removeEventListener('pointerdown', block, opts);
+            window.removeEventListener('pointerup', block, opts);
+            window.removeEventListener('mousedown', block, opts);
+            window.removeEventListener('mouseup', block, opts);
+            window.removeEventListener('auxclick', block, opts);
         };
     });
 

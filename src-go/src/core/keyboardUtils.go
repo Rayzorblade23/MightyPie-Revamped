@@ -203,6 +203,16 @@ var KeyMap = map[string]int{
 	"PageUp":    0x21,
 	"PageDown":  0x22,
 
+	// Media keys
+	"VolumeMute":      0xAD, // VK_VOLUME_MUTE
+	"VolumeDown":      0xAE, // VK_VOLUME_DOWN
+	"VolumeUp":        0xAF, // VK_VOLUME_UP
+	"MediaNext":       0xB0, // VK_MEDIA_NEXT_TRACK
+	"MediaPrevious":   0xB1, // VK_MEDIA_PREV_TRACK
+	"MediaStop":       0xB2, // VK_MEDIA_STOP
+	"MediaPlayPause":  0xB3, // VK_MEDIA_PLAY_PAUSE
+	"MediaSelect":     0xB5, // VK_LAUNCH_MEDIA_SELECT
+
 	// Symbols
 	"Semicolon": 0xBA, "Equal": 0xBB, "Comma": 0xBC,
 	"Minus": 0xBD, "Period": 0xBE, "Slash": 0xBF,
