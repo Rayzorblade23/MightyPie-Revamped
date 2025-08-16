@@ -1,6 +1,5 @@
 <!-- PieMenu.svelte -->
 <script lang="ts">
-    import {scale} from 'svelte/transition';
     import {cubicOut} from 'svelte/easing';
     import {onDestroy, onMount} from 'svelte';
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";

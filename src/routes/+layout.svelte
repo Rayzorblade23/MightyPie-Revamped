@@ -28,7 +28,9 @@
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
         PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
-        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO
+        PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
+        PUBLIC_PIEMENU_SIZE_X,
+        PUBLIC_PIEMENU_SIZE_Y
     } from '$env/static/public';
     import type {ConfigData} from '$lib/data/types/pieButtonTypes.ts';
     import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
@@ -38,7 +40,7 @@
     import {saturateHexColor} from "$lib/colorUtils.ts";
     import {createLogger} from "$lib/logger";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils";
-    import {getCurrentWindow} from '@tauri-apps/api/window';
+    import {getCurrentWindow, UserAttentionType} from '@tauri-apps/api/window';
     import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
@@ -48,6 +50,10 @@
 
     // Track if we have apps info available for validation
     let hasAppsInfo = $state(false);
+    // Track if we ever successfully connected, to avoid showing crash dialog on initial startup
+    let hasConnectedOnce = $state(false);
+    // Controls visibility of the crash/reconnect dialog
+    let showDisconnectDialog = $state(false);
 
     $effect(() => {
         const baseMenuConfiguration = getBaseMenuConfiguration();
@@ -68,24 +74,62 @@
     let connectionStatus = $state('Idle');
     let minDisplayTimeMs = 3000; // 3 seconds display time for success screen
     let showSuccessScreen = $state(false);
+    // Only show the initial connecting screen if it lasts longer than this delay
+    const initialConnectingDelayMs = 2000;
+    let showInitialConnecting = $state(false);
+    let connectingDelayTimer: number | null = null;
 
     $effect(() => {
         const actualStatus = getConnectionStatus();
 
         // Handle connection status changes
         if (actualStatus === 'connected' && connectionStatus !== 'connected') {
+            // Mark that we connected at least once
+            hasConnectedOnce = true;
             // When connection is successful, show the success screen
             connectionStatus = 'connected';
             showSuccessScreen = true;
+            showDisconnectDialog = false; // hide any crash dialog
 
             // After 3 seconds, hide the success screen
             setTimeout(() => {
                 showSuccessScreen = false;
             }, minDisplayTimeMs);
+
+            // Clear any pending initial-connecting delay
+            if (connectingDelayTimer !== null) {
+                clearTimeout(connectingDelayTimer);
+                connectingDelayTimer = null;
+            }
+            showInitialConnecting = false;
         } else if (actualStatus !== 'connected') {
             // For non-connected states, update immediately
             connectionStatus = actualStatus;
             showSuccessScreen = false;
+            // Manage delayed initial connecting screen before first successful connect
+            if (!hasConnectedOnce && !showDisconnectDialog) {
+                if (connectingDelayTimer === null) {
+                    connectingDelayTimer = window.setTimeout(() => {
+                        showInitialConnecting = true;
+                        connectingDelayTimer = null;
+                    }, initialConnectingDelayMs);
+                }
+            } else {
+                // Either we've connected once or dialog is showing; do not show the initial connecting
+                if (connectingDelayTimer !== null) {
+                    clearTimeout(connectingDelayTimer);
+                    connectingDelayTimer = null;
+                }
+                showInitialConnecting = false;
+            }
+            // Only show dialog if we've connected before (to avoid startup noise)
+            const shouldShow = hasConnectedOnce && (actualStatus === 'reconnecting' || actualStatus === 'closed' || actualStatus === 'error');
+            if (shouldShow && !showDisconnectDialog) {
+                showDisconnectDialog = true;
+                logger.debug("Showing disconnect dialog (status:", actualStatus, ")");
+                // Bring window to front so the dialog is visible
+                ensureWindowVisible();
+            }
         }
 
         logger.debug("NATS connection status:", connectionStatus);
@@ -252,12 +296,30 @@
         }, 100);
     };
 
+    // Ensure the window is visible and focused (helps when tray-only / hidden)
+    async function ensureWindowVisible() {
+        try {
+            const win = getCurrentWindow();
+            await centerAndSizeWindowOnMonitor(win, Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y));
+            await win.show();
+            await win.unminimize();
+            await win.setFocus();
+            // Also request user attention to surface the window on some systems
+            try {
+                await win.requestUserAttention(UserAttentionType.Critical);
+            } catch {
+            }
+        } catch (e) {
+            logger.warn("Failed to ensure window visibility:", e);
+        }
+    }
+
     onMount(() => {
         if (browser) {
             const initializeConnection = async () => {
                 try {
                     // Center the window on startup
-                    await centerAndSizeWindowOnMonitor(getCurrentWindow(), 400, 300);
+                    await centerAndSizeWindowOnMonitor(getCurrentWindow(), Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y));
 
                     logger.info("Attempting to connect to NATS...");
                     await connectToNats();
@@ -313,7 +375,7 @@
 </script>
 
 {#if showSuccessScreen}
-    <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+    <div class="w-full min-h-screen overflow-hidden flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
         <div class="flex flex-col items-center space-y-13">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
 
@@ -330,6 +392,38 @@
     </div>
 {:else if connectionStatus === "connected"}
     {@render children()}
+{:else if hasConnectedOnce && !showDisconnectDialog}
+    <!-- After first successful connection, render the app unless the disconnect dialog is active -->
+    {@render children()}
+{:else if showDisconnectDialog}
+    <!-- Disconnect state: match full-screen card layout (no overlay/backdrop) -->
+    <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
+        <div class="flex flex-col items-center space-y-5 text-center">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
+
+            <div class="flex items-center">
+                <div class="flex items-center justify-center mr-3">
+                    <div class="relative h-4 w-4">
+                        <div class="absolute inset-0 rounded-full bg-red-600 opacity-75 animate-ping"></div>
+                        <div class="relative rounded-full h-4 w-4 bg-red-500"></div>
+                    </div>
+                </div>
+                <p class="text-zinc-900 dark:text-white">Backend connection lost</p>
+            </div>
+
+            <div class="bg-red-800 p-4 rounded-lg max-w-md text-center text-white">
+                <p class="mb-2">Oops, this shouldn't have happened!</p>
+                <p>The app will keep trying to reconnect in the background but you should probably just restart the
+                    app.</p>
+            </div>
+
+            <button class="w-auto px-4 py-2 bg-zinc-200 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition active:bg-zinc-400 active:dark:bg-zinc-500"
+                    onclick={handleExit}
+            >
+                Backend is dead. Quit.
+            </button>
+        </div>
+    </div>
 {:else if connectionStatus === "error"}
     <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
         <div class="flex flex-col items-center space-y-5">
@@ -348,7 +442,7 @@
             </button>
         </div>
     </div>
-{:else}
+{:else if !hasConnectedOnce && !showDisconnectDialog && showInitialConnecting}
     <div class="w-full min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
         <div class="flex flex-col items-center space-y-13">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>
