@@ -13,9 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"github.com/nats-io/nats-server/v2/server"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
+
+	"github.com/Rayzorblade23/MightyPie-Revamped/pkg/processmonitor"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/buttonManagerAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/mouseInputAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
@@ -26,12 +25,14 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/windowManagementAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
-	"github.com/Rayzorblade23/MightyPie-Revamped/pkg/processmonitor"
+	"github.com/nats-io/nats-server/v2/server"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
 	natsServer *server.Server
-	cmds    []*os.Process
+	cmds       []*os.Process
 
 	// Worker flags
 	workerFlags = map[string]*bool{
@@ -52,7 +53,7 @@ func main() {
 	// Initialize structured logger
 	log := logger.New("Main")
 	logger.ReplaceStdLog("Main")
-	
+
 	// Check if we should run as a specific worker
 	for workerName, flagValue := range workerFlags {
 		if *flagValue {
@@ -65,19 +66,19 @@ func main() {
 	// Only the main coordinator logs these messages
 	log.Info("Starting MightyPie backend...")
 	log.Info("Log Level: %s", os.Getenv("RUST_LOG"))
-	
+
 	// If no worker flag is set, run as the main coordinator
 	log.Info("Running as main coordinator")
-	
-	// Start parent process monitoring
-	processmonitor.MonitorParentProcess()
-	
+
 	// Register cleanup function for when parent process exits
 	processmonitor.RegisterShutdownCallback(func() {
 		log.Info("Parent process terminated, cleaning up...")
 		cleanupAllProcesses(log)
 		os.Exit(0)
 	})
+
+	// Start parent PID monitoring (zero polling on Windows)
+	processmonitor.MonitorParentPID(os.Getppid())
 
 	// Start NATS server and wait for it to be ready
 	// Only the main coordinator starts the NATS server
@@ -98,9 +99,8 @@ func main() {
 
 	var wg sync.WaitGroup
 	// Prepare all commands before starting them to avoid race conditions.
-	
-	// No external natsCmd needed for embedded server.
 
+	// No external natsCmd needed for embedded server.
 
 	// Get the executable path for launching worker processes
 	exePath, err := os.Executable()
@@ -108,11 +108,14 @@ func main() {
 		log.Fatal("Error getting executable path: %v", err)
 	}
 
+	// Orchestrator PID to pass to workers
+	orchPID := os.Getpid()
+
 	for _, workerName := range workers {
 		// Create a process that runs this same executable with the appropriate worker flag
 		procAttr := &os.ProcAttr{
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-			Env:   append(os.Environ(), "MIGHTYPIE_WORKER_TYPE=worker"),
+			Env:   append(os.Environ(), "MIGHTYPIE_WORKER_TYPE=worker", fmt.Sprintf("ORCH_PID=%d", orchPID)),
 		}
 		proc, err := os.StartProcess(exePath, []string{exePath, fmt.Sprintf("--%s", workerName)}, procAttr)
 		if err != nil {
@@ -144,7 +147,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		
+
 		for _, proc := range cmds {
 			if proc != nil {
 				err := proc.Kill()
@@ -190,7 +193,7 @@ func startNatsServer(log *logger.Logger) error {
 		return fmt.Errorf("failed to parse NATS config: %w", err)
 	}
 	log.Debug("[NATS] NATS config parsed successfully.")
-	
+
 	// Always use environment variables for critical connection settings
 	// This ensures frontend and backend are using the same values
 	natsPort := os.Getenv("NATS_PORT")
@@ -198,29 +201,29 @@ func startNatsServer(log *logger.Logger) error {
 		log.Fatal("[NATS] NATS_PORT environment variable not set - cannot continue")
 		return fmt.Errorf("NATS_PORT environment variable not set")
 	}
-	
+
 	port, err := strconv.Atoi(natsPort)
 	if err != nil {
 		log.Fatal("[NATS] Invalid NATS_PORT value: %s - cannot continue", natsPort)
 		return fmt.Errorf("invalid NATS_PORT value: %s", natsPort)
 	}
-	
+
 	// Override the port from config with environment variable
 	opts.Port = port
-	
+
 	// Parse NATS_SERVER_URL to get WebSocket port
 	natsServerURL := os.Getenv("NATS_SERVER_URL")
 	if natsServerURL == "" {
 		log.Fatal("[NATS] NATS_SERVER_URL environment variable not set - cannot continue")
 		return fmt.Errorf("NATS_SERVER_URL environment variable not set")
 	}
-	
+
 	parsedURL, err := url.Parse(natsServerURL)
 	if err != nil {
 		log.Fatal("[NATS] Failed to parse NATS_SERVER_URL: %v - cannot continue", err)
 		return fmt.Errorf("failed to parse NATS_SERVER_URL: %w", err)
 	}
-	
+
 	// Extract port from URL
 	hostPort := parsedURL.Host
 	_, portStr, err := net.SplitHostPort(hostPort)
@@ -228,13 +231,13 @@ func startNatsServer(log *logger.Logger) error {
 		log.Fatal("[NATS] Failed to extract host:port from NATS_SERVER_URL: %v - cannot continue", err)
 		return fmt.Errorf("failed to extract host:port from NATS_SERVER_URL: %w", err)
 	}
-	
+
 	wsPort, err := strconv.Atoi(portStr)
 	if err != nil {
 		log.Fatal("[NATS] Failed to parse WebSocket port from NATS_SERVER_URL: %v - cannot continue", err)
 		return fmt.Errorf("failed to parse WebSocket port from NATS_SERVER_URL: %w", err)
 	}
-	
+
 	// Configure WebSocket options
 	wsOpts := server.WebsocketOpts{
 		Host:  "127.0.0.1",
@@ -243,7 +246,7 @@ func startNatsServer(log *logger.Logger) error {
 	}
 	opts.Websocket = wsOpts
 	log.Info("[NATS] WebSocket will listen on port %d from NATS_SERVER_URL", wsPort)
-	
+
 	// Set auth token from env
 	natsToken := os.Getenv("NATS_AUTH_TOKEN")
 	if natsToken == "" {
@@ -254,7 +257,7 @@ func startNatsServer(log *logger.Logger) error {
 
 	log.Info("[NATS] Embedded NATS server will listen on: nats://%s:%d", opts.Host, opts.Port)
 	log.Info("[NATS] WebSocket will listen on: ws://%s:%d", opts.Websocket.Host, opts.Websocket.Port)
-	
+
 	log.Debug("[NATS] Starting embedded NATS server on port %d...", opts.Port)
 	natsServer = server.New(opts)
 	if natsServer == nil {
@@ -273,7 +276,6 @@ func startNatsServer(log *logger.Logger) error {
 	}
 	return fmt.Errorf("embedded NATS server did not start in time")
 }
-
 
 // getNatsConfigPath determines the path for the default NATS config based on the environment.
 func getNatsConfigPath(log *logger.Logger) (defaultConfPath string, err error) {
@@ -354,20 +356,35 @@ func runWorker(workerType string) {
 	log := logger.New(workerTitle)
 	logger.ReplaceStdLog(workerTitle)
 
+	// Begin monitoring orchestrator PID if provided
+	if pidStr := os.Getenv("ORCH_PID"); pidStr != "" {
+		if pid, err := strconv.Atoi(pidStr); err == nil && pid > 0 {
+			processmonitor.RegisterShutdownCallback(func() {
+				log.Info("Exiting worker due to orchestrator termination")
+				os.Exit(0)
+			})
+			processmonitor.MonitorParentPID(pid)
+		} else {
+			log.Warn("Invalid ORCH_PID '%s' - parent monitoring disabled", pidStr)
+		}
+	} else {
+		log.Warn("ORCH_PID not set - parent monitoring disabled")
+	}
+
 	// Get NATS port from environment variable
 	natsPort := os.Getenv("NATS_PORT")
 	natsHost := "127.0.0.1"
-	natsAddress := fmt.Sprintf("%s:%s", natsHost, natsPort)
+	natsAddress := net.JoinHostPort(natsHost, natsPort)
 
 	// Wait for NATS server to be ready before connecting
 	// Use a longer timeout and more verbose logging
 	maxAttempts := 20 // Increased from 5 to 20 attempts
 	attemptDelay := 500 * time.Millisecond
 	connectionTimeout := 500 * time.Millisecond
-	
+
 	log.Debug("Waiting for NATS server to be ready at %s (max %d attempts)...", natsAddress, maxAttempts)
-	
-	for i := 0; i < maxAttempts; i++ {
+
+	for i := range maxAttempts {
 		conn, err := net.DialTimeout("tcp", natsAddress, connectionTimeout)
 		if err == nil {
 			conn.Close()
@@ -382,7 +399,7 @@ func runWorker(workerType string) {
 	}
 
 	// Create a NATS adapter for the worker
-	natsAdapter, err := natsAdapter.New(strings.Title(workerType))
+	natsAdapter, err := natsAdapter.New(workerTitle)
 	if err != nil {
 		log.Fatal("Failed to connect to NATS: %v", err)
 	}

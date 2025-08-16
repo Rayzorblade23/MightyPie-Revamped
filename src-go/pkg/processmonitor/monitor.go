@@ -5,12 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -19,98 +19,6 @@ var (
 	shutdownMutex  sync.Mutex
 	callbacks      []func()
 )
-
-// MonitorParentProcess checks if the parent process is still running
-// and triggers a shutdown if it's not
-func MonitorParentProcess() {
-	// Get the app name from environment variable or use default
-	appName := os.Getenv("PUBLIC_APPNAME")
-	if appName == "" {
-		appName = "MightyPieRevamped"
-	}
-	
-	log.Info("Starting process monitor for Tauri parent: %s, PID: %d", appName, os.Getppid())
-
-	// Start monitoring in a separate goroutine
-	go func() {
-
-		log.Info("Starting process monitoring...")
-		
-		// Find the main application process by name
-		pid, err := findProcessByName(appName)
-		if err != nil {
-			log.Error("Failed to find main application process: %v", err)
-			log.Warn("Process monitoring disabled")
-			return
-		}
-		
-		if pid <= 0 {
-			log.Error("Main application process not found")
-			log.Warn("Process monitoring disabled")
-			return
-		}
-		
-		log.Info("Found main application process with PID: %d", pid)
-		
-		// Start monitoring the process
-		monitorProcessLoop(pid)
-	}()
-}
-
-// findProcessByName searches for a process by name and returns its PID
-func findProcessByName(name string) (int, error) {
-	if runtime.GOOS == "windows" {
-		// On Windows, use tasklist to find the process
-		cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("IMAGENAME eq %s.exe", name), "/NH", "/FO", "CSV")
-		output, err := cmd.Output()
-		if err != nil {
-			return 0, fmt.Errorf("failed to execute tasklist: %v", err)
-		}
-		
-		// Parse the output to find the PID
-		lines := strings.Split(string(output), "\n")
-		for _, line := range lines {
-			// Remove quotes and split by comma
-			line = strings.Trim(line, "\r\n")
-			if line == "" {
-				continue
-			}
-			
-			parts := strings.Split(strings.Trim(line, "\""), "\",\"")
-			if len(parts) >= 2 {
-				// The second column is the PID
-				pidStr := parts[1]
-				pid, err := strconv.Atoi(pidStr)
-				if err != nil {
-					continue
-				}
-				return pid, nil
-			}
-		}
-		
-		return 0, fmt.Errorf("process not found")
-	} else {
-		// On Unix systems, use ps and grep
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("ps -ef | grep %s | grep -v grep | awk '{print $2}'", name))
-		output, err := cmd.Output()
-		if err != nil {
-			return 0, fmt.Errorf("failed to execute ps command: %v", err)
-		}
-		
-		// Parse the output to find the PID
-		pidStr := strings.TrimSpace(string(output))
-		if pidStr == "" {
-			return 0, fmt.Errorf("process not found")
-		}
-		
-		pid, err := strconv.Atoi(pidStr)
-		if err != nil {
-			return 0, fmt.Errorf("failed to parse PID: %v", err)
-		}
-		
-		return pid, nil
-	}
-}
 
 // monitorProcessLoop continuously monitors a process and triggers shutdown if it terminates
 func monitorProcessLoop(pid int) {
@@ -160,7 +68,7 @@ func isProcessRunning(pid int) bool {
 			log.Error("Failed to execute tasklist: %v", err)
 			return false
 		}
-		
+
 		// If the output contains the PID, the process is running
 		return strings.Contains(string(output), fmt.Sprintf(`"%d"`, pid))
 	} else {
@@ -180,7 +88,34 @@ func isProcessRunning(pid int) bool {
 func PrintProcessInfo() {
 	currentPID := os.Getpid()
 	parentPID := os.Getppid()
-	
+
 	fmt.Printf("Current process PID: %d\n", currentPID)
 	fmt.Printf("Parent process PID: %d\n", parentPID)
+}
+
+// MonitorParentPID monitors a specific parent PID and triggers shutdown when it terminates.
+// On Windows it uses a WaitForSingleObject on the process handle (no polling). On other OSes it falls back to polling.
+func MonitorParentPID(pid int) {
+	log.Info("Starting parent PID monitor for PID: %d", pid)
+	if runtime.GOOS == "windows" {
+		// Use Windows job-style wait to avoid polling
+		go func() {
+			// Delay import to Windows-specific path to avoid non-Windows builds failing at runtime
+			// Open with SYNCHRONIZE access to wait on the handle
+			// Note: requires golang.org/x/sys/windows
+			if h, err := windows.OpenProcess(windows.SYNCHRONIZE, false, uint32(pid)); err == nil {
+				defer windows.CloseHandle(h)
+				// Wait indefinitely for the process to signal termination
+				_, _ = windows.WaitForSingleObject(h, windows.INFINITE)
+				log.Info("Parent process (PID: %d) terminated (WaitForSingleObject). Triggering shutdown.", pid)
+				TriggerShutdown()
+				return
+			} else {
+				log.Error("OpenProcess failed for PID %d: %v. Falling back to polling.", pid, err)
+				monitorProcessLoop(pid)
+			}
+		}()
+	} else {
+		go monitorProcessLoop(pid)
+	}
 }
