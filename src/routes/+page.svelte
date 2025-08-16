@@ -58,7 +58,9 @@
     });
 
     // Centralized function to set pie menu state and manage heartbeat
-    function setPieMenuState(isOpen: boolean, newPageID?: number) {
+    // If lightClose is true, we only publish "opened=false" and stop heartbeat
+    // without resetting pageID or changing opacity. Used for child onClose() to avoid races.
+    function setPieMenuState(isOpen: boolean, newPageID?: number, lightClose: boolean = false) {
         if (isOpen) {
             // Opening the pie menu
             if (newPageID !== undefined) {
@@ -79,15 +81,18 @@
             // Closing the pie menu
             if (isPieMenuVisible) {
                 isPieMenuVisible = false;
-                pageID = 0;
                 logger.debug("PieMenu state: HIDDEN");
                 if (isNatsReady) {
                     publishMessage<IPiemenuOpenedMessage>(PUBLIC_NATSSUBJECT_PIEMENU_OPENED, {piemenuOpened: false});
                     // Stop heartbeat when pie menu is hidden and mouse hook is disabled
                     stopHeartbeat();
                 }
-                // Set opacity to 0 when hiding
-                pieMenuOpacity = 0;
+                if (!lightClose) {
+                    // Only do the full reset on normal closes
+                    pageID = 0;
+                    // Set opacity to 0 when hiding
+                    pieMenuOpacity = 0;
+                }
             }
         }
     }
@@ -329,9 +334,10 @@
                 animationKey={animationKey}
                 bind:this={pieMenuComponent}
                 menuID={menuID}
-                onClose={() => setPieMenuState(false)}
+                onClose={() => setPieMenuState(false, undefined, true)}
                 opacity={pieMenuOpacity}
                 pageID={pageID}
         />
+
     </div>
 </main>
