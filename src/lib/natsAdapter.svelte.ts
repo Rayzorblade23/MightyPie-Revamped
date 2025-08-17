@@ -415,13 +415,23 @@ export async function fetchLatestFromStream(
                         
                         if (lastMsg) {
                             const decoded = sc.decode(lastMsg.data);
-                            jetStreamRegistry[registryKey].latest = decoded;
-                            logger.debug(`Fetched latest message for subject: ${subject}`);
+                            const entry = jetStreamRegistry[registryKey];
+                            if (entry) {
+                                entry.latest = decoded;
+                                logger.debug(`Fetched latest message for subject: ${subject}`);
+                            } else {
+                                logger.debug(`Registry entry missing while setting latest for subject: ${subject} (likely stopped)`);
+                            }
                         } else {
                             logger.debug(`No message found for subject: ${subject}`);
                         }
-                    } catch (e) {
-                        logger.warn(`Failed to get last message for subject: ${subject}`, e);
+                    } catch (e: any) {
+                        if (typeof e?.message === 'string' && e.message.toLowerCase().includes('no message found')) {
+                            // Harmless: subject has no messages yet
+                            logger.debug(`No last message yet for subject: ${subject}`);
+                        } else {
+                            logger.warn(`Failed to get last message for subject: ${subject}`, e);
+                        }
                     }
                 }
             } catch (e) {
@@ -437,13 +447,28 @@ export async function fetchLatestFromStream(
                 throw e;
             }
             let cancelled = false;
+            // Ensure stop cancels the consume loop and clears state safely
+            jetStreamRegistry[registryKey].stop = async () => {
+                cancelled = true;
+                const entry = jetStreamRegistry[registryKey];
+                if (entry) {
+                    entry.handlers.clear();
+                    entry.latest = null;
+                }
+            };
             const consumeLoop = async () => {
                 for await (const msg of await consumer.consume()) {
                     if (cancelled) break;
                     try {
                         const decoded = sc.decode(msg.data);
-                        jetStreamRegistry[registryKey].latest = decoded;
-                        for (const h of jetStreamRegistry[registryKey].handlers) {
+                        const entry = jetStreamRegistry[registryKey];
+                        if (!entry) {
+                            // Registry deleted; stop processing further
+                            cancelled = true;
+                            break;
+                        }
+                        entry.latest = decoded;
+                        for (const h of entry.handlers) {
                             h(decoded);
                         }
                         // logger.debug(`Received message on subject: ${subject}, data: ${decoded}`);
