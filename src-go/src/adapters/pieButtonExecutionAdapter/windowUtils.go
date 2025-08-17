@@ -2,6 +2,7 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -64,6 +65,40 @@ type windowPlacement struct {
 type WindowHandle uintptr
 
 // --- Window manipulation methods ---
+
+// enumContext holds per-call state for EnumWindows in GetWindowAtPoint.
+type enumContext struct {
+    x, y           int
+    managedWindows map[int]core.WindowInfo
+    hwnd           WindowHandle
+    found          bool
+}
+
+// Single package-level callback to avoid repeated allocations.
+var enumWindowsProc = syscall.NewCallback(func(hwnd syscall.Handle, lparam uintptr) uintptr {
+    ctx := (*enumContext)(unsafe.Pointer(lparam))
+
+    handle := int(hwnd)
+
+    winInfo, exists := ctx.managedWindows[handle]
+    if !exists || winInfo.ExeName == "mightypie-revamped.exe" {
+        return 1
+    }
+
+    var rect RECT
+    _, _, _ = getWindowRect.Call(
+        uintptr(hwnd),
+        uintptr(unsafe.Pointer(&rect)),
+    )
+
+    if int32(ctx.x) >= rect.Left && int32(ctx.x) <= rect.Right &&
+        int32(ctx.y) >= rect.Top && int32(ctx.y) <= rect.Bottom {
+        ctx.hwnd = WindowHandle(hwnd)
+        ctx.found = true
+        return 0 // stop enumeration
+    }
+    return 1 // continue
+})
 
 // isExplorerWindow returns true if the given HWND belongs to explorer.exe using the cached windowsList
 func isExplorerWindow(hwnd uintptr, windowsList map[int]core.WindowInfo) bool {
@@ -195,47 +230,19 @@ func (hwnd WindowHandle) IsMaximized() (bool, error) {
 }
 
 func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, error) {
-	a.mu.RLock()
-	managedWindows := a.windowsList
-	a.mu.RUnlock()
+    a.mu.RLock()
+    managedWindows := a.windowsList
+    a.mu.RUnlock()
 
-	type windowInfo struct {
-		hwnd  WindowHandle
-		found bool
-	}
-	result := windowInfo{}
+    ctx := enumContext{x: x, y: y, managedWindows: managedWindows}
+    enumWindows.Call(enumWindowsProc, uintptr(unsafe.Pointer(&ctx)))
+    runtime.KeepAlive(&ctx)
 
-	cb := func(hwnd syscall.Handle, lparam uintptr) uintptr {
-		handle := int(hwnd)
+    if !ctx.found {
+        return 0, fmt.Errorf("no managed window found at coordinates")
+    }
 
-		winInfo, exists := managedWindows[handle]
-		if !exists || winInfo.ExeName == "mightypie-revamped.exe" {
-			return 1
-		}
-
-		var rect RECT
-		_, _, _ = getWindowRect.Call(
-			uintptr(hwnd),
-			uintptr(unsafe.Pointer(&rect)),
-		)
-
-		if int32(x) >= rect.Left && int32(x) <= rect.Right &&
-			int32(y) >= rect.Top && int32(y) <= rect.Bottom {
-			result.hwnd = WindowHandle(hwnd)
-			result.found = true
-			return 0
-		}
-		return 1
-	}
-
-	syscallCallback := syscall.NewCallback(cb)
-	enumWindows.Call(syscallCallback, 0)
-
-	if !result.found {
-		return 0, fmt.Errorf("no managed window found at coordinates")
-	}
-
-	return result.hwnd, nil
+    return ctx.hwnd, nil
 }
 
 // setForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
