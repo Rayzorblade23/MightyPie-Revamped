@@ -182,7 +182,7 @@ has opened once. This cache is the working basis for all program-related buttons
     - Quit
 
 > [!NOTE]
-> You can assign almost any keyboard key, combined with any modifier, as a shortcut. In theory, you could use even use
+> You can assign almost any keyboard key, combined with any modifier, as a shortcut. In theory, you could even use
 > something like `Ctrl + VolumeUp`. I don't know why you'd want that, but I won't judge. Though some keys might not have
 > human-readable names. Only the `Escape` key is not usable.
 >
