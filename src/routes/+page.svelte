@@ -82,6 +82,10 @@
         } else {
             // Closing the pie menu
             if (isPieMenuVisible) {
+                // Ensure buttons unmount (child will set showButtons=false via cancelAnimations)
+                if (pieMenuComponent?.cancelAnimations) {
+                    pieMenuComponent.cancelAnimations();
+                }
                 isPieMenuVisible = false;
                 logger.debug("PieMenu state: HIDDEN");
                 if (isNatsReady) {
@@ -313,6 +317,7 @@
                 await getCurrentWindow().hide();
             }
         };
+
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);

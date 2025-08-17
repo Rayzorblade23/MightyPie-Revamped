@@ -74,6 +74,8 @@
 
             if (clickMsg.click == mouseEvents.right_up) {
                 logger.debug(`Right click in Slice: ${activeSlice}!`);
+                // Ensure buttons unmount on hide
+                showButtons = false;
                 onClose(); // Use callback instead of direct publishing
                 await getCurrentWindow().hide();
                 return;
@@ -133,6 +135,8 @@
     let upTimerId: ReturnType<typeof setTimeout> | undefined;
     let destroyed = false;
 
+    // Drag-select functionality
+    // Triggered when a shortcut is released outside the deadzone
     const handleShortcutReleasedMessage = async (message: string) => {
         logger.debug('[NATS] Shortcut released message received:');
         logger.debug('↳', message);

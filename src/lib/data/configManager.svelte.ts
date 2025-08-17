@@ -42,6 +42,7 @@ export function getMenuConfiguration(): MenuConfiguration {
  */
 export function updateMenuConfiguration(newConfig: MenuConfiguration) {
     menuConfiguration = newConfig;
+    logger.debug("PieMenu Config updated.")
 }
 
 /**
