@@ -27,6 +27,7 @@
     } from "$lib/autostartUtils";
     import StandardButton from '$lib/components/StandardButton.svelte';
     import ElevationDialog from '$lib/components/ui/ElevationDialog.svelte';
+    import Toggle from '$lib/components/Toggle.svelte';
 
     // Create a logger for this component
     const logger = createLogger('Settings');
@@ -377,28 +378,12 @@
                     <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
                            for="autoStartWithSystem">Start automatically with system</label>
                     <div class="flex-1 flex items-center gap-2 min-w-0">
-                        <label class="relative inline-flex items-center cursor-pointer select-none">
-                            <input
-                                    type="checkbox"
-                                    id="autoStartWithSystem"
-                                    checked={autoStartEnabled}
-                                    disabled={autoStartLoading}
-                                    class="sr-only"
-                                    onclick={handleAutoStartToggle}
-                            />
-                            <span
-                                    class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
-                            >
-                                <span
-                                        class="block w-4 h-4 mt-1 ml-1 rounded-full transition-transform duration-200 absolute"
-                                        class:bg-amber-400={autoStartEnabled}
-                                        class:bg-zinc-500={!autoStartEnabled}
-                                        class:dark:bg-amber-400={autoStartEnabled}
-                                        class:dark:bg-zinc-200={!autoStartEnabled}
-                                        style="transform: translateX({autoStartEnabled ? '1.0rem' : '0'});"
-                                ></span>
-                            </span>
-                        </label>
+                        <Toggle
+                            id="autoStartWithSystem"
+                            checked={autoStartEnabled ?? false}
+                            disabled={autoStartLoading}
+                            onClick={handleAutoStartToggle}
+                        />
                     </div>
                 </div>
 
@@ -407,29 +392,13 @@
                     <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
                            for="adminRightsWithSystem">Start with admin rights</label>
                     <div class="flex-1 flex items-center gap-2 min-w-0">
-                        <label class="relative inline-flex items-center cursor-pointer select-none">
-                            <input
-                                    type="checkbox"
-                                    id="adminRightsWithSystem"
-                                    checked={adminRightsEnabled}
-                                    disabled={adminRightsLoading || !autoStartEnabled}
-                                    class="sr-only"
-                                    onclick={handleAdminRightsToggle}
-                            />
-                            <span
-                                    class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
-                                    class:opacity-50={!autoStartEnabled}
-                            >
-                                <span
-                                        class="block w-4 h-4 mt-1 ml-1 rounded-full transition-transform duration-200 absolute"
-                                        class:bg-amber-400={adminRightsEnabled && autoStartEnabled}
-                                        class:bg-zinc-500={!adminRightsEnabled || !autoStartEnabled}
-                                        class:dark:bg-amber-400={adminRightsEnabled && autoStartEnabled}
-                                        class:dark:bg-zinc-200={!adminRightsEnabled || !autoStartEnabled}
-                                        style="transform: translateX({adminRightsEnabled && autoStartEnabled ? '1.0rem' : '0'});"
-                                ></span>
-                            </span>
-                        </label>
+                        <Toggle
+                            id="adminRightsWithSystem"
+                            checked={(adminRightsEnabled ?? false) && (autoStartEnabled ?? false)}
+                            disabled={adminRightsLoading || !autoStartEnabled}
+                            dimWhenDisabled={!autoStartEnabled}
+                            onClick={handleAdminRightsToggle}
+                        />
                     </div>
                 </div>
 
@@ -443,27 +412,11 @@
                                    for={key}>{entry.label}</label>
                             <div class="flex-1 flex items-center gap-2 min-w-0">
                                 {#if entry.type === 'boolean' || entry.type === 'bool'}
-                                    <label class="relative inline-flex items-center cursor-pointer select-none">
-                                        <input
-                                                type="checkbox"
-                                                id={key}
-                                                checked={entry.value}
-                                                class="sr-only"
-                                                onchange={e => handleBooleanChange(e, key)}
-                                        />
-                                        <span
-                                                class="block w-10 h-6 rounded-full transition-colors duration-200 relative bg-zinc-200 dark:bg-neutral-800"
-                                        >
-                                            <span
-                                                    class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
-                                                    class:bg-amber-400={entry.value}
-                                                    class:bg-zinc-500={!entry.value}
-                                                    class:dark:bg-amber-400={entry.value}
-                                                    class:dark:bg-zinc-200={!entry.value}
-                                                    style="transform: translateX({entry.value ? '1.0rem' : '0'});"
-                                            ></span>
-                                        </span>
-                                    </label>
+                                    <Toggle
+                                        id={key}
+                                        checked={entry.value}
+                                        onChange={(e: Event) => handleBooleanChange(e, key)}
+                                    />
                                 {:else if entry.type === 'color'}
                                     <div class="flex flex-row items-center gap-2 min-w-0">
                                         <input type="color" id={key}
