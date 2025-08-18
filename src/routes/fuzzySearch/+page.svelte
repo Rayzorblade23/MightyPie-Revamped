@@ -94,6 +94,8 @@
             const window = getCurrentWindow();
             await window.show();
             await window.setFocus();
+            setTimeout(() => { window.setFocus(); }, 50);
+            setTimeout(() => { window.setFocus(); }, 200);
             await window.setSize(new LogicalSize(Number(PUBLIC_QUICKMENU_SIZE_X), Number(PUBLIC_QUICKMENU_SIZE_Y)));
             await ensureWindowWithinMonitorBounds();
         };
