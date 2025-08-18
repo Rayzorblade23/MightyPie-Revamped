@@ -5,6 +5,7 @@
     import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
+    import { getVersion } from "@tauri-apps/api/app";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER,
@@ -37,6 +38,7 @@
 
     let settings = $state<SettingsMap>(cloneSettings(getSettings()));
     let currentWindow: Window | null = null;
+    let appVersion = $state<string>("");
 
     // Autostart state (managed separately from settings)
     let autoStartEnabled = $state<boolean | null>(null);
@@ -93,6 +95,11 @@
                 await currentWindow.show();
             } catch (e) {
                 logger.error('Error setting up window:', e);
+            }
+            try {
+                appVersion = await getVersion();
+            } catch (e) {
+                logger.error('Failed to get app version:', e);
             }
             try {
                 // Get the buttonFunctions.json parsed data using the utility function
@@ -549,31 +556,38 @@
     </div>
 
     <!-- Action Buttons Footer -->
-    <div class="flex-shrink-0 w-full px-2 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 border-t border-none rounded-b-2xl">
-        <div class="w-full flex flex-row justify-end items-center gap-2 px-6">
-            <StandardButton
-                    ariaLabel="Undo"
-                    bold={true}
-                    disabled={undoHistory.length === 0}
-                    label="Undo"
-                    onClick={handleUndo}
-                    variant="primary"
-            />
-            <StandardButton
-                    ariaLabel="Discard Changes"
-                    bold={true}
-                    disabled={undoHistory.length === 0}
-                    label="Discard Changes"
-                    onClick={() => showDiscardConfirmDialog = true}
-                    variant="primary"
-            />
-            <StandardButton
-                    ariaLabel="Done"
-                    bold={true}
-                    label="Done"
-                    onClick={() => goto('/')}
-                    variant="primary"
-            />
+    <div class="flex-shrink-0 w-full px-2 py-3 bg-zinc-200 dark:bg-neutral-800 border-t border-none rounded-b-lg">
+        <div class="w-full flex flex-row justify-between items-center gap-2 px-6">
+            <div class="text-xs text-zinc-600 dark:text-zinc-400 select-none">
+                {#if appVersion}
+                    v{appVersion}
+                {/if}
+            </div>
+            <div class="flex flex-row items-center gap-2">
+                <StandardButton
+                        ariaLabel="Undo"
+                        bold={true}
+                        disabled={undoHistory.length === 0}
+                        label="Undo"
+                        onClick={handleUndo}
+                        variant="primary"
+                />
+                <StandardButton
+                        ariaLabel="Discard Changes"
+                        bold={true}
+                        disabled={undoHistory.length === 0}
+                        label="Discard Changes"
+                        onClick={() => showDiscardConfirmDialog = true}
+                        variant="primary"
+                />
+                <StandardButton
+                        ariaLabel="Done"
+                        bold={true}
+                        label="Done"
+                        onClick={() => goto('/')}
+                        variant="primary"
+                />
+            </div>
         </div>
     </div>
 </div>
