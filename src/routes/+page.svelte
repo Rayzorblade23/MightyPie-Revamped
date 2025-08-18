@@ -6,6 +6,7 @@
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT,
+        PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE,
         PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
         PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
         PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
@@ -59,12 +60,14 @@
         }
     });
 
-    // Centralized function to set pie menu state and manage heartbeat
-    // If lightClose is true, we only publish "opened=false" and stop heartbeat
-    // without resetting pageID or changing opacity. Used for child onClose() to avoid races.
-    function setPieMenuState(isOpen: boolean, newPageID?: number, lightClose: boolean = false) {
+    // Centralized function to set pie menu state, window visibility, and button unmount timing
+    async function setPieMenuState(isOpen: boolean, newPageID?: number) {
         if (isOpen) {
             // Opening the pie menu
+            // Cancel any pending unmount from a previous close/cycle
+            if (pieMenuComponent?.cancelButtonsUnmount) {
+                pieMenuComponent.cancelButtonsUnmount();
+            }
             if (newPageID !== undefined) {
                 pageID = newPageID;
             }
@@ -79,13 +82,18 @@
             setTimeout(() => {
                 pieMenuOpacity = 1;
             }, 50);
+            await getCurrentWindow().show();
         } else {
             // Closing the pie menu
             if (isPieMenuVisible) {
-                // Ensure buttons unmount (child will set showButtons=false via cancelAnimations)
-                if (pieMenuComponent?.cancelAnimations) {
-                    pieMenuComponent.cancelAnimations();
+                // Always set opacity to 0 when hiding so the UI fades immediately
+                pieMenuOpacity = 0;
+
+                // Schedule button unmount via child to allow click-up processing
+                if (pieMenuComponent?.scheduleButtonsUnmount) {
+                    pieMenuComponent.scheduleButtonsUnmount(100);
                 }
+
                 isPieMenuVisible = false;
                 logger.debug("PieMenu state: HIDDEN");
                 if (isNatsReady) {
@@ -93,12 +101,7 @@
                     // Stop heartbeat when pie menu is hidden and mouse hook is disabled
                     stopHeartbeat("setPieMenuState: closing");
                 }
-                if (!lightClose) {
-                    // Only do the full reset on normal closes
-                    pageID = 0;
-                    // Set opacity to 0 when hiding
-                    pieMenuOpacity = 0;
-                }
+                await getCurrentWindow().hide();
             }
         }
     }
@@ -142,11 +145,11 @@
 
     // Use the centralized function instead of direct handlers
     const handlePieMenuVisible = async (newPageID?: number) => {
-        setPieMenuState(true, newPageID);
+        await setPieMenuState(true, newPageID);
     };
 
     const handlePieMenuHidden = async () => {
-        setPieMenuState(false);
+        await setPieMenuState(false);
     };
 
     // Ensure backend knows menu is closed and heartbeat stops on unmount
@@ -160,6 +163,10 @@
 
     const handleShortcutMessage = async (message: string) => {
         const currentWindow = getCurrentWindow();
+        // Defensive: if a close scheduled an unmount, cancel it immediately on any new shortcut action
+        if (pieMenuComponent?.cancelButtonsUnmount) {
+            pieMenuComponent.cancelButtonsUnmount();
+        }
         try {
             const shortcutDetectedMsg: IShortcutPressedMessage = JSON.parse(message);
 
@@ -206,6 +213,10 @@
                 }
                 await moveCursorToWindowCenter();
 
+                // Ensure any pending unmount is cancelled before triggering animations
+                if (pieMenuComponent?.cancelButtonsUnmount) {
+                    pieMenuComponent.cancelButtonsUnmount();
+                }
                 // Increment animation key to trigger button animations
                 animationKey++;
 
@@ -218,29 +229,11 @@
                     await handlePieMenuHidden();
                 }
             } else {
-                // Set opacity to 0 before hiding the window
-                pieMenuOpacity = 0;
                 logger.debug(`[NATS] Shortcut (${shortcutDetectedMsg.shortcutPressed}): Hide.`);
-                // Cancel all animations before hiding
-                if (pieMenuComponent?.cancelAnimations) {
-                    pieMenuComponent.cancelAnimations();
-                }
-                // Small delay to ensure DOM updates
-                await new Promise(resolve => setTimeout(resolve, 20));
-                await currentWindow.hide();
                 await handlePieMenuHidden();
             }
         } catch (e) {
-            // Set opacity to 0 before hiding the window
-            pieMenuOpacity = 0;
             logger.error('[NATS] Error in handleShortcutMessage:', e);
-            // Cancel all animations before hiding
-            if (pieMenuComponent?.cancelAnimations) {
-                pieMenuComponent.cancelAnimations();
-            }
-            // Small delay to ensure DOM updates
-            await new Promise(resolve => setTimeout(resolve, 20));
-            await currentWindow.hide();
             await handlePieMenuHidden();
         }
     };
@@ -309,19 +302,22 @@
 
     onMount(() => {
         logger.info('PieMenu Mounted');
+    });
 
-        const handleKeyDown = async (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                logger.debug("Escape pressed: closing PieMenu and hiding window.");
-                setPieMenuState(false);
-                await getCurrentWindow().hide();
-            }
-        };
+    // Subscribe to backend Escape event (independent of window focus)
+    const subscription_escape = useNatsSubscription(
+        PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE,
+        async (_msg: string) => {
+            if (!isPieMenuVisible) return;
+            logger.debug("[NATS] Escape published: closing PieMenu and hiding window.");
+            await setPieMenuState(false);
+        }
+    );
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown);
-        };
+    $effect(() => {
+        if (subscription_escape.error) {
+            logger.error("NATS subscription_escape error:", subscription_escape.error);
+        }
     });
 
     // Block browser back/forward triggered by mouse X1/X2 buttons
@@ -355,7 +351,6 @@
         const currentWindow = getCurrentWindow();
         await currentWindow.setSize(new LogicalSize(Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y)));
         logger.debug("[onMount] Forcing initial hidden state.");
-        await getCurrentWindow().hide();
         await handlePieMenuHidden();
     });
 </script>
@@ -372,7 +367,7 @@
                 animationKey={animationKey}
                 bind:this={pieMenuComponent}
                 menuID={menuID}
-                onClose={() => setPieMenuState(false, undefined, true)}
+                onClose={() => setPieMenuState(false)}
                 opacity={pieMenuOpacity}
                 pageID={pageID}
         />

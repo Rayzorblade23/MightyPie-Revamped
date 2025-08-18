@@ -19,7 +19,6 @@
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
         PUBLIC_PIEMENU_RADIUS as RADIUS
     } from "$env/static/public";
-    import {getCurrentWindow} from "@tauri-apps/api/window";
     import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
     import {getButtonType} from "$lib/data/configManager.svelte.ts";
@@ -74,10 +73,8 @@
 
             if (clickMsg.click == mouseEvents.right_up) {
                 logger.debug(`Right click in Slice: ${activeSlice}!`);
-                // Ensure buttons unmount on hide
-                showButtons = false;
                 onClose(); // Use callback instead of direct publishing
-                await getCurrentWindow().hide();
+                // Parent will handle hide + delayed unmount
                 return;
             }
 
@@ -99,9 +96,16 @@
                         click_type: 'left_up',
                     };
                     publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, deadzoneMessage);
+                } else {
+                    // If the clicked button is OpenSpecificPieMenuPage, do not hide/close here
+                    const buttonType = getButtonType(menuID, pageID, activeSlice);
+                    if (buttonType === ButtonType.OpenSpecificPieMenuPage) {
+                        logger.debug("Left click OpenPage button: not hiding; backend will switch page");
+                        return;
+                    }
                 }
+                // Delegate hide + delayed unmount to parent
                 onClose(); // Use callback instead of direct publishing
-                await getCurrentWindow().hide();
                 return;
             }
 
@@ -155,14 +159,11 @@
                         return;
                     }
 
-                    // For all other button types, schedule the hide action
+                    // For all other button types, schedule the hide action via parent
                     upTimerId = setTimeout(() => {
                         if (destroyed) return;
-                        onClose(); // Use callback instead of direct publishing
-                        opacity = 0;
-                        showButtons = false;
-                        getCurrentWindow().hide();
-                        logger.debug(`[NATS] Shortcut released: Hide.`);
+                        onClose(); // Parent will hide + delay unmount
+                        logger.debug(`[NATS] Shortcut released: request Hide.`);
                     }, 100);
                 }
             }, 50);
@@ -186,6 +187,25 @@
         clearTimeout(downTimerId);
         clearTimeout(upTimerId);
     });
+
+    // Allow parent to schedule when buttons should unmount (hide) with a delay
+    let unmountTimerId: ReturnType<typeof setTimeout> | undefined;
+    export function scheduleButtonsUnmount(delayMs: number = 100) {
+        if (destroyed) return;
+        if (unmountTimerId) clearTimeout(unmountTimerId);
+        unmountTimerId = setTimeout(() => {
+            if (destroyed) return;
+            showButtons = false;
+        }, delayMs);
+    }
+
+    // Allow parent to cancel any pending unmount (e.g., when cycling/opening again)
+    export function cancelButtonsUnmount() {
+        if (unmountTimerId) {
+            clearTimeout(unmountTimerId);
+            unmountTimerId = undefined;
+        }
+    }
 
     function startAnimationLoop() {
         const update = async () => {

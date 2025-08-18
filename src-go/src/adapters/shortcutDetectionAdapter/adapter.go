@@ -175,6 +175,20 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 			}
 			return 0
 		}
+
+		// Publish Escape key down so UI can close pie menu regardless of focus
+		if isKeyDownEvent && eventVKCode == 0x1B { // VK_ESCAPE
+			subject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE")
+			if subject != "" {
+				// Keep payload simple
+				adapter.natsAdapter.PublishMessage(subject, "ShortcutDetection", map[string]any{"pressed": true})
+				log.Debug("Published Escape keydown to %s", subject)
+			} else {
+				log.Warn("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE not set; skipping Escape publish")
+			}
+			// Do not consume the event globally; let it propagate
+		}
+
 		if isKeyDownEvent {
 			if adapter.handleKeyDown(eventVKCode) { // Pass only eventVKCode
 				return 1 // Event consumed
