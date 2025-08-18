@@ -12,7 +12,7 @@
     // Create a logger for this component
     const logger = createLogger('PieButton');
 
-    let {menuID, pageID, buttonID, x, y, width, height, mouseState}: {
+    let {menuID, pageID, buttonID, x, y, width, height, mouseState, onClose}: {
         menuID: number,
         pageID: number,
         buttonID: number,
@@ -20,7 +20,8 @@
         y: number,
         width: number,
         height: number,
-        mouseState: MouseState
+        mouseState: MouseState,
+        onClose?: () => void
     } = $props();
 
     const taskType = $derived(getButtonType(menuID, pageID, buttonID));
@@ -55,6 +56,18 @@
 
         logger.debug(`Button clicked: Menu ${menuID}, Page ${pageID}, Button ${buttonID}, Type ${taskType}, Click ${clickType}`);
         publishMessage<IPieButtonExecuteMessage>(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, message);
+
+        // After publishing a left_up event, request close via parent callback
+        if (clickType === 'left_up' && taskType !== ButtonType.OpenSpecificPieMenuPage) {
+            // If publishMessage becomes ack-based later, we can await before invoking onClose.
+            onClose?.();
+        }
+    }
+
+    // Execute this button as if a drag-select released over it (equivalent to a left_up click)
+    export function executeFromDragSelect() {
+        logger.debug("Drag-selected Pie Button");
+        publishButtonClick('left_up');
     }
 
     // Handle the actual click detection logic

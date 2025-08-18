@@ -184,11 +184,6 @@
                 // Set opacity to 0 immediately
                 pieMenuOpacity = 0;
 
-                // Cancel any running animations
-                if (pieMenuComponent?.cancelAnimations) {
-                    pieMenuComponent.cancelAnimations();
-                }
-
                 // Small delay to ensure DOM updates
                 await new Promise(resolve => setTimeout(resolve, 20));
 

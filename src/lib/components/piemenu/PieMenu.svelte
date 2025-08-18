@@ -4,6 +4,7 @@
     import {onDestroy, onMount} from 'svelte';
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {goto} from "$app/navigation";
+    import type PieButtonComponent from "$lib/components/piebutton/PieButton.svelte";
     import PieButton from "$lib/components/piebutton/PieButton.svelte";
     import {
         calculatePieButtonOffsets,
@@ -21,8 +22,6 @@
     } from "$env/static/public";
     import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
-    import {getButtonType} from "$lib/data/configManager.svelte.ts";
-    import {ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import {createLogger} from "$lib/logger";
 
     // Create a logger for this component
@@ -44,6 +43,10 @@
 
     // New state for controlling transitions
     let showButtons = $state(false);
+
+    // Hold refs to child buttons so we can call their execute method on drag-select
+    // Make this reactive to silence Svelte's binding_property_non_reactive warning
+    let buttonRefs = $state<(PieButtonComponent | null)[]>(Array(numButtons).fill(null));
 
     let {menuID, pageID, animationKey = 0, opacity = 1, onClose}: {
         menuID: number;
@@ -72,9 +75,8 @@
             currentMouseEvent = clickMsg.click;
 
             if (clickMsg.click == mouseEvents.right_up) {
-                logger.debug(`Right click in Slice: ${activeSlice}!`);
-                onClose(); // Use callback instead of direct publishing
-                // Parent will handle hide + delayed unmount
+                logger.info(`Right click. Closing Pie Menu!`);
+                onClose();
                 return;
             }
 
@@ -96,27 +98,22 @@
                         click_type: 'left_up',
                     };
                     publishMessage(PUBLIC_NATSSUBJECT_PIEBUTTON_EXECUTE, deadzoneMessage);
-                } else {
-                    // If the clicked button is OpenSpecificPieMenuPage, do not hide/close here
-                    const buttonType = getButtonType(menuID, pageID, activeSlice);
-                    if (buttonType === ButtonType.OpenSpecificPieMenuPage) {
-                        logger.debug("Left click OpenPage button: not hiding; backend will switch page");
-                        return;
-                    }
+                    // Restore previous behavior: close after executing deadzone function
+                    onClose();
                 }
-                // Delegate hide + delayed unmount to parent
-                onClose(); // Use callback instead of direct publishing
                 return;
             }
 
             if (clickMsg.click == mouseEvents.middle_up) {
                 logger.debug(`Middle click in Slice: ${activeSlice}!`);
                 if (activeSlice === -1) {
-                    onClose(); // Use callback instead of direct publishing
-                    logger.debug("Deadzone clicked! Open piemenuConfig.");
+                    // Do not close the Pie Menu on deadzone middle click; just navigate
+                    logger.debug("Deadzone middle click! Open quickMenu.");
                     await goto('/quickMenu');
                     return;
                 }
+                logger.debug("No action for middle click on slice button.");
+                return;
             }
         } catch (e) {
             logger.error('Failed to parse message:', e);
@@ -135,38 +132,25 @@
         }
     });
 
-    let downTimerId: ReturnType<typeof setTimeout> | undefined;
-    let upTimerId: ReturnType<typeof setTimeout> | undefined;
     let destroyed = false;
+
+    // Centralized handler for child button close requests
+    function onChildCloseRequested() {
+        if (destroyed) return;
+        onClose();
+    }
 
     // Drag-select functionality
     // Triggered when a shortcut is released outside the deadzone
     const handleShortcutReleasedMessage = async (message: string) => {
         logger.debug('[NATS] Shortcut released message received:');
         logger.debug('↳', message);
+        if (destroyed) return;
         if (activeSlice !== -1) {
-            currentMouseEvent = mouseEvents.left_down;
-
-            downTimerId = setTimeout(() => {
-                if (destroyed) return;
-                if (activeSlice !== -1) {
-                    currentMouseEvent = mouseEvents.left_up;
-                    logger.debug(`Left drag released in Slice: ${activeSlice}!`);
-
-                    const buttonType = getButtonType(menuID, pageID, activeSlice);
-                    if (buttonType === ButtonType.OpenSpecificPieMenuPage) {
-                        logger.debug("[NATS] Shortcut released: Active button is type OpenPage, not hiding.");
-                        return;
-                    }
-
-                    // For all other button types, schedule the hide action via parent
-                    upTimerId = setTimeout(() => {
-                        if (destroyed) return;
-                        onClose(); // Parent will hide + delay unmount
-                        logger.debug(`[NATS] Shortcut released: request Hide.`);
-                    }, 100);
-                }
-            }, 50);
+            logger.debug(`Drag-select release on slice ${activeSlice}: calling child execute`);
+            const btn = buttonRefs[activeSlice];
+            // Call child's exported execute to publish and close if appropriate
+            btn?.executeFromDragSelect?.();
         }
     };
 
@@ -184,12 +168,11 @@
 
     onDestroy(() => {
         destroyed = true;
-        clearTimeout(downTimerId);
-        clearTimeout(upTimerId);
     });
 
     // Allow parent to schedule when buttons should unmount (hide) with a delay
     let unmountTimerId: ReturnType<typeof setTimeout> | undefined;
+
     export function scheduleButtonsUnmount(delayMs: number = 100) {
         if (destroyed) return;
         if (unmountTimerId) clearTimeout(unmountTimerId);
@@ -251,11 +234,6 @@
     onDestroy(() => {
         stopAnimationLoop();
     });
-
-    // Expose method to hide buttons (used by the parent component when needed)
-    export function cancelAnimations() {
-        showButtons = false;
-    }
 
     // Improved flyAndScale transition - uses buttonIndex to calculate delay
     function flyAndScale(_node: HTMLElement, {
@@ -335,6 +313,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 0 }}
         >
             <PieButton
+                    bind:this={buttonRefs[0]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={0}
@@ -342,6 +321,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 0,
                     leftDown: activeSlice === 0 && currentMouseEvent === mouseEvents.left_down,
@@ -363,6 +343,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 1 }}
         >
             <PieButton
+                    bind:this={buttonRefs[1]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={1}
@@ -370,6 +351,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 1,
                     leftDown: activeSlice === 1 && currentMouseEvent === mouseEvents.left_down,
@@ -391,6 +373,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 2 }}
         >
             <PieButton
+                    bind:this={buttonRefs[2]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={2}
@@ -398,6 +381,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 2,
                     leftDown: activeSlice === 2 && currentMouseEvent === mouseEvents.left_down,
@@ -419,6 +403,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 3 }}
         >
             <PieButton
+                    bind:this={buttonRefs[3]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={3}
@@ -426,6 +411,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 3,
                     leftDown: activeSlice === 3 && currentMouseEvent === mouseEvents.left_down,
@@ -447,6 +433,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 4 }}
         >
             <PieButton
+                    bind:this={buttonRefs[4]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={4}
@@ -454,6 +441,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 4,
                     leftDown: activeSlice === 4 && currentMouseEvent === mouseEvents.left_down,
@@ -475,6 +463,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 5 }}
         >
             <PieButton
+                    bind:this={buttonRefs[5]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={5}
@@ -482,6 +471,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 5,
                     leftDown: activeSlice === 5 && currentMouseEvent === mouseEvents.left_down,
@@ -503,6 +493,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 6 }}
         >
             <PieButton
+                    bind:this={buttonRefs[6]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={6}
@@ -510,6 +501,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 6,
                     leftDown: activeSlice === 6 && currentMouseEvent === mouseEvents.left_down,
@@ -531,6 +523,7 @@
                 in:flyAndScale={{ x: button.flyX, y: button.flyY, buttonIndex: 7 }}
         >
             <PieButton
+                    bind:this={buttonRefs[7]}
                     menuID={menuID}
                     pageID={pageID}
                     buttonID={7}
@@ -538,6 +531,7 @@
                     y={0}
                     width={buttonWidth}
                     height={buttonHeight}
+                    onClose={onChildCloseRequested}
                     mouseState={{
                     hovered: activeSlice === 7,
                     leftDown: activeSlice === 7 && currentMouseEvent === mouseEvents.left_down,
