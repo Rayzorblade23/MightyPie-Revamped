@@ -52,9 +52,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	log.Info("INFO: Initial button configuration loaded.")
 	// PrintConfig(config, true)
 
-	a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", config)
+	a.natsAdapter.PublishMessage(baseConfigSubject, config)
 
-	a.natsAdapter.SubscribeToSubject(receiveNewBaseConfigSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(receiveNewBaseConfigSubject, func(msg *nats.Msg) {
 		log.Info("Raw config coming in on '%s'.", msg.Subject)
 
 		var newConfig ConfigData
@@ -86,10 +86,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		log.Info("INFO: Config written and reloaded from disk.")
 		// PrintConfig(buttonConfig, false)
 
-		a.natsAdapter.PublishMessage(windowUpdateSubject, "ButtonManager", windowsList)
+		a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
 	})
 
-	a.natsAdapter.SubscribeToSubject(saveConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(saveConfigBackupSubject, func(msg *nats.Msg) {
 		// Assume BackupConfigToFile exists and takes the config as argument
 		var configToBackup ConfigData
 		if err := json.Unmarshal(msg.Data, &configToBackup); err != nil {
@@ -104,7 +104,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	})
 
 	// Subscribe to window updates for subsequent changes
-	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, func(msg *nats.Msg) {
 		var currentWindows core.WindowsUpdate
 		if err := json.Unmarshal(msg.Data, &currentWindows); err != nil {
 			log.Error("Failed to decode window update message: %v", err)
@@ -129,27 +129,27 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			updateButtonConfig(processedConfig)
 			log.Info("Button configuration updated (due to window event) and will be published.")
 			// Publish the updated configuration object
-			a.natsAdapter.PublishMessage(buttonUpdateSubject, "ButtonManager", processedConfig)
+			a.natsAdapter.PublishMessage(buttonUpdateSubject, processedConfig)
 			// PrintConfig(processedConfig, true)
 		}
 	})
 
 	// Gap-filling/compaction subscription
-	a.natsAdapter.SubscribeToSubject(fillGapsSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(fillGapsSubject, func(msg *nats.Msg) {
 		mu.Lock()
 		currentConfig := buttonConfig
 		mu.Unlock()
 		gapFilledConfig, cleared := FillWindowAssignmentGaps(currentConfig)
 		if cleared > 0 {
 			updateButtonConfig(gapFilledConfig)
-			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), "ButtonManager", gapFilledConfig)
+			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
 			log.Info("Gap-filling/compaction performed and update published (no processWindowUpdate).")
 		} else {
 			log.Info("Gap-filling triggered but no gaps were found.")
 		}
 	})
 
-	a.natsAdapter.SubscribeToSubject(loadConfigBackupSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	a.natsAdapter.SubscribeToSubject(loadConfigBackupSubject, func(msg *nats.Msg) {
 
 		// msg.Data contains the path to the backup file as a string (may include quotes)
 		backupPath := string(msg.Data)
@@ -160,7 +160,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		if len(backupPath) > 0 && (backupPath[len(backupPath)-1] == '"' || backupPath[len(backupPath)-1] == '\'') {
 			backupPath = backupPath[:len(backupPath)-1]
 		}
-		log.Info("Loading config backup from",)
+		log.Info("Loading config backup from")
 		log.Info("↳ '%s'", backupPath)
 
 		// Load config from the backup file
@@ -181,7 +181,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		log.Info("↳ Config loaded from backup and set as current.")
 
 		// Publish the updated config
-		a.natsAdapter.PublishMessage(baseConfigSubject, "ButtonManager", backupConfig)
+		a.natsAdapter.PublishMessage(baseConfigSubject, backupConfig)
 	})
 
 	return a

@@ -322,20 +322,20 @@ func (a *PieButtonExecutionAdapter) CloseWindowUnderCursor(x, y int) error {
 // OpenSettings opens the settings window.
 func (a *PieButtonExecutionAdapter) OpenSettings() error {
 	log.Info("Publishing navigation message for Settings")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "settings")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "settings")
 	return nil
 }
 
 // OpenConfig opens the Pie Menu configuration window.
 func (a *PieButtonExecutionAdapter) OpenConfig() error {
 	log.Info("Publishing navigation message for Config")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "pieMenuConfig")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "pieMenuConfig")
 	return nil
 }
 
 // FuzzySearch opens the Fuzzy Search window.
 func (a *PieButtonExecutionAdapter) FuzzySearch() error {
 	log.Info("Publishing navigation message for Fuzzy Search")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "PieButtonExecution", "fuzzySearch")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "fuzzySearch")
 	return nil
 }

@@ -38,7 +38,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 	}
 	currentSettings = settings
 
-	a.natsAdapter.PublishMessage(subject, "SettingsManager", settings)
+	a.natsAdapter.PublishMessage(subject, settings)
 	log.Info("Initial settings published.")
 
 	natsAdapter.SubscribeJetStreamPull(subject, "", func(msg *nats.Msg) {

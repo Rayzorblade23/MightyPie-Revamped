@@ -9,7 +9,6 @@ require (
 	github.com/nats-io/nats-server/v2 v2.11.7
 	github.com/nats-io/nats.go v1.43.0
 	golang.org/x/sys v0.34.0
-	golang.org/x/text v0.27.0
 )
 
 require (

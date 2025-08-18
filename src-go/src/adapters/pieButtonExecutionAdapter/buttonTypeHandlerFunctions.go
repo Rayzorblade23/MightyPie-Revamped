@@ -249,7 +249,7 @@ func (a *PieButtonExecutionAdapter) handleOpenPageInMenu(executionInfo *pieButto
 
 	natsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	log.Info("Publishing OpenPageInMenu for Menu %d, Page %d at (%d, %d)", menuID, pageID, xPos, yPos)
-	a.natsAdapter.PublishMessage(natsSubject, "PieButtonExecution", outgoingMessage)
+	a.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 
 	return nil
 }
@@ -272,7 +272,7 @@ func (a *PieButtonExecutionAdapter) handleOpenResource(executionInfo *pieButtonE
 
 		// Open the file or folder using the system's default application
 		err := openFolder(resourceProps.ResourcePath)
-		
+
 		// The explorer.exe command often returns exit status 1 even when successful
 		// We'll log the error but not return it as an error to avoid false negatives
 		if err != nil && err.Error() == "exit status 1" {

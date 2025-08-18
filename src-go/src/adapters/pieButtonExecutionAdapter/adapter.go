@@ -14,7 +14,7 @@ import (
 )
 
 // Package-level logger instance
-var log = logger.New("PieButtonExecution")
+var log = logger.New("PieButtonExecutor")
 
 // NATS Subjects - fetched from environment, consider constants if these are static.
 var (
@@ -86,11 +86,11 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 
 // subscribeToEvents sets up all necessary NATS subscriptions.
 func (a *PieButtonExecutionAdapter) subscribeToEvents() {
-	a.natsAdapter.SubscribeToSubject(natsSubjectPieButtonExecute, core.GetTypeName(a), a.handlePieButtonExecuteMessage)
-	a.natsAdapter.SubscribeToSubject(natsSubjectShortcutPressed, core.GetTypeName(a), a.handleShortcutPressedMessage)
-	a.natsAdapter.SubscribeToSubject(natsSubjectWindowManagerUpdate, core.GetTypeName(a), a.handleWindowUpdateMessage)
-	a.natsAdapter.SubscribeToSubject(natsSubjectInstalledAppsInfo, core.GetTypeName(a), a.handleInstalledAppsInfoMessage)
-	a.natsAdapter.SubscribeToSubject(natsSubjectPieButtonOpenFolder, core.GetTypeName(a), a.handleOpenFolder)
+	a.natsAdapter.SubscribeToSubject(natsSubjectPieButtonExecute, a.handlePieButtonExecuteMessage)
+	a.natsAdapter.SubscribeToSubject(natsSubjectShortcutPressed, a.handleShortcutPressedMessage)
+	a.natsAdapter.SubscribeToSubject(natsSubjectWindowManagerUpdate, a.handleWindowUpdateMessage)
+	a.natsAdapter.SubscribeToSubject(natsSubjectInstalledAppsInfo, a.handleInstalledAppsInfoMessage)
+	a.natsAdapter.SubscribeToSubject(natsSubjectPieButtonOpenFolder, a.handleOpenFolder)
 }
 
 // executeCommand dispatches the command based on the ButtonType.

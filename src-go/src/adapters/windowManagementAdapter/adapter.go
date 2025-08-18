@@ -53,7 +53,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) (*WindowManagementAdapter, error)
 	ProcessIcons(a)
 
 	// NATS Subscription for shortcut pressed events
-	natsAdapter.SubscribeToSubject(shortcutSubject, core.GetTypeName(a), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(shortcutSubject, func(msg *nats.Msg) {
 		var message core.ShortcutPressed_Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			log.Error("Failed to decode command on subject '%s': %v", shortcutSubject, err)
@@ -77,7 +77,7 @@ func (a *WindowManagementAdapter) publishInstalledAppsInfo(apps map[string]core.
 	// Use read lock when publishing the map
 	installedAppsInfoMutex.RLock()
 	defer installedAppsInfoMutex.RUnlock()
-	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, "WindowManagement", apps)
+	a.natsAdapter.PublishMessage(subjectInstalledAppsInfo, apps)
 }
 
 // Run starts the adapter, including the initial window scan and monitoring loop
@@ -225,5 +225,5 @@ func (a *WindowManagementAdapter) publishWindowListUpdate(windows WindowMapping)
 		convertedMap[int(hwnd)] = info
 	}
 
-	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), "WindowManagement", convertedMap)
+	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE"), convertedMap)
 }

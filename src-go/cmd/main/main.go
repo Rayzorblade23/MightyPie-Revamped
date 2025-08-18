@@ -26,8 +26,6 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats-server/v2/server"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 var (
@@ -42,7 +40,7 @@ var (
 		"settingsManager":   flag.Bool("settingsManager", false, "Run as settings manager worker"),
 		"shortcutDetector":  flag.Bool("shortcutDetector", false, "Run as shortcut detector worker"),
 		"shortcutSetter":    flag.Bool("shortcutSetter", false, "Run as shortcut setter worker"),
-		"windowManagement":  flag.Bool("windowManagement", false, "Run as window management worker"),
+		"windowManager":  flag.Bool("windowManager", false, "Run as window management worker"),
 	}
 )
 
@@ -94,7 +92,7 @@ func main() {
 		"settingsManager",
 		"shortcutDetector",
 		"shortcutSetter",
-		"windowManagement",
+		"windowManager",
 	}
 
 	var wg sync.WaitGroup
@@ -350,9 +348,13 @@ func cleanupAllProcesses(log *logger.Logger) {
 
 // runWorker runs the specified worker type
 func runWorker(workerType string) {
-	// Use Unicode-correct title casing for worker name
-	c := cases.Title(language.Und)
-	workerTitle := c.String(workerType)
+	// Preserve camelCase by only uppercasing the first rune
+	var workerTitle string
+	if len(workerType) > 0 {
+		workerTitle = strings.ToUpper(workerType[:1]) + workerType[1:]
+	} else {
+		workerTitle = workerType
+	}
 	log := logger.New(workerTitle)
 	logger.ReplaceStdLog(workerTitle)
 
@@ -424,7 +426,7 @@ func runWorker(workerType string) {
 	case "shortcutSetter":
 		shortcutSetterAdapter := shortcutSetterAdapter.New(natsAdapter)
 		shortcutSetterAdapter.Run()
-	case "windowManagement":
+	case "windowManager":
 		windowManagement, err := windowManagementAdapter.New(natsAdapter)
 		if err != nil {
 			log.Fatal("Failed to create WindowManagementAdapter: %v", err)

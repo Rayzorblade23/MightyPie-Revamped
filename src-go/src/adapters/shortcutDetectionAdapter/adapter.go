@@ -16,7 +16,7 @@ import (
 )
 
 // Package-level logger instance
-var log = logger.New("ShortcutDetection")
+var log = logger.New("ShortcutDetector")
 
 const (
 	vkLSHIFT          = 0xA0
@@ -94,7 +94,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	}
 
 	pressedEventSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
-	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, core.GetTypeName(adapter), func(natsMessage *nats.Msg) {
+	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, func(natsMessage *nats.Msg) {
 		var eventData core.ShortcutPressed_Message
 		if err := json.Unmarshal(natsMessage.Data, &eventData); err != nil {
 			log.Error("NATS Listener: Failed to decode pressed event: %v", err)
@@ -181,7 +181,7 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 			subject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE")
 			if subject != "" {
 				// Keep payload simple
-				adapter.natsAdapter.PublishMessage(subject, "ShortcutDetection", map[string]any{"pressed": true})
+				adapter.natsAdapter.PublishMessage(subject, map[string]any{"pressed": true})
 				log.Debug("Published Escape keydown to %s", subject)
 			} else {
 				log.Warn("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE not set; skipping Escape publish")
@@ -227,5 +227,5 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
 	log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
-	adapter.natsAdapter.PublishMessage(natsSubject, "ShortcutDetection", outgoingMessage)
+	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 }

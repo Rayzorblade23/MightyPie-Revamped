@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
-	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
@@ -42,12 +41,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	if err != nil {
 		log.Error("Failed to load shortcuts for initial update: %v", err)
 	} else {
-		natsAdapter.PublishMessage(updateSubject, "ShortcutSetter", shortcuts)
+		natsAdapter.PublishMessage(updateSubject, shortcuts)
 	}
 
 	// Subscribe to requests to record a new shortcut at a given index.
 	// When a message is received, begin listening for a shortcut to assign to that index.
-	natsAdapter.SubscribeToSubject(captureShortcutSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(captureShortcutSubject, func(msg *nats.Msg) {
 		var payload ShortcutIndexMessage
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
 			log.Error("Failed to decode index: %v", err)
@@ -59,7 +58,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 
 	// Subscribe to abort messages to stop shortcut detection.
 	// When a message is received, stop the current keyboard hook if it is running.
-	natsAdapter.SubscribeToSubject(abortSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(abortSubject, func(msg *nats.Msg) {
 		log.Info("Received abort message, stopping shortcut detection.")
 		if shortcutSetterAdapter.keyboardHook != nil {
 			shortcutSetterAdapter.keyboardHook.Stop()
@@ -67,7 +66,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	})
 
 	// Subscribe to delete shortcut messages
-	natsAdapter.SubscribeToSubject(deleteSubject, core.GetTypeName(shortcutSetterAdapter), func(msg *nats.Msg) {
+	natsAdapter.SubscribeToSubject(deleteSubject, func(msg *nats.Msg) {
 		var payload ShortcutIndexMessage
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
 			log.Error("Failed to decode index for delete: %v", err)

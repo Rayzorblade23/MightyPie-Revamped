@@ -22,17 +22,17 @@ repositories of each dependency.
 
 ### Go Dependencies
 
-| Dependency                                    | License                                          | Copyright                                  | Repository                              |
-|-----------------------------------------------|--------------------------------------------------|--------------------------------------------|-----------------------------------------|
-| golang.org/x packages <br/>(sys, text, image) | [BSD-3-Clause](./texts/BSD-3-Clause_license.txt) | Copyright (c) 2009 The Go Authors          | https://golang.org/x                    |
-| NATS                                          | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) NATS Authors                 | https://github.com/nats-io/nats-server  |
-| NATS - Go Client                              | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) NATS Authors                 | https://github.com/nats-io/nats.go      |
-| Robotgo                                       | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) Robotgo Authors              | https://github.com/go-vgo/robotgo       |
-| gonutz/w32                                    | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2021 gonutz                  | https://github.com/gonutz/w32           |
-| keybd_event                                   | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2016 MicMonay                | https://github.com/micmonay/keybd_event |
-| Go OLE                                        | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2013-2017 Yasuhiro Matsumoto | https://github.com/go-ole/go-ole        |
-| win                                           | [BSD-3-Clause](./texts/BSD-3-Clause_license.txt) | Copyright (c) 2010 The win Authors         | https://github.com/lxn/win              |
-| lnk - lnk Parser for Go                       | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) The lnk Authors              | https://github.com/parsiya/golnk        |
+| Dependency                              | License                                          | Copyright                                  | Repository                              |
+|-----------------------------------------|--------------------------------------------------|--------------------------------------------|-----------------------------------------|
+| golang.org/x packages <br/>(sys, image) | [BSD-3-Clause](./texts/BSD-3-Clause_license.txt) | Copyright (c) 2009 The Go Authors          | https://golang.org/x                    |
+| NATS                                    | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) NATS Authors                 | https://github.com/nats-io/nats-server  |
+| NATS - Go Client                        | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) NATS Authors                 | https://github.com/nats-io/nats.go      |
+| Robotgo                                 | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) Robotgo Authors              | https://github.com/go-vgo/robotgo       |
+| gonutz/w32                              | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2021 gonutz                  | https://github.com/gonutz/w32           |
+| keybd_event                             | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2016 MicMonay                | https://github.com/micmonay/keybd_event |
+| Go OLE                                  | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2013-2017 Yasuhiro Matsumoto | https://github.com/go-ole/go-ole        |
+| win                                     | [BSD-3-Clause](./texts/BSD-3-Clause_license.txt) | Copyright (c) 2010 The win Authors         | https://github.com/lxn/win              |
+| lnk - lnk Parser for Go                 | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) The lnk Authors              | https://github.com/parsiya/golnk        |
 
 ### Rust Dependencies
 

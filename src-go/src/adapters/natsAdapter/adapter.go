@@ -16,6 +16,7 @@ var streamName = os.Getenv("PUBLIC_NATS_STREAM")
 
 type NatsAdapter struct {
 	Connection *nats.Conn
+	label      string
 }
 
 func New(adapterLabel string) (*NatsAdapter, error) {
@@ -39,6 +40,7 @@ func New(adapterLabel string) (*NatsAdapter, error) {
 
 	adapter := &NatsAdapter{
 		Connection: connection,
+		label:      adapterLabel,
 	}
 
 	// Ensure the JetStream stream is created, with retries
@@ -64,45 +66,45 @@ func PrintMessage(msg *nats.Msg) {
 	log.Info("Received message on subject %s: %+v", msg.Subject, decodedMessage)
 }
 
-func (a *NatsAdapter) PublishMessage(subject string, publisherName string, message any) {
+func (a *NatsAdapter) PublishMessage(subject string, message any) {
 	if a.Connection == nil {
-		log.Warn("[%s] NATS connection is not established", publisherName)
+		log.Warn("[%s] NATS connection is not established", a.label)
 		return
 	}
 
 	msgData, err := json.Marshal(message)
 	if err != nil {
-		log.Error("[%s] Error marshaling message: %v", publisherName, err)
+		log.Error("[%s] Error marshaling message: %v", a.label, err)
 		return
 	}
 
 	err = a.Connection.Publish(subject, msgData)
 	if err != nil {
-		log.Error("[%s] Error publishing message: %v", publisherName, err)
+		log.Error("[%s] Error publishing message: %v", a.label, err)
 	} else {
-		log.Debug("[%s] Message successfully published to subject: %s", publisherName, subject)
+		log.Debug("[%s] Message successfully published to subject: %s", a.label, subject)
 	}
 }
 
-func (a *NatsAdapter) SubscribeToSubject(subject string, subscriberName string, handleMessage func(*nats.Msg)) {
+func (a *NatsAdapter) SubscribeToSubject(subject string, handleMessage func(*nats.Msg)) {
 	if a.Connection == nil || a.Connection.IsClosed() {
-		log.Warn("[%s] Cannot subscribe: Not connected to NATS. Retrying in 1s...", subscriberName)
+		log.Warn("[%s] Cannot subscribe: Not connected to NATS. Retrying in 1s...", a.label)
 		time.Sleep(1 * time.Second)
-		a.SubscribeToSubject(subject, subscriberName, handleMessage)
+		a.SubscribeToSubject(subject, handleMessage)
 		return
 	}
 
 	sub, err := a.Connection.Subscribe(subject, func(msg *nats.Msg) {
-		log.Debug("[%s] Received message on '%s'", subscriberName, msg.Subject)
+		log.Debug("[%s] Received message on '%s'", a.label, msg.Subject)
 		handleMessage(msg)
 	})
 
 	if err != nil {
-		log.Error("[%s] Failed to subscribe to topic '%s': %v", subscriberName, subject, err)
+		log.Error("[%s] Failed to subscribe to topic '%s': %v", a.label, subject, err)
 		return
 	}
 
-	log.Info("[%s] Subscribed to topic: %s", subscriberName, subject)
+	log.Info("[%s] Subscribed to topic: %s", a.label, subject)
 	_ = sub
 }
 

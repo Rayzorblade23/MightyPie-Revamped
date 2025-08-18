@@ -41,7 +41,7 @@ func (a *ShortcutSetterAdapter) SaveShortcut(index int, shortcut []int) error {
 	// --- Send NATS message with the whole map ---
 	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
-		a.natsAdapter.PublishMessage(subject, "ShortcutSetter", shortcuts)
+		a.natsAdapter.PublishMessage(subject, shortcuts)
 	}
 
 	return nil
@@ -115,7 +115,7 @@ func (a *ShortcutSetterAdapter) DeleteShortcut(index int) error {
 	// --- Send NATS message with the whole map ---
 	subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	if a.natsAdapter != nil {
-		a.natsAdapter.PublishMessage(subject, "ShortcutSetter", shortcuts)
+		a.natsAdapter.PublishMessage(subject, shortcuts)
 	}
 
 	return nil
