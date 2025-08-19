@@ -1,6 +1,8 @@
 <!-- PieMenu.svelte -->
 <script lang="ts">
     import {cubicOut} from 'svelte/easing';
+    import { fade } from 'svelte/transition';
+
     import {onDestroy, onMount} from 'svelte';
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {goto} from "$app/navigation";
@@ -20,7 +22,7 @@
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
         PUBLIC_PIEMENU_RADIUS as RADIUS
     } from "$env/static/public";
-    import {getIndicatorSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
+    import {getIndicatorSVG, getIndicatorRingSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
     import {createLogger} from "$lib/logger";
 
@@ -40,6 +42,7 @@
     let animationFrameId: number | null = null;
     let currentMouseEvent = $state<string>('');
     let indicatorRotation = $state(0);
+    let indicatorReady = $state(false);
 
     // New state for controlling transitions
     let showButtons = $state(false);
@@ -57,12 +60,17 @@
     } = $props();
 
     const indicatorSVG = $derived.by(async () => await getIndicatorSVG());
+    const indicatorRingSVG = $derived.by(async () => await getIndicatorRingSVG());
 
     // Update showButtons whenever animationKey changes
     $effect(() => {
         logger.debug("Animation key changed to:", animationKey);
         // Reset and trigger animation when animationKey changes
         showButtons = false;
+        // Reset indicator state to avoid flashing previous rotation
+        activeSlice = -1;
+        indicatorRotation = 0;
+        indicatorReady = false;
         // Small delay to ensure DOM updates
         setTimeout(() => {
             showButtons = true;
@@ -196,6 +204,8 @@
                 let {slice, mouseAngle} = await detectActivePieSlice(deadzoneRadius);
                 activeSlice = slice;
                 indicatorRotation = mouseAngle;
+                // Mark indicator as ready after first computed rotation
+                if (!indicatorReady) indicatorReady = true;
             } catch (error) {
                 logger.error("Error in animation loop:", error);
             }
@@ -214,6 +224,10 @@
     }
 
     onMount(() => {
+        // Ensure fresh state on mount
+        activeSlice = -1;
+        indicatorRotation = 0;
+        indicatorReady = false;
         let newButtonPositions: { x: number; y: number }[] = [];
 
         for (let i = 0; i < numButtons; i++) {
@@ -294,16 +308,30 @@
             class:hovered={activeSlice === -1 && !(currentMouseEvent === mouseEvents.left_down || currentMouseEvent === mouseEvents.middle_down)}
             style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: {deadzoneRadius * 2}px; height: {deadzoneRadius * 2}px; border-radius: 50%; z-index: 5;"
     ></div>
-    <div class="absolute left-1/2 top-1/2 z-10"
-         style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);">
-        {#await indicatorSVG}
+    <!-- Center ring overlaying the deadzone (no rotation) -->
+    <div class="absolute left-1/2 top-1/2"
+         style="transform: translate(-50%, -50%); z-index: 9;">
+        {#await indicatorRingSVG}
             <span>Loading...</span>
-        {:then svg}
-            <img alt="indicator" height="300" src={svg} width="300"/>
+        {:then ring}
+            <img alt="indicator ring" height="300" src={ring} width="300"/>
         {:catch error}
-            <span>Error loading indicator: {error && error.message ? error.message : error}</span>
+            <span>Error loading ring: {error && error.message ? error.message : error}</span>
         {/await}
     </div>
+    {#if showButtons && activeSlice !== -1 && indicatorReady}
+        <div class="absolute left-1/2 top-1/2 z-10"
+             style="transform: translate(-50%, -50%) rotate({indicatorRotation}deg);"
+             transition:fade={{ duration: 120 }}>
+            {#await indicatorSVG}
+                <span>Loading...</span>
+            {:then svg}
+                <img alt="indicator" height="300" src={svg} width="300"/>
+            {:catch error}
+                <span>Error loading indicator: {error && error.message ? error.message : error}</span>
+            {/await}
+        </div>
+    {/if}
 
     {#if showButtons && buttonPositions.length >= 1}
         {@const button = createPieButtonContainer(0)}

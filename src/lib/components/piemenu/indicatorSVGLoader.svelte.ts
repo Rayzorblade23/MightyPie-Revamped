@@ -10,11 +10,25 @@ export async function getIndicatorSVG() {
     let svg = await response.text();
     const colors = {
         indicator: settings.colorIndicator?.value ?? "#5f3c8e",
+    };
+    svg = svg
+        .replace("{indicator}", colors.indicator)
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/**
+ * Loads and processes the indicator ring SVG using current settings.
+ * Always call this from a Svelte file/rune for reactivity.
+ */
+export async function getIndicatorRingSVG() {
+    const settings = getSettings();
+    const response = await fetch("/indicator_ring.svg");
+    let svg = await response.text();
+    const colors = {
         ringFill: settings.colorRingFill?.value ?? "#202020",
         ringStroke: settings.colorRingStroke?.value ?? "#303030"
     };
     svg = svg
-        .replace("{indicator}", colors.indicator)
         .replace("{ring_fill}", colors.ringFill)
         .replace("{ring_stroke}", colors.ringStroke);
     return `data:image/svg+xml;base64,${btoa(svg)}`;

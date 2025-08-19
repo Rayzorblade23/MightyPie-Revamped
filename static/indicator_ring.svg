@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 256 256">
+  <defs>
+    <style>
+      .cls_ring_fill { fill: {ring_fill}; }
+
+      .cls_ring_fill, .cls-ring_stroke {
+        stroke-width: 0px;
+      }
+
+      .cls-ring_stroke { fill: {ring_stroke}; }
+    </style>
+  </defs>
+  <path class="cls-ring_stroke" d="M128,106.2c-12,0-21.8,9.8-21.8,21.8s9.8,21.8,21.8,21.8,21.8-9.8,21.8-21.8-9.8-21.8-21.8-21.8ZM128,148.7c-11.4,0-20.7-9.3-20.7-20.7s9.3-20.7,20.7-20.7,20.7,9.3,20.7,20.7-9.3,20.7-20.7,20.7Z"/>
+  <path class="cls_ring_fill" d="M128,107.3c-11.4,0-20.7,9.3-20.7,20.7s9.3,20.7,20.7,20.7,20.7-9.3,20.7-20.7-9.3-20.7-20.7-20.7ZM128,140.3c-6.8,0-12.3-5.5-12.3-12.3s5.5-12.3,12.3-12.3,12.3,5.5,12.3,12.3-5.5,12.3-12.3,12.3Z"/>
+</svg>
+

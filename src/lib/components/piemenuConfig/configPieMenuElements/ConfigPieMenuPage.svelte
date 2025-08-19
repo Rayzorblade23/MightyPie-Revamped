@@ -9,7 +9,7 @@
     import ConfigPieButton from "$lib/components/piemenuConfig/configPieMenuElements/ConfigPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/buttons/RemovePageButton.svelte";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
-    import { getIndicatorSVG } from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
+    import { getIndicatorSVG, getIndicatorRingSVG } from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
 
     // --- Component Props (using $props) ---
     let {
@@ -52,6 +52,7 @@
 
     // --- Indicator State ---
     let indicator = $state("");
+    let indicatorRing = $state("");
     // Offset so that Button 0 is at -67.5deg (if 8 buttons, 360/8 = 45, so 0 is at -67.5)
     const INDICATOR_START_ANGLE = -67.5;
     const INDICATOR_STEP_ANGLE = 45;
@@ -67,6 +68,12 @@
     $effect(() => {
         (async () => {
             indicator = await getIndicatorSVG();
+        })();
+    });
+
+    $effect(() => {
+        (async () => {
+            indicatorRing = await getIndicatorRingSVG();
         })();
     });
 
@@ -231,6 +238,16 @@
         <p class="text-zinc-500 text-xs">Calculating positions...</p>
     {/if}
     <!-- SVG Indicator: Only visible if this menu has the active button -->
+    <!-- Non-rotating ring overlay centered on the deadzone (always visible) -->
+    <div
+            class="absolute left-1/2 top-1/2 z-0"
+            style="transform: translate(-50%, -50%);"
+    >
+        {#if indicatorRing}
+            <img alt="indicator ring" height="300" src={indicatorRing} style="display: block; width: 300px; height: 300px;" width="300"/>
+        {/if}
+    </div>
+
     <div
             class="absolute left-1/2 top-1/2 z-0 indicator-animated"
             class:indicator-visible={indicator && activeSlotIndex >= 0 && internalSlotXYOffsets[activeSlotIndex]}
