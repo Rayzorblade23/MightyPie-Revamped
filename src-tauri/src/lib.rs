@@ -37,12 +37,11 @@ pub fn run() {
 
     // Configure env_logger to respect RUST_LOG from environment
     // with sensible defaults if not set
-    let env = Env::default().filter_or("RUST_LOG", "info,enigo=off");
+    let env = Env::default().filter_or("RUST_LOG", "info");
 
     let mut builder = Builder::from_env(env);
 
-    // Add filter to suppress noisy WebView2/Enigo logs
-    builder.filter(Some("enigo"), log::LevelFilter::Off);
+    // Add any module-specific filters here if needed (Enigo removed)
 
     builder
         .format(|buf, record| {

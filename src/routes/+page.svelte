@@ -37,6 +37,8 @@
     let pieMenuOpacity = $state(0);
     // Reference to PieMenu component
     let pieMenuComponent: any = null;
+    // Track last known document visibility to avoid redundant handling/logging
+    let lastDocHidden: boolean | null = $state(null);
 
     // Heartbeat interval for mouse hook safety
     let heartbeatInterval: ReturnType<typeof setInterval> | null = $state(null);
@@ -62,6 +64,22 @@
 
     // Centralized function to set pie menu state, window visibility, and button unmount timing
     async function setPieMenuState(isOpen: boolean, newPageID?: number) {
+        // Idempotency guard: avoid redundant transitions
+        if (isOpen) {
+            const samePage = newPageID === undefined || newPageID === pageID;
+            if (isPieMenuVisible && samePage) {
+                return;
+            }
+        } else {
+            if (!isPieMenuVisible) {
+                // Already logically hidden; ensure native window is hidden only if currently visible
+                const win = getCurrentWindow();
+                if (await win.isVisible()) {
+                    await win.hide();
+                }
+                return;
+            }
+        }
         if (isOpen) {
             // Opening the pie menu
             // Cancel any pending unmount from a previous close/cycle
@@ -82,13 +100,19 @@
             setTimeout(() => {
                 pieMenuOpacity = 1;
             }, 50);
-            await getCurrentWindow().show();
+            {
+                const win = getCurrentWindow();
+                if (!(await win.isVisible())) {
+                    await win.show();
+                }
+            }
         } else {
             // Closing the pie menu
-            if (isPieMenuVisible) {
-                // Always set opacity to 0 when hiding so the UI fades immediately
-                pieMenuOpacity = 0;
+            // Always set opacity to 0 when hiding so the UI fades immediately (even if already hidden)
+            pieMenuOpacity = 0;
 
+            // Only perform unmount and notifications if we were actually visible
+            if (isPieMenuVisible) {
                 // Schedule button unmount via child to allow click-up processing
                 if (pieMenuComponent?.scheduleButtonsUnmount) {
                     pieMenuComponent.scheduleButtonsUnmount(100);
@@ -101,7 +125,17 @@
                     // Stop heartbeat when pie menu is hidden and mouse hook is disabled
                     stopHeartbeat("setPieMenuState: closing");
                 }
-                await getCurrentWindow().hide();
+            } else {
+                // Ensure internal state remains consistent when already hidden (suppress noisy log)
+                isPieMenuVisible = false;
+            }
+
+            // Ensure the native window is hidden only if currently visible to reduce churn
+            {
+                const win = getCurrentWindow();
+                if (await win.isVisible()) {
+                    await win.hide();
+                }
             }
         }
     }
@@ -215,13 +249,12 @@
                 // Increment animation key to trigger button animations
                 animationKey++;
 
-                await currentWindow.show();
-
+                // Do not show the window directly; let setPieMenuState handle show
                 if (!document.hidden) {
                     await handlePieMenuVisible(newPageID);
                 } else {
-                    logger.warn("[NATS] Document is hidden. UI remains hidden.");
-                    await handlePieMenuHidden();
+                    logger.warn("[NATS] Document is hidden. Skipping open.");
+                    // Do not force-close here; visibilitychange handler will handle actual hide if needed
                 }
             } else {
                 logger.debug(`[NATS] Shortcut (${shortcutDetectedMsg.shortcutPressed}): Hide.`);
@@ -273,17 +306,25 @@
 
     $effect(() => {
         const handleVisibilityChange = async () => {
-            const currentWindow = getCurrentWindow();
+            // Only react when visibility actually changes to reduce churn
+            if (lastDocHidden === document.hidden) return;
+            lastDocHidden = document.hidden;
+
+            const win = getCurrentWindow();
             if (document.hidden) {
                 logger.debug("Document visibility: HIDDEN");
-                await handlePieMenuHidden();
+                // Only close if we believe we are visible
+                if (isPieMenuVisible) {
+                    await handlePieMenuHidden();
+                } else {
+                    // Ensure native window is hidden if needed
+                    if (await win.isVisible()) await win.hide();
+                }
             } else {
                 logger.debug("Document visibility: VISIBLE");
-                const tauriWindowIsProgrammaticallyVisible = await currentWindow.isVisible();
-                if (tauriWindowIsProgrammaticallyVisible) {
-                    await handlePieMenuVisible(pageID);
-                } else {
-                    await handlePieMenuHidden();
+                // Do not force-open here. If already logically visible but native window is hidden, ensure it's shown.
+                if (isPieMenuVisible && !(await win.isVisible())) {
+                    await win.show();
                 }
             }
         };
