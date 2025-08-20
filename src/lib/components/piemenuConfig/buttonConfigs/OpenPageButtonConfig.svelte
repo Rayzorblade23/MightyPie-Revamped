@@ -104,12 +104,14 @@
         </label>
         <div class="relative">
             <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-3 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="openPageButtonText"
                     oninput={e => { displayName = e.currentTarget.value; handleChange(DISPLAY_NAME_KEY, displayName); }}
                     type="text"
                     value={displayName}
                     autocomplete="off"
+                    spellcheck={false}
+                    autocapitalize="off"
                     placeholder={defaultDisplayName}
             />
         </div>

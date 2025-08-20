@@ -9,7 +9,7 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
     [ButtonType.CallFunction]: 'border-[var(--color-accent-function)]',
     [ButtonType.OpenSpecificPieMenuPage]: 'border-[var(--color-accent-openpage)]',
     [ButtonType.OpenResource]: 'border-[var(--color-accent-resource)]',
-    [ButtonType.Disabled]: 'border-neutral-400 dark:border-grey-600',
+    [ButtonType.Disabled]: 'border-neutral-400 dark:border-gray-700',
     default: 'border-neutral-400 dark:border-grey-600',
 };
 
@@ -34,8 +34,8 @@ export function composePieButtonClasses({
     if (isDisabled) {
         staticBaseClasses = [
             baseButtonClasses,
-            'bg-neutral-300 text-neutral-400',
-            'dark:bg-neutral-700 dark:text-neutral-500',
+            'bg-neutral-200 text-neutral-400',
+            'dark:bg-neutral-800 dark:text-neutral-500',
             allowSelectWhenDisabled ? '' : 'select-none pointer-events-none',
         ].join(' ').trim();
         subtextClass = 'text-neutral-400 dark:text-neutral-500 italic';

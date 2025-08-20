@@ -5,6 +5,7 @@
     import {open} from '@tauri-apps/plugin-dialog';
     import {createLogger} from "$lib/logger";
     import StandardButton from '$lib/components/StandardButton.svelte';
+    import {middleEllipsis} from '$lib/components/piemenuConfig/middleEllipsisAction.ts';
 
     const RESOURCE_PATH_KEY: keyof OpenResourceProperties = "resource_path";
     const DISPLAY_NAME_KEY: keyof OpenResourceProperties = "button_text_upper";
@@ -78,12 +79,13 @@
         </label>
         <div class="relative">
             <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-3 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="openResourceButtonText"
                     oninput={e => { handleChange(DISPLAY_NAME_KEY, e.currentTarget.value || defaultDisplayName); }}
                     type="text"
                     value={displayName}
                     autocomplete="off"
+                    spellcheck={false}
                     placeholder={defaultDisplayName}
             />
         </div>
@@ -94,15 +96,26 @@
             Resource Path:
         </label>
         <div class="flex flex-col gap-2">
-            <input
-                    class="w-full pl-3 pr-10 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                    id="resourcePath"
-                    oninput={e => { handleChange(RESOURCE_PATH_KEY, e.currentTarget.value); }}
-                    type="text"
-                    value={resourcePath}
-                    autocomplete="off"
-                    placeholder="Path to resource..."
-            />
+            <div class="relative group min-w-0">
+                {#if resourcePath}
+                    <span
+                            use:middleEllipsis={resourcePath}
+                            class="pointer-events-none absolute inset-y-0 left-3 right-3 flex items-center text-xs text-zinc-900 dark:text-zinc-100 overflow-hidden whitespace-nowrap transition-opacity duration-100 group-focus-within:opacity-0"
+                            title={resourcePath}
+                            aria-hidden="true"
+                    ></span>
+                {/if}
+                <input
+                        class="w-full pl-3 pr-3 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-transparent placeholder:text-zinc-400 dark:placeholder:text-zinc-500 group-focus-within:text-zinc-900 group-focus-within:dark:text-zinc-100 caret-zinc-900 dark:caret-zinc-100"
+                        id="resourcePath"
+                        oninput={e => { handleChange(RESOURCE_PATH_KEY, e.currentTarget.value); }}
+                        type="text"
+                        value={resourcePath}
+                        autocomplete="off"
+                        spellcheck={false}
+                        placeholder="Path to resource..."
+                />
+            </div>
             <div class="flex gap-2">
                 <StandardButton
                         label="Browse Files"

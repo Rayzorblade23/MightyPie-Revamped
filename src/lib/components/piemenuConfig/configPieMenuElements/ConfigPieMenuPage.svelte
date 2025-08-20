@@ -137,7 +137,7 @@
         } else if (currentButton.button_type === ButtonType.CallFunction) {
             buttonTextUpper = buttonTextUpper || (props as import('$lib/data/types/pieButtonTypes.ts').CallFunctionProperties).button_text_upper || 'Function';
         } else if (currentButton.button_type === ButtonType.ShowAnyWindow) {
-            buttonTextUpper = 'Show Any';
+            buttonTextUpper = 'Show Any Window';
         } else if (currentButton.button_type === ButtonType.ShowProgramWindow) {
             buttonTextUpper = 'Show Program';
         }

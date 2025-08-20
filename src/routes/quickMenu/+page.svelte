@@ -110,7 +110,7 @@
     });
 </script>
 
-<div class="w-full min-h-screen flex flex-col items-center justify-start pt-8 bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-lg relative">
+<div class="w-[calc(100%-1rem)] min-h-[calc(100vh-1rem)] mx-2 my-2 flex flex-col items-center justify-start pt-8 bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-md relative">
     <button
             aria-label="Toggle dark mode"
             class="absolute top-4 right-4 py-2 px-2 rounded-lg bg-amber-500 text-white hover:bg-orange-400 dark:bg-purple-900 dark:hover:bg-purple-800 transition text-base focus:outline-none z-10"

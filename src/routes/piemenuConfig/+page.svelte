@@ -654,17 +654,19 @@
     });
 </script>
 
-<div class="w-full h-screen flex flex-col rounded-2xl shadow-lg overflow-hidden">
-    <!-- --- Title Bar --- -->
-    <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-2xl border-b border-none h-8 flex-shrink-0">
-        <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
-        <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
-            <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Pie Menu Config</span>
+<div class="w-full h-screen p-2">
+    <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-md">
+        <!-- --- Title Bar --- -->
+        <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
+            <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
+            <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
+                <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Pie Menu Config</span>
+            </div>
+            <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
-        <div class="flex-1 h-full" data-tauri-drag-region></div>
-    </div>
     <!-- --- Main Content --- -->
-    <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative bg-gradient-to-br from-amber-500 to-purple-700">
+        <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative"
+         style="scrollbar-gutter: stable both-edges;">
         {#if menuIndices.length > 0}
             <!-- --- UI: Menu Tabs --- -->
             <section>
@@ -682,14 +684,15 @@
             </section>
             <!-- --- UI: Main Content Area --- -->
             {#if selectedMenuID !== undefined}
-                <div class="main-content-area flex flex-col space-y-8">
+                <div class="main-content-area flex flex-col space-y-6">
                     <!-- --- UI: Pie Menus Section --- -->
                     <section class="pie-menus-section">
                         {#if sortedPagesForSelectedMenu.length > 0}
                             <div
-                                    class="flex rounded-b-lg space-x-4 overflow-x-auto py-3 px-3 horizontal-scrollbar bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 shadow-md"
+                                    class="flex rounded-b-lg space-x-4 overflow-x-scroll py-3 px-3 horizontal-scrollbar bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 shadow-md"
                                     bind:this={pagesContainer}
                                     use:horizontalScroll
+                                    style="scrollbar-gutter: stable both-edges;"
                             >
                                 <div class="flex flex-row gap-x-6 pb-0">
                                     {#key quickMenuFavoriteVersion}
@@ -901,8 +904,8 @@
                 />
             </div>
         </div>
-    </div>
-    <!-- --- UI: Dialogs --- -->
+        </div>
+        <!-- --- UI: Dialogs --- -->
     <ConfirmationDialog
             isOpen={showRemoveMenuDialog}
             message="Are you sure you want to remove this menu?"
@@ -935,6 +938,7 @@
             onClose={() => showBackupCreatedDialog = false}
             title="Backup Created"
     />
+    </div>
 </div>
 
 <style>
