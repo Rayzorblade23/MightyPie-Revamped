@@ -6,9 +6,22 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
+
+// removeFormatChars drops Unicode format characters (e.g., zero-width joiner) from a string
+func removeFormatChars(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.In(r, unicode.Cf) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
 
 // processExistingShowProgramHandles (Cleaned)
 func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
@@ -24,7 +37,6 @@ func (a *ButtonManagerAdapter) processExistingShowProgramHandles(
 		if processedButtons[buttonKey] {
 			continue
 		}
-
 		props, err := GetButtonProperties[core.ShowProgramWindowProperties](buttonCopy)
 		if err != nil {
 			log.Warn("[%s] Failed to get ShowProgram props: %v", buttonKey, err)
@@ -175,63 +187,43 @@ func (a *ButtonManagerAdapter) assignMatchingProgramWindows(
 				if props.WindowHandle == InvalidHandle {
 					foundHandle := -1
 					var foundWinInfo core.WindowInfo
+
 					isEdgeButton := strings.Contains(strings.ToLower(props.ButtonTextLower), "edge")
-					if isEdgeButton {
-						log.Info("[DEBUG] ShowProgramWindow button '%s' (text: '%s') looking for window", buttonKey, props.ButtonTextLower)
-					}
+
 					for handle, winInfo := range availableWindows {
 						if windowsConsumed[handle] {
 							continue
 						}
-						isEdge := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
-						if isEdge {
-							log.Info("[DEBUG] Found Edge window - Handle: %X, Title: '%s', AppName: '%s'",
-								handle, winInfo.Title, winInfo.AppName)
-							if isEdge {
-								// Try matching by window title using multiple strategies
+						isEdgeWindow := winInfo.ExeName == "msedge.exe" || winInfo.AppName == "Microsoft Edge"
+						// Before sanitizing/removing app name, decide if it's a PWA.
+						rawTitleLower := strings.ToLower(winInfo.Title)
+						rawTitleLower = removeFormatChars(rawTitleLower) // removes Cf chars like zero-width space
+						// optionally normalize whitespace further:
+						rawTitleLower = strings.Join(strings.Fields(rawTitleLower), " ")
+						isEdgePWA := isEdgeWindow && !strings.Contains(rawTitleLower, "microsoft edge")
 
-								// Strategy 1: Exact title match
-								if winInfo.Title == props.ButtonTextLower {
-									log.Info("[DEBUG] MATCH: Edge window title '%s' exactly matches button text '%s'",
-										winInfo.Title, props.ButtonTextLower)
-									foundHandle = handle
-									foundWinInfo = winInfo
-									break
-								}
+						// Exception: certain Edge PWA windows (e.g., Disney+) include a '|' separator and app name.
+						// If we detect both, treat it as a PWA regardless of the generic title heuristic.
+						if strings.Contains(winInfo.Title, "|") && strings.Contains(winInfo.Title, "Disney+") {
+							isEdgePWA = true
+						}
 
-								// Strategy 2: Button text is contained in window title
-								if strings.Contains(winInfo.Title, props.ButtonTextLower) {
-									log.Info("[DEBUG] MATCH: Edge window title '%s' contains button text '%s'",
-										winInfo.Title, props.ButtonTextLower)
-									foundHandle = handle
-									foundWinInfo = winInfo
-									break
-								}
-
-								// Strategy 3: Title prefix match (before first ' - ')
-								titleParts := strings.Split(winInfo.Title, " - ")
-								if len(titleParts) > 0 && titleParts[0] == props.ButtonTextLower {
-									log.Info("[DEBUG] MATCH: Edge window title prefix '%s' matches button text '%s'",
-										titleParts[0], props.ButtonTextLower)
-									foundHandle = handle
-									foundWinInfo = winInfo
-									break
-								}
-
-								log.Info("[DEBUG] NO MATCH: Edge window title '%s' does not match button text '%s' using any strategy",
-									winInfo.Title, props.ButtonTextLower)
-							} else {
-								if winInfo.AppName == props.ButtonTextLower {
-									log.Info("[DEBUG] MATCH: Window AppName '%s' matches button text '%s'",
-										winInfo.AppName, props.ButtonTextLower)
-									foundHandle = handle
-									foundWinInfo = winInfo
-									break
-								} else if isEdgeButton {
-									log.Info("[DEBUG] NO MATCH: Window AppName '%s' does not match button text '%s'",
-										winInfo.AppName, props.ButtonTextLower)
-								}
+						if isEdgeWindow {
+							// Match Edge PWA by checking if button text appears anywhere in the window title
+							titleLower := removeFormatChars(strings.ToLower(winInfo.Title))
+							appLower := removeFormatChars(strings.ToLower(winInfo.AppName))
+							if appLower != "" && strings.Contains(titleLower, appLower) {
+								titleLower = strings.TrimSpace(strings.ReplaceAll(titleLower, appLower, ""))
 							}
+							btnLower := strings.ToLower(props.ButtonTextLower)
+							if titleLower != "" && strings.Contains(titleLower, btnLower) {
+								foundHandle = handle
+								foundWinInfo = winInfo
+							} else if isEdgeButton && !isEdgePWA {
+								foundHandle = handle
+								foundWinInfo = winInfo
+							}
+
 						} else {
 							if winInfo.AppName == props.ButtonTextLower {
 								foundHandle = handle
