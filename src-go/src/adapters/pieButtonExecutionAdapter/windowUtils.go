@@ -68,36 +68,36 @@ type WindowHandle uintptr
 
 // enumContext holds per-call state for EnumWindows in GetWindowAtPoint.
 type enumContext struct {
-    x, y           int
-    managedWindows map[int]core.WindowInfo
-    hwnd           WindowHandle
-    found          bool
+	x, y           int
+	managedWindows map[int]core.WindowInfo
+	hwnd           WindowHandle
+	found          bool
 }
 
 // Single package-level callback to avoid repeated allocations.
 var enumWindowsProc = syscall.NewCallback(func(hwnd syscall.Handle, lparam uintptr) uintptr {
-    ctx := (*enumContext)(unsafe.Pointer(lparam))
+	ctx := (*enumContext)(unsafe.Pointer(lparam))
 
-    handle := int(hwnd)
+	handle := int(hwnd)
 
-    winInfo, exists := ctx.managedWindows[handle]
-    if !exists || winInfo.ExeName == "mightypie-revamped.exe" {
-        return 1
-    }
+	winInfo, exists := ctx.managedWindows[handle]
+	if !exists || winInfo.ExeName == "mightypie-revamped.exe" {
+		return 1
+	}
 
-    var rect RECT
-    _, _, _ = getWindowRect.Call(
-        uintptr(hwnd),
-        uintptr(unsafe.Pointer(&rect)),
-    )
+	var rect RECT
+	_, _, _ = getWindowRect.Call(
+		uintptr(hwnd),
+		uintptr(unsafe.Pointer(&rect)),
+	)
 
-    if int32(ctx.x) >= rect.Left && int32(ctx.x) <= rect.Right &&
-        int32(ctx.y) >= rect.Top && int32(ctx.y) <= rect.Bottom {
-        ctx.hwnd = WindowHandle(hwnd)
-        ctx.found = true
-        return 0 // stop enumeration
-    }
-    return 1 // continue
+	if int32(ctx.x) >= rect.Left && int32(ctx.x) <= rect.Right &&
+		int32(ctx.y) >= rect.Top && int32(ctx.y) <= rect.Bottom {
+		ctx.hwnd = WindowHandle(hwnd)
+		ctx.found = true
+		return 0 // stop enumeration
+	}
+	return 1 // continue
 })
 
 // isExplorerWindow returns true if the given HWND belongs to explorer.exe using the cached windowsList
@@ -133,17 +133,17 @@ func (hwnd WindowHandle) Maximize() error {
 	if err != nil && err.Error() != "The operation completed successfully." {
 		return fmt.Errorf("failed to set foreground window: %v", err)
 	}
-	
+
 	// Then maximize
 	_, _, err = showWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
-	
+
 	// Windows API often returns non-nil error even on success
 	if err != nil {
 		if err.Error() == "The operation completed successfully." {
 			log.Info("Successfully maximized window HWND %X", hwnd)
 			return nil
 		}
-		
+
 		// Ignore quota errors as they often occur even when the window is successfully maximized
 		if strings.Contains(err.Error(), "Not enough quota") {
 			// Check if the window is actually maximized despite the error
@@ -153,17 +153,17 @@ func (hwnd WindowHandle) Maximize() error {
 				return nil
 			}
 		}
-		
+
 		return fmt.Errorf("failed to maximize window: %v", err)
 	}
-	
+
 	log.Info("Successfully maximized window HWND %X", hwnd)
 	return nil
 }
 
 func (hwnd WindowHandle) Minimize() error {
 	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_MINIMIZE))
-	
+
 	// Windows API often returns non-nil error even on success
 	// "The operation completed successfully" is a known case
 	// "Not enough quota" can also happen when the operation actually succeeds
@@ -172,7 +172,7 @@ func (hwnd WindowHandle) Minimize() error {
 			log.Info("Successfully minimized window HWND %X", hwnd)
 			return nil
 		}
-		
+
 		// Ignore quota errors as they often occur even when the window is successfully minimized
 		if strings.Contains(err.Error(), "Not enough quota") {
 			// Check if the window is actually minimized despite the error
@@ -182,39 +182,41 @@ func (hwnd WindowHandle) Minimize() error {
 				return nil
 			}
 		}
-		
+
 		return fmt.Errorf("failed to minimize window: %v", err)
 	}
-	
+
 	log.Info("Successfully minimized window HWND %X", hwnd)
 	return nil
 }
 
 func (hwnd WindowHandle) Restore() error {
+	// Best-effort: try to set foreground, but don't fail on errors like "Access is denied."
+	_, _, fgErr := setForegroundWindow.Call(uintptr(hwnd))
+	if fgErr != nil && fgErr.Error() != "The operation completed successfully." {
+		// Foreground failures are common/benign; continue and verify final state after restore.
+		log.Debug("Restore: SetForegroundWindow non-fatal error for HWND %X: %v", hwnd, fgErr)
+	}
+
+	// Then restore
 	_, _, err := showWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
-	
+
 	// Windows API often returns non-nil error even on success
 	if err != nil {
 		if err.Error() == "The operation completed successfully." {
-			log.Info("Successfully restored window HWND %X", hwnd)
 			return nil
 		}
-		
-		// Ignore quota errors as they often occur even when the window is successfully restored
-		if strings.Contains(err.Error(), "Not enough quota") {
-			// Check if the window is actually restored despite the error
-			ret, _, _ := isIconic.Call(uintptr(hwnd))
-			isMax, _ := hwnd.IsMaximized()
-			if ret == 0 && !isMax { // Window is neither minimized nor maximized, so it's restored
-				log.Info("Successfully restored window HWND %X (despite quota error)", hwnd)
-				return nil
-			}
+
+		// As a last resort, verify if window ended up restored despite the error
+		ret, _, _ := isIconic.Call(uintptr(hwnd))
+		isMax, _ := hwnd.IsMaximized()
+		if ret == 0 && !isMax {
+			log.Debug("Successfully restored window HWND %X.", hwnd)
+			return nil
 		}
-		
 		return fmt.Errorf("failed to restore window: %v", err)
 	}
-	
-	log.Info("Successfully restored window HWND %X", hwnd)
+
 	return nil
 }
 
@@ -230,19 +232,19 @@ func (hwnd WindowHandle) IsMaximized() (bool, error) {
 }
 
 func (a *PieButtonExecutionAdapter) GetWindowAtPoint(x, y int) (WindowHandle, error) {
-    a.mu.RLock()
-    managedWindows := a.windowsList
-    a.mu.RUnlock()
+	a.mu.RLock()
+	managedWindows := a.windowsList
+	a.mu.RUnlock()
 
-    ctx := enumContext{x: x, y: y, managedWindows: managedWindows}
-    enumWindows.Call(enumWindowsProc, uintptr(unsafe.Pointer(&ctx)))
-    runtime.KeepAlive(&ctx)
+	ctx := enumContext{x: x, y: y, managedWindows: managedWindows}
+	enumWindows.Call(enumWindowsProc, uintptr(unsafe.Pointer(&ctx)))
+	runtime.KeepAlive(&ctx)
 
-    if !ctx.found {
-        return 0, fmt.Errorf("no managed window found at coordinates")
-    }
+	if !ctx.found {
+		return 0, fmt.Errorf("no managed window found at coordinates")
+	}
 
-    return ctx.hwnd, nil
+	return ctx.hwnd, nil
 }
 
 // setForegroundOrMinimize brings the window to the foreground or minimizes it if it's already in the foreground.
