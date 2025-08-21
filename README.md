@@ -24,7 +24,9 @@ than just window switching.
 - [Installation](#installation)
 - [Known Issues / Limitations](#known-issues--limitations)
 - [Debugging](#debugging)
-- [Power User Stuff](#power-user-stuff)
+- [Advanced Usage](#advanced-usage)
+    - [Debugging](#debugging)
+    - [Configuration Files](#configuration-files)
 
 > [!NOTE]
 > This is now my second "real" program, but creating it was quite a bit more complex than the first version of
@@ -99,6 +101,8 @@ with eight configurable buttons each.
 > Manager), you need to run _MightyPie Revamped_ with admin privileges as well. You also need admin privileges to change
 > these settings. (They are turned off by default.)
 
+- _(new!)_ Experimental Bonus Feature: **Audio Volume Control via Mouse Wheel** while any Pie Menu is open.
+
 ### Fuzzy Search _(new!)_
 
 - Fuzzy Search for any open window — by title or application name — and bring it to the foreground.
@@ -143,19 +147,6 @@ has opened once. This cache is the working basis for all program-related buttons
 
 - _Middle-click_ the Center Button in any Pie Menu to open the Special Menu.
 - All the buttons have tool tips.
-
-
-- The Startup section is only visible when run with elevated privileges, which I recommend anyway, since MightyPie will
-  otherwise not work when programs with elevated privileges are in the foreground (like Task Manager). "Start with
-  Windows" creates (or removes) a task in the Task Scheduler, hence the shortcut there.
-
-
-- the Invisible UI right now consists of two buttons on the left edge and at the bottom of the screen respectively. The
-  one on the left opens an explorer window and the one at the bottom toggles Taskbar visibility (just like the toggle in
-  the menu)
-- in the App Data folder, you find json files which save the Button Config, the App Settings and the App Info Cache (you
-  normally don't have to interact with those directly but if you have problems, try deleting these files to get reset
-  the whole program).
 
 
 - the other unlabeled buttons are:
@@ -210,7 +201,9 @@ Note: There is no portable version of **_MightyPie Revamped_** unlike the origin
 - Sometimes a window is not being focused first try. Tried a lot of things to get this consistent but it's still not a
   100%. At this point I assume it is a quirk of Windows.
 
-## Debugging
+## Advanced Usage
+
+### Debugging
 
 You can find the log files in the app data folder `AppData\Local\MightyPieRevamped\logs\`. There is also a shortcut at
 the bottom
@@ -220,7 +213,7 @@ By default, the logging level is set to `info`. To change it, find `MightyPieRev
 the properties, in the `Target` field, add
 ` -- --log-level debug` (or `error`/`warn` instead of `info`) after the path.
 
-## Power User Stuff
+### Configuration Files
 
 - The Pie Menu Configuration, Settings and Shortcuts are all stored in the App Data folder:
     - `AppData\Local\MightyPieRevamped\buttonConfig.json`

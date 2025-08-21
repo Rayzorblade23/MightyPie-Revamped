@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
+	"github.com/go-vgo/robotgo"
 	"github.com/nats-io/nats.go"
 )
 
@@ -146,6 +147,20 @@ type MouseEvent struct {
 	State  string // "down", "up"
 }
 
+// Local definitions for low-level mouse hook data structures
+type point struct {
+	x int32
+	y int32
+}
+
+type msllHookStruct struct {
+	pt          point
+	mouseData   uint32
+	flags       uint32
+	time        uint32
+	dwExtraInfo uintptr
+}
+
 var (
 	user32              = syscall.NewLazyDLL("user32.dll")
 	setWindowsHookEx    = user32.NewProc("SetWindowsHookExW")
@@ -167,6 +182,7 @@ const (
 	WM_RBUTTONUP   = 0x0205
 	WM_MBUTTONDOWN = 0x0207
 	WM_MBUTTONUP   = 0x0208
+	WM_MOUSEWHEEL  = 0x020A
 )
 
 func (a *MouseInputAdapter) Run() {
@@ -228,6 +244,26 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 		case WM_MBUTTONUP:
 			adapter.handleClick("middle", "up")
 			return 1 // block
+		case WM_MOUSEWHEEL:
+			// Determine wheel direction from MSLLHOOKSTRUCT.mouseData high word (signed)
+			ms := (*msllHookStruct)(unsafe.Pointer(lParam))
+			delta := int16((ms.mouseData >> 16) & 0xFFFF)
+			if delta > 0 {
+				// Wheel up -> Volume Up
+				if err := robotgo.KeyTap("audio_vol_up"); err != nil {
+					log.Error("robotgo.KeyTap audio_vol_up failed: %v", err)
+				} else {
+					log.Debug("Wheel up detected -> Volume Up")
+				}
+			} else if delta < 0 {
+				// Wheel down -> Volume Down
+				if err := robotgo.KeyTap("audio_vol_down"); err != nil {
+					log.Error("robotgo.KeyTap audio_vol_down failed: %v", err)
+				} else {
+					log.Debug("Wheel down detected -> Volume Down")
+				}
+			}
+			return 1 // block scroll while pie menu open
 		}
 	}
 	ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
