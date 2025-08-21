@@ -9,6 +9,7 @@ import {
 } from "@tauri-apps/api/window";
 import {PhysicalSize} from "@tauri-apps/api/dpi";
 import {createLogger} from "$lib/logger";
+import { PUBLIC_PIEMENU_SIZE_X, PUBLIC_PIEMENU_SIZE_Y } from "$env/static/public";
 
 // Create a logger for this module
 const logger = createLogger('PieMenuUtils');
@@ -257,7 +258,7 @@ export async function moveCursorToWindowCenter() {
 export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<number> {
     const window = getCurrentWindow();
     const outerSize = await window.outerSize();
-    const innerSize = await window.innerSize();
+    // We don't rely on previous innerSize for sizing anymore
     await window.setSize(new PhysicalSize(0, 0));
 
     const mousePosition = await getMousePosition();
@@ -297,8 +298,10 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
 
     await window.setPosition(new LogicalPosition(logicalX, logicalY));
 
-    let newSize = new LogicalSize(innerSize.width / windowScaleFactor, innerSize.height / windowScaleFactor);
-    await window.setSize(newSize);
+    // Always set the window to the configured logical size so content fits regardless of DPI
+    const desiredLogicalWidth = Number(PUBLIC_PIEMENU_SIZE_X);
+    const desiredLogicalHeight = Number(PUBLIC_PIEMENU_SIZE_Y);
+    await window.setSize(new LogicalSize(desiredLogicalWidth, desiredLogicalHeight));
 
     return newScaleFactor;
 }
