@@ -165,7 +165,11 @@ export async function detectActivePieSlice(deadzoneRadius: number): Promise<{ sl
             height: outerSize.height
         };
 
-        const result = calculatePieSliceFromCoordinates(relX, relY, winSize, deadzoneRadius);
+        // Adjust deadzone from CSS pixels to physical pixels using the current window scale factor
+        const scaleFactor = await window.scaleFactor();
+        const adjustedDeadzoneRadius = deadzoneRadius * scaleFactor;
+
+        const result = calculatePieSliceFromCoordinates(relX, relY, winSize, adjustedDeadzoneRadius);
 
         // if (result.slice === -1) {
         //     logger.debug("Mouse is inside the inner radius (dead zone).");

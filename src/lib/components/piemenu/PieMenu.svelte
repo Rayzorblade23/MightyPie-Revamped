@@ -20,7 +20,10 @@
         PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED,
         PUBLIC_PIEBUTTON_HEIGHT as BUTTON_HEIGHT,
         PUBLIC_PIEBUTTON_WIDTH as BUTTON_WIDTH,
-        PUBLIC_PIEMENU_RADIUS as RADIUS
+        PUBLIC_PIEMENU_RADIUS as RADIUS,
+        PUBLIC_DEADZONE_RADIUS as DEADZONE_RADIUS,
+        PUBLIC_PIEMENU_SIZE_X as PIEMENU_SIZE_X,
+        PUBLIC_PIEMENU_SIZE_Y as PIEMENU_SIZE_Y
     } from "$env/static/public";
     import {getIndicatorSVG, getIndicatorRingSVG} from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.js";
@@ -33,9 +36,9 @@
     const radius = Number(RADIUS);
     const buttonWidth = Number(BUTTON_WIDTH);
     const buttonHeight = Number(BUTTON_HEIGHT);
-    const width = 600;
-    const height = 380;
-    const deadzoneRadius = 18;
+    const width = Number(PIEMENU_SIZE_X);
+    const height = Number(PIEMENU_SIZE_Y);
+    const deadzoneRadius = Number(DEADZONE_RADIUS);
 
     let activeSlice = $state(-1);
     let buttonPositions: { x: number; y: number }[] = $state([]);
