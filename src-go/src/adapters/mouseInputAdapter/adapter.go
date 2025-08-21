@@ -56,7 +56,11 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 			return
 		}
 
-		log.Debug("Pie Menu opened: %+v", message)
+        if message.PiemenuOpened {
+            log.Debug("Pie Menu opened!")
+        } else {
+            log.Debug("Pie Menu closed!")
+        }
 
 		// Set the mouse hook state based on the message
 		// The heartbeat monitoring will be started/stopped in SetMouseHookState
@@ -241,7 +245,7 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
 		Click: fmt.Sprintf("%s_%s", event.Button, event.State),
 	}
 	a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_CLICK"), msg)
-	log.Info("Mouse %s", msg.Click)
+	log.Debug("Mouse %s", msg.Click)
 }
 
 // setMouseHookState enables or disables the mouse hook

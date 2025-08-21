@@ -402,6 +402,7 @@
         <PieMenu
                 animationKey={animationKey}
                 bind:this={pieMenuComponent}
+                isMenuOpen={isPieMenuVisible}
                 menuID={menuID}
                 onClose={() => setPieMenuState(false)}
                 opacity={pieMenuOpacity}

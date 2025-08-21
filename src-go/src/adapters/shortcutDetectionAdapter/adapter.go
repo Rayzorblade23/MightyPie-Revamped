@@ -226,6 +226,6 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	} else {
 		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
-	log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, 0, 0)
+    log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, xPos, yPos)
 	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 }

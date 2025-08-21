@@ -40,6 +40,7 @@
     let activeSlice = $state(-1);
     let buttonPositions: { x: number; y: number }[] = $state([]);
     let animationFrameId: number | null = null;
+    let isMouseTrackingActive = false;
     let currentMouseEvent = $state<string>('');
     let indicatorRotation = $state(0);
     let indicatorReady = $state(false);
@@ -51,12 +52,13 @@
     // Make this reactive to silence Svelte's binding_property_non_reactive warning
     let buttonRefs = $state<(PieButtonComponent | null)[]>(Array(numButtons).fill(null));
 
-    let {menuID, pageID, animationKey = 0, opacity = 1, onClose}: {
+    let {menuID, pageID, animationKey = 0, opacity = 1, onClose, isMenuOpen = false}: {
         menuID: number;
         pageID: number;
         animationKey?: number;
         opacity?: number;
         onClose: () => void;
+        isMenuOpen?: boolean;
     } = $props();
 
     const indicatorSVG = $derived.by(async () => await getIndicatorSVG());
@@ -93,13 +95,13 @@
                 if (activeSlice === -1) {
                     // Use the selected deadzone function from settings
                     const settings = getSettings();
-                    const fnName = settings.pieMenuDeadzoneFunction?.value || "Maximize";
+                    const functionName = settings.pieMenuDeadzoneFunction?.value || "Maximize";
                     const deadzoneMessage = {
                         page_index: pageID,
                         button_index: -1,
                         button_type: 'call_function',
                         properties: {
-                            button_text_upper: fnName,
+                            button_text_upper: functionName,
                             button_text_lower: '',
                             icon_path: '',
                         },
@@ -154,11 +156,23 @@
         logger.debug('[NATS] Shortcut released message received:');
         logger.debug('↳', message);
         if (destroyed) return;
-        if (activeSlice !== -1) {
-            logger.debug(`Drag-select release on slice ${activeSlice}: calling child execute`);
-            const btn = buttonRefs[activeSlice];
-            // Call child's exported execute to publish and close if appropriate
+        // Determine the slice at release time to avoid races with RAF
+        let sliceToUse = activeSlice;
+        if (sliceToUse === -1) {
+            try {
+                const { slice } = await detectActivePieSlice(deadzoneRadius);
+                sliceToUse = slice;
+            } catch (err) {
+                logger.error('Failed to detect slice on release:', err);
+            }
+        }
+        if (sliceToUse !== -1) {
+            logger.debug(`Drag-select release on slice ${sliceToUse}: calling button execute`);
+            const btn = buttonRefs[sliceToUse];
             btn?.executeFromDragSelect?.();
+        } else {
+            // No slice selected on release -> leave menu open (do not auto-close)
+            logger.debug('Release with no active slice; leaving menu open.');
         }
     };
 
@@ -173,6 +187,8 @@
             logger.error("subscription_shortcut_released Error:", subscription_shortcut_released.error);
         }
     });
+
+    // isMenuOpen is now provided by parent as a prop
 
     onDestroy(() => {
         destroyed = true;
@@ -199,9 +215,16 @@
     }
 
     function startAnimationLoop() {
+        logger.debug("Pie Menu opened. Starting Mouse Tracking loop.");
+        // Prevent creating multiple RAF loops
+        if (isMouseTrackingActive) return;
+        if (!showButtons) return;
+        isMouseTrackingActive = true;
         const update = async () => {
+            if (!isMouseTrackingActive || !showButtons) return;
             try {
                 let {slice, mouseAngle} = await detectActivePieSlice(deadzoneRadius);
+                if (!isMouseTrackingActive || !showButtons) return; // Stopped while awaiting or hidden
                 activeSlice = slice;
                 indicatorRotation = mouseAngle;
                 // Mark indicator as ready after first computed rotation
@@ -210,16 +233,18 @@
                 logger.error("Error in animation loop:", error);
             }
 
+            if (!isMouseTrackingActive || !showButtons) return;
             animationFrameId = requestAnimationFrame(update);
         };
         animationFrameId = requestAnimationFrame(update);
     }
 
     function stopAnimationLoop() {
+        isMouseTrackingActive = false;
         if (animationFrameId !== null) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
-            logger.debug("Stopped animation frame loop.");
+            logger.debug("Pie Menu closed.Stopped Mouse Tracking loop.");
         }
     }
 
@@ -237,8 +262,6 @@
         }
         buttonPositions = newButtonPositions;
 
-        startAnimationLoop();
-
         // Show buttons after a short delay
         setTimeout(() => {
             showButtons = true;
@@ -247,6 +270,15 @@
 
     onDestroy(() => {
         stopAnimationLoop();
+    });
+
+    // Start/stop the animation loop based on button visibility AND actual menu open state
+    $effect(() => {
+        if (showButtons && isMenuOpen) {
+            startAnimationLoop();
+        } else {
+            stopAnimationLoop();
+        }
     });
 
     // Improved flyAndScale transition - uses buttonIndex to calculate delay
