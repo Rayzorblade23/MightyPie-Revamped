@@ -5,8 +5,8 @@
     import type {IPiemenuOpenedMessage, IShortcutPressedMessage} from "$lib/data/types/piemenuTypes.ts";
     import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     import {
-        PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT,
         PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE,
+        PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT,
         PUBLIC_NATSSUBJECT_PIEMENU_NAVIGATE,
         PUBLIC_NATSSUBJECT_PIEMENU_OPENED,
         PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED,
@@ -286,11 +286,11 @@
             const navigateToPageMsg: string = JSON.parse(message);
 
             logger.debug(`[NATS] Navigate to page: ${navigateToPageMsg}`);
-            setPieMenuState(false);
+            await setPieMenuState(false);
 
             setTimeout(() => {
                 goto(`/${navigateToPageMsg}`, {replaceState: true});
-            }, 0);
+            }, 30);
         }
     );
 
