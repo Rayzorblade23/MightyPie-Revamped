@@ -45,6 +45,20 @@ const (
 // lastHeartbeatUnix stores the last heartbeat time as UnixNano for atomic access across goroutines
 var lastHeartbeatUnix int64
 
+// wheel behavior modes
+const (
+	wheelModeDefault int32 = iota
+	wheelModeControlVolume
+)
+
+// current wheel mode (atomic)
+var currentWheelMode int32 = wheelModeDefault
+
+// minimal settings entry shape for parsing updates
+type settingsEntry struct {
+	Value any `json:"value"`
+}
+
 // control messages to a single manager goroutine that owns state/ticker
 type controlMsgKind int
 
@@ -103,8 +117,62 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 		log.Debug("Received heartbeat: %v", heartbeat.Timestamp)
 	})
 
+	// Subscribe to settings updates to keep wheel mode in sync
+	settingsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
+	if settingsSubject != "" {
+		// 1) Receive ongoing updates via JetStream durable consumer
+		err := natsAdapter.SubscribeJetStreamPull(settingsSubject, "", func(msg *nats.Msg) {
+			var newSettings map[string]settingsEntry
+			if err := json.Unmarshal(msg.Data, &newSettings); err != nil {
+				log.Error("Failed to unmarshal settings in mouse adapter: %v", err)
+				return
+			}
+			applyWheelModeFromSettings(newSettings)
+		})
+		if err != nil {
+			log.Error("Failed to subscribe to settings updates for mouse adapter: %v", err)
+		}
+
+		// 2) Also listen to the initial non-JS broadcast so we can initialize immediately
+		natsAdapter.SubscribeToSubject(settingsSubject, func(msg *nats.Msg) {
+			var newSettings map[string]settingsEntry
+			if err := json.Unmarshal(msg.Data, &newSettings); err != nil {
+				log.Error("Failed to unmarshal settings (plain) in mouse adapter: %v", err)
+				return
+			}
+			applyWheelModeFromSettings(newSettings)
+		})
+	} else {
+		log.Warn("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE is not set; mouse wheel mode will not update live")
+	}
+
 	return &MouseInputAdapter{
 		natsAdapter: natsAdapter,
+	}
+}
+
+// applyWheelModeFromSettings reads the mouseWheelWhileOpen enum and updates the atomic mode
+func applyWheelModeFromSettings(settings map[string]settingsEntry) {
+	const key = "mouseWheelWhileOpen"
+	entry, ok := settings[key]
+	if !ok {
+		atomic.StoreInt32(&currentWheelMode, wheelModeDefault)
+		log.Debug("mouseWheelWhileOpen not found in settings; using default behavior")
+		return
+	}
+	valStr, ok := entry.Value.(string)
+	if !ok {
+		atomic.StoreInt32(&currentWheelMode, wheelModeDefault)
+		log.Warn("mouseWheelWhileOpen value is not a string; falling back to default")
+		return
+	}
+	switch valStr {
+	case "Control Volume":
+		atomic.StoreInt32(&currentWheelMode, wheelModeControlVolume)
+		log.Info("Mouse wheel mode set to: control volume")
+	default: // "default" or any unknown
+		atomic.StoreInt32(&currentWheelMode, wheelModeDefault)
+		log.Info("Mouse wheel mode set to: default")
 	}
 }
 
@@ -286,22 +354,28 @@ func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 			// Determine wheel direction from MSLLHOOKSTRUCT.mouseData high word (signed)
 			ms := (*msllHookStruct)(unsafe.Pointer(lParam))
 			delta := int16((ms.mouseData >> 16) & 0xFFFF)
-			if delta > 0 {
-				// Wheel up -> Volume Up
-				if err := robotgo.KeyTap("audio_vol_up"); err != nil {
-					log.Error("robotgo.KeyTap audio_vol_up failed: %v", err)
-				} else {
-					log.Debug("Wheel up detected -> Volume Up")
+			mode := atomic.LoadInt32(&currentWheelMode)
+			if mode == wheelModeControlVolume {
+				if delta > 0 {
+					// Wheel up -> Volume Up
+					if err := robotgo.KeyTap("audio_vol_up"); err != nil {
+						log.Error("robotgo.KeyTap audio_vol_up failed: %v", err)
+					} else {
+						log.Debug("Wheel up detected -> Volume Up")
+					}
+				} else if delta < 0 {
+					// Wheel down -> Volume Down
+					if err := robotgo.KeyTap("audio_vol_down"); err != nil {
+						log.Error("robotgo.KeyTap audio_vol_down failed: %v", err)
+					} else {
+						log.Debug("Wheel down detected -> Volume Down")
+					}
 				}
-			} else if delta < 0 {
-				// Wheel down -> Volume Down
-				if err := robotgo.KeyTap("audio_vol_down"); err != nil {
-					log.Error("robotgo.KeyTap audio_vol_down failed: %v", err)
-				} else {
-					log.Debug("Wheel down detected -> Volume Down")
-				}
+				return 1 // block scroll while pie menu open in volume control mode
 			}
-			return 1 // block scroll while pie menu open
+			// Default mode: pass through normal scroll
+			ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+			return ret
 		}
 	}
 	ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)

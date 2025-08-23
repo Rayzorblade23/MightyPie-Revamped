@@ -115,7 +115,7 @@ Pages with eight configurable buttons each.
 
 ### Audio Volume Control _(new!)_
 
-- Experimental Bonus Feature lets you control the audio volume via Mouse Wheel while any Pie Menu is open.
+- Control the audio volume via Mouse Wheel while any Pie Menu is open. (Can be turned off in Settings.)
 
 ### Fuzzy Search _(new!)_
 

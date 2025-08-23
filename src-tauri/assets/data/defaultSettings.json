@@ -1,6 +1,6 @@
 {
   "colorAccentAnyWin": {
-    "index": 0,
+    "index": 10,
     "label": "Button Accent: Show-Any-Window",
     "isExposed": true,
     "type": "color",
@@ -8,7 +8,7 @@
     "defaultValue": "#5a14b7"
   },
   "colorAccentFunction": {
-    "index": 1,
+    "index": 11,
     "label": "Button Accent: Function",
     "isExposed": true,
     "type": "color",
@@ -16,7 +16,7 @@
     "defaultValue": "#71b8ed"
   },
   "colorAccentLaunch": {
-    "index": 2,
+    "index": 12,
     "label": "Button Accent: Launch-Program",
     "isExposed": true,
     "type": "color",
@@ -24,7 +24,7 @@
     "defaultValue": "#f37fc0"
   },
   "colorAccentProgramWin": {
-    "index": 3,
+    "index": 13,
     "label": "Button Accent: Show-Program-Window",
     "isExposed": true,
     "type": "color",
@@ -32,7 +32,7 @@
     "defaultValue": "#fa9fa4"
   },
   "colorAccentOpenPage": {
-    "index": 4,
+    "index": 14,
     "label": "Button Accent: Open-Page",
     "isExposed": true,
     "type": "color",
@@ -40,7 +40,7 @@
     "defaultValue": "#abf7ab"
   },
   "colorAccentResource": {
-    "index": 5,
+    "index": 15,
     "label": "Button Accent: Open-Resource",
     "isExposed": true,
     "type": "color",
@@ -48,7 +48,7 @@
     "defaultValue": "#54c9c7"
   },
   "pieMenuDeadzoneFunction": {
-    "index": 6,
+    "index": 2,
     "label": "Pie Menu Center function (left-click)",
     "isExposed": true,
     "type": "enum",
@@ -56,7 +56,7 @@
     "defaultValue": "Forwards"
   },
   "colorPieButtonHighlight": {
-    "index": 7,
+    "index": 6,
     "label": "Pie Menu Button Highlight color",
     "isExposed": true,
     "type": "color",
@@ -64,7 +64,7 @@
     "defaultValue": "#7d34b2"
   },
   "colorIndicator": {
-    "index": 8,
+    "index": 7,
     "label": "Pie Menu Indicator color",
     "isExposed": true,
     "type": "color",
@@ -72,7 +72,7 @@
     "defaultValue": "#5f3c8e"
   },
   "colorRingFill": {
-    "index": 9,
+    "index": 8,
     "label": "Center Ring Fill color",
     "isExposed": true,
     "type": "color",
@@ -80,7 +80,7 @@
     "defaultValue": "#202020"
   },
   "colorRingStroke": {
-    "index": 10,
+    "index": 9,
     "label": "Center Ring Outline color",
     "isExposed": true,
     "type": "color",
@@ -88,7 +88,7 @@
     "defaultValue": "#303030"
   },
   "startInPieMenuConfig": {
-    "index": 11,
+    "index": 0,
     "label": "On program start show Pie Menu Config",
     "isExposed": true,
     "type": "bool",
@@ -96,7 +96,7 @@
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 12,
+    "index": 1,
     "label": "Keep open Pie Menu in place",
     "isExposed": true,
     "type": "bool",
@@ -104,7 +104,7 @@
     "defaultValue": false
   },
   "exampleFloat": {
-    "index": 13,
+    "index": 16,
     "label": "Example Float",
     "isExposed": false,
     "type": "float",
@@ -112,7 +112,7 @@
     "defaultValue": 0
   },
   "exampleInt": {
-    "index": 14,
+    "index": 17,
     "label": "Example Integer",
     "isExposed": false,
     "type": "int",
@@ -120,12 +120,12 @@
     "defaultValue": 0
   },
   "autoScrollOverflow": {
-    "index": 15,
+    "index": 4,
     "label": "When text is too long for button",
     "isExposed": true,
     "type": "enum",
-    "value": "Auto-scroll",
-    "defaultValue": "Auto-scroll",
+    "value": "Auto-scroll on hover",
+    "defaultValue": "Auto-scroll on hover",
     "options": [
       "Auto-scroll",
       "Auto-scroll on hover",
@@ -133,7 +133,7 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 16,
+    "index": 5,
     "label": "Thickness of Pie Button Border",
     "isExposed": true,
     "type": "enum",
@@ -144,6 +144,18 @@
       "Thin",
       "Medium",
       "Thick"
+    ]
+  },
+  "mouseWheelWhileOpen": {
+    "index": 3,
+    "label": "Mouse wheel while Pie Menu is open",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Control Volume",
+    "defaultValue": "Control Volume",
+    "options": [
+      "Do nothing",
+      "Control Volume"
     ]
   }
 }

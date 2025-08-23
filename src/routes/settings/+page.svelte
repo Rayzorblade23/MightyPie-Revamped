@@ -354,6 +354,18 @@
         pendingElevationAction = null;
     }
 
+    // Explicitly save before leaving the page to avoid timing issues
+    async function saveAndExit() {
+        try {
+            // Ensure the latest local state is sent to backend
+            publishSettings(settings);
+        } catch (e) {
+            logger.error('Failed to publish settings before exit:', e);
+        } finally {
+            await goto('/');
+        }
+    }
+
     onDestroy(() => {
         publishSettings(settings);
     });
@@ -539,7 +551,7 @@
                             ariaLabel="Done"
                             bold={true}
                             label="Done"
-                            onClick={() => goto('/')}
+                            onClick={saveAndExit}
                             variant="primary"
                     />
                 </div>
@@ -554,7 +566,7 @@
         confirmText="Discard Changes"
         isOpen={showDiscardConfirmDialog}
         message="You have unsaved changes. What would you like to do?"
-        onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+        onCancel={() => { showDiscardConfirmDialog = false; saveAndExit(); }}
         onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
         title="Unsaved Changes"
 />
