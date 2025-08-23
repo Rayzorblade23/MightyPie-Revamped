@@ -86,6 +86,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		log.Info("INFO: Config written and reloaded from disk.")
 		// PrintConfig(buttonConfig, false)
 
+		// Republish the updated BaseMenuConfiguration so JetStream snapshot is current and reconnects get the latest
+		a.natsAdapter.PublishMessage(baseConfigSubject, loadedConfig)
+		log.Info("Published updated BaseMenuConfiguration to '%s'", baseConfigSubject)
+
 		a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
 	})
 

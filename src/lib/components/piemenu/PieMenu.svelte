@@ -247,7 +247,7 @@
         if (animationFrameId !== null) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
-            logger.debug("Pie Menu closed.Stopped Mouse Tracking loop.");
+            logger.debug("Pie Menu closed. Stopped Mouse Tracking loop.");
         }
     }
 
