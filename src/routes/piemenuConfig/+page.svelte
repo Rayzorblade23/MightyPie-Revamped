@@ -6,6 +6,7 @@
     import {onDestroy, onMount} from 'svelte';
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {open} from '@tauri-apps/plugin-dialog';
+    import {join} from '@tauri-apps/api/path';
 
     // --- Internal Library Imports ---
     import {
@@ -26,6 +27,7 @@
     import {
         PUBLIC_CONFIG_SIZE_X,
         PUBLIC_CONFIG_SIZE_Y,
+        PUBLIC_DIR_CONFIGBACKUPS,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
@@ -418,15 +420,16 @@
 
             // Get app data directory from Tauri backend
             const configPath = await invoke<string>('get_app_data_dir');
-            const selected = await open({multiple: false, defaultPath: configPath});
+            const backupsDir = await join(configPath, PUBLIC_DIR_CONFIGBACKUPS);
+            const selected = await open({multiple: false, defaultPath: backupsDir});
 
             if (selected) {
-                if (selected.includes('buttonConfig_BACKUP')) {
+                if (selected.includes('_BACKUP')) {
                     pushUndoState();
                     publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
                     logger.log('Published selected file path:', selected);
                 } else {
-                    alert('Please select a file with "buttonConfig_BACKUP" in the name.');
+                    alert('Please select a file with "_BACKUP" in the name.');
                 }
             }
         } catch (error) {
@@ -664,48 +667,48 @@
             </div>
             <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
-    <!-- --- Main Content --- -->
+        <!-- --- Main Content --- -->
         <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative"
-         style="scrollbar-gutter: stable both-edges;">
-        {#if menuIndices.length > 0}
-            <!-- --- UI: Menu Tabs --- -->
-            <section>
-                <MenuTabs
-                        menuIndices={menuIndices}
-                        currentSelectedMenuID={selectedMenuID}
-                        onSelectMenu={handleMenuSelect}
-                        onRemoveMenu={(menuIndex) => {
+             style="scrollbar-gutter: stable both-edges;">
+            {#if menuIndices.length > 0}
+                <!-- --- UI: Menu Tabs --- -->
+                <section>
+                    <MenuTabs
+                            menuIndices={menuIndices}
+                            currentSelectedMenuID={selectedMenuID}
+                            onSelectMenu={handleMenuSelect}
+                            onRemoveMenu={(menuIndex) => {
                             selectedMenuID = menuIndex;
                             handleRemoveMenu();
                         }}
-                        disableRemove={menuIndices.length <= 1}
-                        onAddMenu={handleAddMenu}
-                />
-            </section>
-            <!-- --- UI: Main Content Area --- -->
-            {#if selectedMenuID !== undefined}
-                <div class="main-content-area flex flex-col space-y-6">
-                    <!-- --- UI: Pie Menus Section --- -->
-                    <section class="pie-menus-section">
-                        {#if sortedPagesForSelectedMenu.length > 0}
-                            <div
-                                    class="flex rounded-b-lg space-x-4 overflow-x-scroll py-3 px-3 horizontal-scrollbar bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 shadow-md"
-                                    bind:this={pagesContainer}
-                                    use:horizontalScroll
-                                    style="scrollbar-gutter: stable both-edges;"
-                            >
-                                <div class="flex flex-row gap-x-6 pb-0">
-                                    {#key quickMenuFavoriteVersion}
-                                        {#each sortedPagesForSelectedMenu as [pageIDOfLoop, buttonsOnPage] (pageIDOfLoop)}
-                                            {@const currentMenuIDForCallback = selectedMenuID}
-                                            <button type="button"
-                                                    class="page-container flex-shrink-0 rounded-lg shadow-sm bg-zinc-800 overflow-hidden border-2"
-                                                    data-page-id={pageIDOfLoop}
-                                                    class:dark:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                                    class:dark:border-zinc-700={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
-                                                    class:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
-                                                    class:border-zinc-300={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
-                                                    onclick={() => {
+                            disableRemove={menuIndices.length <= 1}
+                            onAddMenu={handleAddMenu}
+                    />
+                </section>
+                <!-- --- UI: Main Content Area --- -->
+                {#if selectedMenuID !== undefined}
+                    <div class="main-content-area flex flex-col space-y-6">
+                        <!-- --- UI: Pie Menus Section --- -->
+                        <section class="pie-menus-section">
+                            {#if sortedPagesForSelectedMenu.length > 0}
+                                <div
+                                        class="flex rounded-b-lg space-x-4 overflow-x-scroll py-3 px-3 horizontal-scrollbar bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 shadow-md"
+                                        bind:this={pagesContainer}
+                                        use:horizontalScroll
+                                        style="scrollbar-gutter: stable both-edges;"
+                                >
+                                    <div class="flex flex-row gap-x-6 pb-0">
+                                        {#key quickMenuFavoriteVersion}
+                                            {#each sortedPagesForSelectedMenu as [pageIDOfLoop, buttonsOnPage] (pageIDOfLoop)}
+                                                {@const currentMenuIDForCallback = selectedMenuID}
+                                                <button type="button"
+                                                        class="page-container flex-shrink-0 rounded-lg shadow-sm bg-zinc-800 overflow-hidden border-2"
+                                                        data-page-id={pageIDOfLoop}
+                                                        class:dark:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                        class:dark:border-zinc-700={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
+                                                        class:border-purple-500={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop}
+                                                        class:border-zinc-300={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
+                                                        onclick={() => {
                                                     if (!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop) {
                                                         selectedButtonDetails = {
                                                             menuID: currentMenuIDForCallback,
@@ -716,228 +719,228 @@
                                                         };
                                                     }
                                                  }}
-                                                    style="cursor:pointer"
-                                                    aria-label={`Select page ${pageIDOfLoop + 1}`}
-                                            >
-                                                <ConfigPieMenuPage
-                                                        menuID={currentMenuIDForCallback}
-                                                        pageID={pageIDOfLoop}
-                                                        buttonsOnPage={buttonsOnPage}
-                                                        onButtonClick={handlePieButtonClick}
-                                                        onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
-                                                        activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
+                                                        style="cursor:pointer"
+                                                        aria-label={`Select page ${pageIDOfLoop + 1}`}
+                                                >
+                                                    <ConfigPieMenuPage
+                                                            menuID={currentMenuIDForCallback}
+                                                            pageID={pageIDOfLoop}
+                                                            buttonsOnPage={buttonsOnPage}
+                                                            onButtonClick={handlePieButtonClick}
+                                                            onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
+                                                            activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
                                                             ? selectedButtonDetails.slotIndex
                                                             : -1
                                                         }
-                                                        isQuickMenuFavorite={(() => { const fav = getQuickMenuFavorite(); return !!fav && fav.menuID === currentMenuIDForCallback && fav.pageID === pageIDOfLoop; })()}
-                                                />
-                                            </button>
-                                        {/each}
-                                    {/key}
+                                                            isQuickMenuFavorite={(() => { const fav = getQuickMenuFavorite(); return !!fav && fav.menuID === currentMenuIDForCallback && fav.pageID === pageIDOfLoop; })()}
+                                                    />
+                                                </button>
+                                            {/each}
+                                        {/key}
+                                        <AddPageButton onClick={handleAddPage}/>
+                                    </div>
+                                </div>
+                            {:else if pagesForSelectedMenu && pagesForSelectedMenu.size === 0 && selectedMenuID !== undefined}
+                                <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
+                                    <p class="text-zinc-900 dark:text-zinc-200">Menu {selectedMenuID + 1} has no
+                                        pages.</p>
                                     <AddPageButton onClick={handleAddPage}/>
                                 </div>
-                            </div>
-                        {:else if pagesForSelectedMenu && pagesForSelectedMenu.size === 0 && selectedMenuID !== undefined}
-                            <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
-                                <p class="text-zinc-900 dark:text-zinc-200">Menu {selectedMenuID + 1} has no
-                                    pages.</p>
-                                <AddPageButton onClick={handleAddPage}/>
-                            </div>
-                        {:else if !pagesForSelectedMenu && selectedMenuID !== undefined}
-                            <p class="text-zinc-900 dark:text-zinc-200">Loading page data for
-                                Menu {selectedMenuID + 1}
-                                ...</p>
-                        {/if}
-                    </section>
-                    <!-- --- UI: Button Details & Actions --- -->
-                    <div class="w-full flex flex-row items-start gap-4">
-                        <div class="min-w-[396px] max-w-[480px] w-full break-words">
-                            {#if selectedButtonDetails}
-                                <ButtonInfoDisplay
-                                        selectedButtonDetails={selectedButtonDetails}
-                                        onConfigChange={handleButtonConfigUpdate}
-                                        menuConfig={baseMenuConfig}
-                                />
-                            {:else}
-                                <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
-                                    Select a button from a pie menu preview to see its details, or add a page
-                                    if the menu is
-                                    empty.
-                                </div>
+                            {:else if !pagesForSelectedMenu && selectedMenuID !== undefined}
+                                <p class="text-zinc-900 dark:text-zinc-200">Loading page data for
+                                    Menu {selectedMenuID + 1}
+                                    ...</p>
                             {/if}
-                        </div>
-                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[280px] max-w-[360px] self-start">
-                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                Page Settings
-                            </h3>
-                            <ButtonTypeSelector
-                                    currentType={resetType}
-                                    buttonTypeKeys={buttonTypeKeys}
-                                    buttonTypeFriendlyNames={buttonTypeFriendlyNames}
-                                    onChange={handleResetTypeChange}
-                            />
-                            <StandardButton
-                                    label="Reset Page with Type"
-                                    onClick={handleResetPageToDefault}
-                                    disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
-                                    style="margin-top: 0.5rem; margin-bottom: 0.5rem;"
-                                    variant="primary"
-                            />
-                            <button
-                                    aria-label="Use for Quick Menu"
-                                    class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
-                                    onclick={handleUseForQuickMenu}
-                                    disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
-                            >
+                        </section>
+                        <!-- --- UI: Button Details & Actions --- -->
+                        <div class="w-full flex flex-row items-start gap-4">
+                            <div class="min-w-[396px] max-w-[480px] w-full break-words">
+                                {#if selectedButtonDetails}
+                                    <ButtonInfoDisplay
+                                            selectedButtonDetails={selectedButtonDetails}
+                                            onConfigChange={handleButtonConfigUpdate}
+                                            menuConfig={baseMenuConfig}
+                                    />
+                                {:else}
+                                    <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
+                                        Select a button from a pie menu preview to see its details, or add a page
+                                        if the menu is
+                                        empty.
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[280px] max-w-[360px] self-start">
+                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
+                                    Page Settings
+                                </h3>
+                                <ButtonTypeSelector
+                                        currentType={resetType}
+                                        buttonTypeKeys={buttonTypeKeys}
+                                        buttonTypeFriendlyNames={buttonTypeFriendlyNames}
+                                        onChange={handleResetTypeChange}
+                                />
+                                <StandardButton
+                                        label="Reset Page with Type"
+                                        onClick={handleResetPageToDefault}
+                                        disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                                        style="margin-top: 0.5rem; margin-bottom: 0.5rem;"
+                                        variant="primary"
+                                />
+                                <button
+                                        aria-label="Use for Quick Menu"
+                                        class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                        onclick={handleUseForQuickMenu}
+                                        disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                                >
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[1.25rem]">
                                     <img src="/tabler_icons/star.svg" alt="star icon"
                                          class="inline w-5 h-5 align-text-bottom invert"/>
                                 </span>
-                                <span class="mx-auto w-full text-center block">
+                                    <span class="mx-auto w-full text-center block">
                                     {#if isQuickMenuFavorite}Used for Quick Menu{:else}Use for Quick Menu{/if}
                                 </span>
-                            </button>
-                        </div>
-                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[396px] max-w-[480px] self-start">
-                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                Menu Settings</h3>
-                            <div class="flex flex-row justify-between items-center w-full mt-2">
-                                <div class="flex flex-col">
-                                    <span class="text-zinc-700 dark:text-zinc-200">Set Shortcut to open Menu:</span>
-                                    {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
-                                        <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
-                                    {/if}
-                                </div>
-                                <StandardButton
-                                        variant="special"
-                                        onClick={handlePublishShortcutSetterUpdate}
-                                        disabled={selectedMenuID === undefined}
-                                        label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
+                                </button>
+                            </div>
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[396px] max-w-[480px] self-start">
+                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
+                                    Menu Settings</h3>
+                                <div class="flex flex-row justify-between items-center w-full mt-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-zinc-700 dark:text-zinc-200">Set Shortcut to open Menu:</span>
+                                        {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
+                                            <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
+                                        {/if}
+                                    </div>
+                                    <StandardButton
+                                            variant="special"
+                                            onClick={handlePublishShortcutSetterUpdate}
+                                            disabled={selectedMenuID === undefined}
+                                            label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
                                         ? shortcutLabels[selectedMenuID]
                                         : 'Set Shortcut'}
-                                />
+                                    />
+                                </div>
+                                <div class="flex flex-row justify-between items-center w-full mt-2">
+                                    <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
+                                    <StandardButton
+                                            label="Clear"
+                                            onClick={handleClearShortcut}
+                                            disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
+                                            style="max-width: 120px;"
+                                            variant="primary"
+                                    />
+                                </div>
+                                <div class="flex flex-row justify-between mt-2 items-center w-full">
+                                    <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
+                                    <StandardButton
+                                            label="Reset"
+                                            variant="warning"
+                                            onClick={() => showResetAllConfirmDialog = true}
+                                            style="max-width: 120px;"
+                                    />
+                                </div>
                             </div>
-                            <div class="flex flex-row justify-between items-center w-full mt-2">
-                                <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
-                                <StandardButton
-                                        label="Clear"
-                                        onClick={handleClearShortcut}
-                                        disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
-                                        style="max-width: 120px;"
-                                        variant="primary"
-                                />
-                            </div>
-                            <div class="flex flex-row justify-between mt-2 items-center w-full">
-                                <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
-                                <StandardButton
-                                        label="Reset"
-                                        variant="warning"
-                                        onClick={() => showResetAllConfirmDialog = true}
-                                        style="max-width: 120px;"
-                                />
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
-                            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
-                                Config Backup
-                            </h3>
-                            <div class="flex flex-col items-start gap-2 w-full">
-                                <StandardButton
-                                        label="Create Backup"
-                                        onClick={handleBackupWithConfirmation}
-                                        style={`width: 100%;`}
-                                        variant="primary"
-                                />
-                                <StandardButton
-                                        label="Load Backup"
-                                        onClick={openFileDialog}
-                                        style={`width: 100%;`}
-                                        variant="primary"
-                                />
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
+                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
+                                    Config Backup
+                                </h3>
+                                <div class="flex flex-col items-start gap-2 w-full">
+                                    <StandardButton
+                                            label="Create Backup"
+                                            onClick={handleBackupWithConfirmation}
+                                            style={`width: 100%;`}
+                                            variant="primary"
+                                    />
+                                    <StandardButton
+                                            label="Load Backup"
+                                            onClick={openFileDialog}
+                                            style={`width: 100%;`}
+                                            variant="primary"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
+                {:else if selectedMenuID !== undefined}
+                    <p class="text-zinc-900 dark:text-zinc-200">Loading pages for Menu {selectedMenuID + 1} or menu is
+                        empty.</p>
+                {/if}
+            {:else}
+                <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
+                    <p class="text-zinc-900 dark:text-zinc-200 mb-4">No menus found. Configuration might be loading or
+                        empty.</p>
+                    <button
+                            class="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700 shadow-sm"
+                            onclick={() => goto('/')}
+                            type="button"
+                    >
+                        Back to Home
+                    </button>
                 </div>
-            {:else if selectedMenuID !== undefined}
-                <p class="text-zinc-900 dark:text-zinc-200">Loading pages for Menu {selectedMenuID + 1} or menu is
-                    empty.</p>
             {/if}
-        {:else}
-            <div class="flex flex-col items-center justify-center py-10 text-center bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md">
-                <p class="text-zinc-900 dark:text-zinc-200 mb-4">No menus found. Configuration might be loading or
-                    empty.</p>
-                <button
-                        class="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-lg transition-colors focus:outline-none cursor-pointer disabled:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:hover:bg-zinc-200 disabled:dark:hover:bg-zinc-700 shadow-sm"
-                        onclick={() => goto('/')}
-                        type="button"
-                >
-                    Back to Home
-                </button>
-            </div>
-        {/if}
 
-        <!-- Compact Action Buttons -->
-        <div class="absolute bottom-4 right-4">
-            <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
-                <StandardButton
-                        label="Undo"
-                        ariaLabel="Undo"
-                        onClick={handleUndo}
-                        disabled={undoHistory.length === 0}
-                        variant="primary"
-                        bold={true}
-                />
-                <StandardButton
-                        label="Discard Changes"
-                        ariaLabel="Discard Changes"
-                        onClick={() => showDiscardConfirmDialog = true}
-                        disabled={undoHistory.length === 0}
-                        variant="primary"
-                        bold={true}
-                />
-                <StandardButton
-                        label="Done"
-                        ariaLabel="Done"
-                        onClick={() => goto('/')}
-                        variant="primary"
-                        bold={true}
-                />
+            <!-- Compact Action Buttons -->
+            <div class="absolute bottom-4 right-4">
+                <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
+                    <StandardButton
+                            label="Undo"
+                            ariaLabel="Undo"
+                            onClick={handleUndo}
+                            disabled={undoHistory.length === 0}
+                            variant="primary"
+                            bold={true}
+                    />
+                    <StandardButton
+                            label="Discard Changes"
+                            ariaLabel="Discard Changes"
+                            onClick={() => showDiscardConfirmDialog = true}
+                            disabled={undoHistory.length === 0}
+                            variant="primary"
+                            bold={true}
+                    />
+                    <StandardButton
+                            label="Done"
+                            ariaLabel="Done"
+                            onClick={() => goto('/')}
+                            variant="primary"
+                            bold={true}
+                    />
+                </div>
             </div>
-        </div>
         </div>
         <!-- --- UI: Dialogs --- -->
-    <ConfirmationDialog
-            isOpen={showRemoveMenuDialog}
-            message="Are you sure you want to remove this menu?"
-            onCancel={cancelRemoveMenu}
-            onConfirm={confirmRemoveMenu}
-    />
-    <ConfirmationDialog
-            cancelText="Save Changes"
-            confirmText="Discard Changes"
-            isOpen={showDiscardConfirmDialog}
-            message="You have unsaved changes. What would you like to do?"
-            onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
-            onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
-            onClose={() => { showDiscardConfirmDialog = false; }}
-            title="Unsaved Changes"
-    />
-    <ConfirmationDialog
-            cancelText="Cancel"
-            confirmText="Reset All"
-            isOpen={showResetAllConfirmDialog}
-            message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
-            onCancel={cancelResetAllMenus}
-            onConfirm={confirmResetAllMenus}
-            title="Reset All Menus?"
-    />
-    <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
-    <NotificationDialog
-            isOpen={showBackupCreatedDialog}
-            message="A backup of the current Config has been created."
-            onClose={() => showBackupCreatedDialog = false}
-            title="Backup Created"
-    />
+        <ConfirmationDialog
+                isOpen={showRemoveMenuDialog}
+                message="Are you sure you want to remove this menu?"
+                onCancel={cancelRemoveMenu}
+                onConfirm={confirmRemoveMenu}
+        />
+        <ConfirmationDialog
+                cancelText="Save Changes"
+                confirmText="Discard Changes"
+                isOpen={showDiscardConfirmDialog}
+                message="You have unsaved changes. What would you like to do?"
+                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
+                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+                onClose={() => { showDiscardConfirmDialog = false; }}
+                title="Unsaved Changes"
+        />
+        <ConfirmationDialog
+                cancelText="Cancel"
+                confirmText="Reset All"
+                isOpen={showResetAllConfirmDialog}
+                message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
+                onCancel={cancelResetAllMenus}
+                onConfirm={confirmResetAllMenus}
+                title="Reset All Menus?"
+        />
+        <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
+        <NotificationDialog
+                isOpen={showBackupCreatedDialog}
+                message="A backup of the current Config has been created."
+                onClose={() => showBackupCreatedDialog = false}
+                title="Backup Created"
+        />
     </div>
 </div>
 

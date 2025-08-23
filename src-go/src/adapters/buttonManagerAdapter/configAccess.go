@@ -113,11 +113,25 @@ func BackupConfigToFile(config ConfigData) error {
 	if err != nil {
 		return err
 	}
-	return BackupConfigToFileWithBaseDir(config, appDataDir)
+	// Determine backups directory from environment, with sensible fallback
+	backupsRel := os.Getenv("PUBLIC_DIR_CONFIGBACKUPS")
+	if backupsRel == "" {
+		backupsRel = "buttonConfigBackups"
+	}
+	backupDir := filepath.Join(appDataDir, backupsRel)
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("failed to create backups directory '%s': %w", backupDir, err)
+	}
+	return BackupConfigToFileWithBaseDir(config, backupDir)
 }
 
 // BackupConfigToFileWithBaseDir writes the config to a backup file in a specific directory.
 func BackupConfigToFileWithBaseDir(config ConfigData, baseDir string) error {
+	// Ensure the base directory exists (robust if a custom path is provided)
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return fmt.Errorf("failed to create backups directory '%s': %w", baseDir, err)
+	}
+
 	baseName := backupFilePrefix + ".json"
 	backupPath := filepath.Join(baseDir, baseName)
 	idx := 1
