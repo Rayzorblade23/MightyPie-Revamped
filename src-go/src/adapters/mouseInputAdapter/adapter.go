@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -41,13 +42,33 @@ const (
 	HeartbeatCheckIntervalMs = 500 // Check every 500ms
 )
 
-var (
-	lastHeartbeatTime time.Time
-	heartbeatTimer    *time.Ticker
-	heartbeatDone     chan struct{}
+// lastHeartbeatUnix stores the last heartbeat time as UnixNano for atomic access across goroutines
+var lastHeartbeatUnix int64
+
+// control messages to a single manager goroutine that owns state/ticker
+type controlMsgKind int
+
+const (
+	msgSetOpen controlMsgKind = iota
+	msgHeartbeat
 )
 
+type controlMsg struct {
+	kind    controlMsgKind
+	open    bool
+	hbTime  time.Time
+	reason  string
+}
+
+var controlCh chan controlMsg
+
 func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
+
+	// initialize control channel and start manager goroutine once
+	if controlCh == nil {
+		controlCh = make(chan controlMsg, 32)
+		go stateManager()
+	}
 
 	natsAdapter.SubscribeToSubject(os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_OPENED"), func(msg *nats.Msg) {
 
@@ -57,15 +78,14 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 			return
 		}
 
-        if message.PiemenuOpened {
-            log.Debug("Pie Menu opened!")
-        } else {
-            log.Debug("Pie Menu closed!")
-        }
+		if message.PiemenuOpened {
+			log.Debug("Pie Menu opened!")
+		} else {
+			log.Debug("Pie Menu closed!")
+		}
 
-		// Set the mouse hook state based on the message
-		// The heartbeat monitoring will be started/stopped in SetMouseHookState
-		SetMouseHookState(message.PiemenuOpened)
+		// Serialize state change via manager goroutine
+		controlCh <- controlMsg{kind: msgSetOpen, open: message.PiemenuOpened, reason: "NATS opened msg"}
 	})
 
 	// Subscribe to heartbeat messages
@@ -76,8 +96,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 			return
 		}
 
-		// Update the last heartbeat time
-		lastHeartbeatTime = time.Now()
+		// Send heartbeat to manager goroutine; also update atomic for hook fast-path
+		now := time.Now()
+		atomic.StoreInt64(&lastHeartbeatUnix, now.UnixNano())
+		controlCh <- controlMsg{kind: msgHeartbeat, hbTime: now}
 		log.Debug("Received heartbeat: %v", heartbeat.Timestamp)
 	})
 
@@ -86,60 +108,69 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 	}
 }
 
-// Start monitoring for missed heartbeats
-func startHeartbeatMonitoring() {
-	// Stop any existing monitoring
-	if heartbeatTimer != nil {
-		log.Debug("startHeartbeatMonitoring: pre-stop existing monitoring")
+// stateManager is the single goroutine that owns hook state and heartbeat ticker
+func stateManager() {
+	var enabled bool
+	var ticker *time.Ticker
+
+	stopTicker := func() {
+		if ticker != nil {
+			ticker.Stop()
+			ticker = nil
+		}
 	}
-	stopHeartbeatMonitoring()
 
-	log.Debug("Starting heartbeat monitoring")
-
-	// Initialize the last heartbeat time
-	lastHeartbeatTime = time.Now()
-
-	// Create a ticker that periodically checks for heartbeats
-	ticker := time.NewTicker(HeartbeatCheckIntervalMs * time.Millisecond)
-	done := make(chan struct{})
-	// Publish to globals so stop can access
-	heartbeatTimer = ticker
-	heartbeatDone = done
-	// ticker created
-
-	// Start a goroutine to monitor heartbeats (capture locals to avoid nil deref)
-	go func(t *time.Ticker, d chan struct{}) {
-		for {
-			select {
-			case <-d:
-				// goroutine exiting
-				return
-			case <-t.C:
-				// Check if we've exceeded the timeout
-				if hookEnabled && time.Since(lastHeartbeatTime) > time.Duration(HeartbeatTimeoutSeconds)*time.Second {
-					timeSinceLastHeartbeat := time.Since(lastHeartbeatTime)
-					log.Warn("No heartbeat received for %v seconds, disabling mouse hook as safety measure", timeSinceLastHeartbeat.Seconds())
-
-					// Disable the mouse hook as a safety measure
-					SetMouseHookState(false)
+	for {
+		select {
+		case msg := <-controlCh:
+			switch msg.kind {
+			case msgSetOpen:
+				if msg.open {
+					if !enabled {
+						enabled = true
+						atomic.StoreUint32(&hookEnabledFlag, 1)
+						// reset heartbeat baseline
+						now := time.Now()
+						atomic.StoreInt64(&lastHeartbeatUnix, now.UnixNano())
+						if ticker == nil {
+							ticker = time.NewTicker(HeartbeatCheckIntervalMs * time.Millisecond)
+						}
+						log.Debug("Mouse hook enabled (manager). reason=%s", msg.reason)
+					}
+				} else {
+					if enabled {
+						enabled = false
+						atomic.StoreUint32(&hookEnabledFlag, 0)
+						stopTicker()
+						log.Debug("Mouse hook disabled (manager). reason=%s", msg.reason)
+					}
+				}
+			case msgHeartbeat:
+				// already updated atomic in subscriber; no-op needed here beyond optional diagnostics
+			}
+		case <-func() <-chan time.Time {
+			if ticker != nil {
+				return ticker.C
+			}
+			// return a typed nil channel that never fires when no ticker
+			var nilCh <-chan time.Time
+			return nilCh
+		}():
+			if enabled {
+				ns := atomic.LoadInt64(&lastHeartbeatUnix)
+				if ns == 0 {
+					// no heartbeat seen yet; allow grace period handled by initial baseline
+					continue
+				}
+				if time.Since(time.Unix(0, ns)) > time.Duration(HeartbeatTimeoutSeconds)*time.Second {
+					log.Warn("No heartbeat received within timeout, disabling mouse hook as safety measure (manager)")
+					enabled = false
+					atomic.StoreUint32(&hookEnabledFlag, 0)
+					stopTicker()
 				}
 			}
 		}
-	}(ticker, done)
-}
-
-// Stop the heartbeat monitoring
-func stopHeartbeatMonitoring() {
-	if heartbeatTimer != nil {
-		heartbeatTimer.Stop()
 	}
-	if heartbeatDone != nil {
-		// Closing will signal the goroutine to exit; safe to close once
-		close(heartbeatDone)
-	}
-	heartbeatTimer = nil
-	heartbeatDone = nil
-	log.Debug("Stopped heartbeat monitoring")
 }
 
 type MouseEvent struct {
@@ -169,7 +200,8 @@ var (
 	getMessage          = user32.NewProc("GetMessageW")
 
 	mouseHook   syscall.Handle
-	hookEnabled bool
+	// hookEnabledFlag is read by the hook callback; only written by the manager or a fast-path disable
+	hookEnabledFlag uint32 // 0=false, 1=true
 	adapter     *MouseInputAdapter
 )
 
@@ -209,16 +241,22 @@ func (a *MouseInputAdapter) Run() {
 }
 
 func mouseHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
-	if !hookEnabled {
+	if atomic.LoadUint32(&hookEnabledFlag) == 0 {
 		ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 		return ret
 	}
 
 	// Gate blocking by heartbeat freshness: if stale, stop blocking and disable hook
-	if time.Since(lastHeartbeatTime) > time.Duration(HeartbeatTimeoutSeconds)*time.Second {
-		if hookEnabled { // double-check
-			log.Warn("Heartbeat stale (%.1fs). Releasing mouse hook immediately.", time.Since(lastHeartbeatTime).Seconds())
-			SetMouseHookState(false)
+	if ns := atomic.LoadInt64(&lastHeartbeatUnix); ns > 0 && time.Since(time.Unix(0, ns)) > time.Duration(HeartbeatTimeoutSeconds)*time.Second {
+		if atomic.LoadUint32(&hookEnabledFlag) == 1 { // double-check
+			log.Warn("Heartbeat stale (%.1fs). Releasing mouse hook immediately.", time.Since(time.Unix(0, ns)).Seconds())
+			// Fast-path: immediately flip atomic flag to stop blocking, and notify manager non-blocking
+			atomic.StoreUint32(&hookEnabledFlag, 0)
+			select {
+			case controlCh <- controlMsg{kind: msgSetOpen, open: false, reason: "stale from hookProc"}:
+			default:
+				// drop if manager busy; it'll also disable on next tick
+			}
 		}
 		ret, _, _ := callNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 		return ret
@@ -284,23 +322,16 @@ func (a *MouseInputAdapter) publishMessage(event MouseEvent) {
 	log.Debug("Mouse %s", msg.Click)
 }
 
-// setMouseHookState enables or disables the mouse hook
+// SetMouseHookState requests enabling/disabling of the hook via the manager goroutine.
+// When disabling, we also flip the atomic flag immediately to stop blocking in the hook callback.
 func SetMouseHookState(enable bool) {
-	prev := hookEnabled
-	hookEnabled = enable
-	log.Debug("SetMouseHookState called. prev=%v new=%v", prev, enable)
-	if hookEnabled {
-		log.Debug("Mouse hook enabled")
-		if heartbeatTimer == nil {
-			log.Debug("Heartbeat monitor not running; starting now")
-		} else {
-			log.Debug("Heartbeat monitor already running; restarting to reset baseline")
-		}
-		// Reset heartbeat timer when hook is enabled
-		startHeartbeatMonitoring()
+	if enable {
+		controlCh <- controlMsg{kind: msgSetOpen, open: true, reason: "SetMouseHookState"}
 	} else {
-		log.Debug("Mouse hook disabled")
-		// Stop heartbeat monitoring when hook is disabled
-		stopHeartbeatMonitoring()
+		atomic.StoreUint32(&hookEnabledFlag, 0)
+		select {
+		case controlCh <- controlMsg{kind: msgSetOpen, open: false, reason: "SetMouseHookState"}:
+		default:
+		}
 	}
 }

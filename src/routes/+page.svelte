@@ -18,7 +18,7 @@
     import {onDestroy, onMount} from "svelte";
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
     import {getSettings} from "$lib/data/settingsManager.svelte.ts";
-    import {goto} from "$app/navigation";
+    import {beforeNavigate, goto} from "$app/navigation";
     import {createLogger} from "$lib/logger";
 
     // Create a logger for this component
@@ -45,6 +45,8 @@
     const HEARTBEAT_INTERVAL = 3000; // Send heartbeat every 3 seconds
     // Diagnostics: count heartbeats sent in the current interval
     let heartbeatSendCount = 0;
+    // Generation token to ensure stale intervals self-terminate
+    let heartbeatGen = 0;
 
     let keepPieMenuAnchored = $state(false);
 
@@ -142,14 +144,25 @@
 
     // Start sending heartbeats when pie menu is visible
     function startHeartbeat() {
-        // Clear any existing interval first (diagnostic reason)
-        stopHeartbeat("startHeartbeat: pre-clear existing interval");
+        // If an interval is already running, stop it and restart fresh
+        if (heartbeatInterval) {
+            stopHeartbeat("restart");
+        }
+
+        // Invalidate any previous generation and create a fresh one
+        const myGen = ++heartbeatGen;
 
         heartbeatSendCount = 0;
         logger.debug(`Starting mouse hook safety heartbeat (creating interval). isNatsReady=${isNatsReady}`);
 
         // Start sending heartbeats
         heartbeatInterval = setInterval(() => {
+            // Self-terminate if this interval is stale or UI not visible
+            if (myGen !== heartbeatGen || document.hidden || !isPieMenuVisible) {
+                stopHeartbeat("self-terminate: stale gen or not visible");
+                return;
+            }
+
             if (isNatsReady) {
                 heartbeatSendCount++;
                 publishMessage(PUBLIC_NATSSUBJECT_PIEMENU_HEARTBEAT, {
@@ -161,11 +174,12 @@
                 logger.debug(`[HB] Skipped send (NATS not ready). count=${heartbeatSendCount}`);
             }
         }, HEARTBEAT_INTERVAL);
-
     }
 
     // Stop sending heartbeats when pie menu is hidden
     function stopHeartbeat(reason?: string) {
+        // Invalidate all existing intervals by bumping generation
+        heartbeatGen++;
         const hadInterval = Boolean(heartbeatInterval);
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
@@ -338,6 +352,11 @@
 
     onMount(() => {
         logger.info('PieMenu Mounted');
+    });
+
+    // Stop heartbeat if user navigates away from this page/route
+    onMount(() => {
+        beforeNavigate(() => stopHeartbeat("route change"));
     });
 
     // Subscribe to backend Escape event (independent of window focus)
