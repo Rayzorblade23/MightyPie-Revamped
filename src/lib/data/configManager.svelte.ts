@@ -3,12 +3,12 @@
 import {
     type Button,
     type ButtonData,
+    type ButtonsConfig,
     type ButtonsOnPageMap,
     ButtonType,
     type CallFunctionProperties,
-    type ConfigData,
     type LaunchProgramProperties,
-    type MenuConfiguration,
+    type MenuConfigData,
     type OpenResourceProperties,
     type OpenSpecificPieMenuPageProperties,
     type PagesInMenuMap,
@@ -17,60 +17,61 @@ import {
 } from "$lib/data/types/pieButtonTypes.ts";
 import {publishMessage} from "$lib/natsAdapter.svelte.ts";
 import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
-import {PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE} from "$env/static/public";
+import {PUBLIC_NATSSUBJECT_PIEMENUCONFIG_FRONTEND_UPDATE} from "$env/static/public";
 import {createLogger} from "$lib/logger";
+import type {PieMenuConfig} from "$lib/data/types/piemenuConfigTypes.ts";
 
 // Create a logger for this module
 const logger = createLogger('ConfigManager');
 
 // --- Svelte State and Public API ---
 
-let menuConfiguration = $state<MenuConfiguration>(new Map());
-let baseMenuConfiguration = $state<MenuConfiguration>(new Map());
+// Live Button Config: runtime state from backend live stream (independent of full Pie Menu Config)
+let liveButtonsConfig = $state<ButtonsConfig>(new Map());
 
-/**
- * Getter for the global menu configuration.
- * @returns The current MenuConfiguration.
- */
-export function getMenuConfiguration(): MenuConfiguration {
-    return menuConfiguration;
+// Pie Menu Config (authoritative full config from backend; also edited by the editor)
+let pieMenuConfig = $state<PieMenuConfig>({buttons: {}, shortcuts: {}, starred: null});
+
+export function getPieMenuButtons(): ButtonsConfig {
+    return parseButtonConfig(pieMenuConfig.buttons);
+}
+
+export function updatePieMenuButtons(newConfig: ButtonsConfig) {
+    // Unparse to buttons and update the authoritative full config
+    const buttons = unparseMenuConfiguration(newConfig);
+    updatePieMenuConfig({
+        ...pieMenuConfig,
+        buttons,
+    });
+    logger.info("Pie Menu buttons updated in authoritative configuration.")
 }
 
 /**
- * Setter for updating the global menu configuration.
- * @param newConfig - The new MenuConfiguration to apply.
+ * Getter for the latest full Pie Menu Config from backend.
  */
-export function updateMenuConfiguration(newConfig: MenuConfiguration) {
-    menuConfiguration = newConfig;
-    logger.debug("PieMenu Config updated.")
+export function getPieMenuConfig(): PieMenuConfig {
+    return pieMenuConfig;
 }
 
 /**
- * Getter for the base menu configuration.
- * @returns The current MenuConfiguration.
+ * Setter for updating the full Pie Menu Config from backend.
+ * Also updates the Live Button Config derived from its buttons.
  */
-export function getBaseMenuConfiguration(): MenuConfiguration {
-    return baseMenuConfiguration;
-}
-
-/**
- * Setter for updating the base menu configuration.
- * @param newConfig - The new MenuConfiguration to apply.
- */
-export function updateBaseMenuConfiguration(newConfig: MenuConfiguration) {
-    baseMenuConfiguration = newConfig;
-    logger.info("Base Menu Config updated.")
+export function updatePieMenuConfig(newFull: PieMenuConfig) {
+    pieMenuConfig = newFull;
+    // Do NOT derive or mutate Live Button Config here; it is maintained independently via live stream updates
+    logger.info("Pie Menu Config updated.")
 }
 
 /**
  * Parses the entire pie menu button configuration from its raw data format
- * (typically from buttonConfig.json) into the structured MenuConfiguration used by the application.
+ * (typically from piemenuConfig.json) into the structured ButtonsConfig used by the application.
  *
- * @param configInput - The raw ConfigData object (e.g., { "0": { "0": { "0": {...} } } }).
- * @returns A fully parsed MenuConfiguration map.
+ * @param configInput - The raw MenuConfigData object (e.g., { "0": { "0": { "0": {...} } } }).
+ * @returns A fully parsed ButtonsConfig map.
  */
-export function parseButtonConfig(configInput: ConfigData): MenuConfiguration {
-    const newMenuConfig: MenuConfiguration = new Map();
+export function parseButtonConfig(configInput: MenuConfigData): ButtonsConfig {
+    const newMenuConfig: ButtonsConfig = new Map();
 
     Object.entries(configInput).forEach(([menuKey, menuPageData]) => {
         const menuId = parseInt(menuKey, 10);
@@ -84,6 +85,16 @@ export function parseButtonConfig(configInput: ConfigData): MenuConfiguration {
     return newMenuConfig;
 }
 
+
+export function getLiveButtonConfig(): ButtonsConfig {
+    return liveButtonsConfig;
+}
+
+export function updateLiveButtonConfig(newConfig: ButtonsConfig) {
+    liveButtonsConfig = newConfig;
+    logger.debug("Live Button Config updated.")
+}
+
 /**
  * Retrieves the properties of a specific button.
  * @param menuID - The ID of the menu.
@@ -91,8 +102,8 @@ export function parseButtonConfig(configInput: ConfigData): MenuConfiguration {
  * @param buttonID - The ID of the button.
  * @returns The button's properties if found and the button is not disabled, otherwise undefined.
  */
-export function getButtonProperties(menuID: number, pageID: number, buttonID: number) {
-    const pagesInMenu = menuConfiguration.get(menuID);
+export function getButtonPropertiesFromLiveButtonConfig(menuID: number, pageID: number, buttonID: number) {
+    const pagesInMenu = liveButtonsConfig.get(menuID);
     const buttonsOnPage = pagesInMenu?.get(pageID);
     const button = buttonsOnPage?.get(buttonID);
 
@@ -110,8 +121,8 @@ export function getButtonProperties(menuID: number, pageID: number, buttonID: nu
  * @param buttonID - The ID of the button.
  * @returns The button's type (ButtonType) if found, otherwise undefined.
  */
-export function getButtonType(menuID: number, pageID: number, buttonID: number) {
-    const pagesInMenu = menuConfiguration.get(menuID);
+export function getButtonTypeFromLiveButtonConfig(menuID: number, pageID: number, buttonID: number) {
+    const pagesInMenu = liveButtonsConfig.get(menuID);
     const buttonsOnPage = pagesInMenu?.get(pageID);
     const button = buttonsOnPage?.get(buttonID);
     return button?.button_type;
@@ -125,8 +136,8 @@ export function getButtonType(menuID: number, pageID: number, buttonID: number) 
  * @param pageID - The index of the page to look for within that menu.
  * @returns True if the page exists for the menu, false otherwise.
  */
-export function hasPageForMenu(menuID: number, pageID: number): boolean {
-    return menuConfiguration.get(menuID)?.has(pageID) ?? false;
+export function hasPageForMenuInLiveButtonConfig(menuID: number, pageID: number): boolean {
+    return liveButtonsConfig.get(menuID)?.has(pageID) ?? false;
 }
 
 // --- Internal Helper Functions for Parsing ---
@@ -261,23 +272,25 @@ function convertToButton(
 }
 
 /**
- * Converts the structured MenuConfiguration back into the raw ConfigData format
+ * Converts the structured ButtonsConfig back into the raw MenuConfigData format
  * and publishes it to the appropriate NATS subject.
  *
- * @param menuConfig - The MenuConfiguration map to unparse and publish.
+ * @param menuConfig - The ButtonsConfig map to unparse and publish.
  */
-export function publishBaseMenuConfiguration(menuConfig: MenuConfiguration): void {
-    // Unparse MenuConfiguration into ConfigData
-    const configData: ConfigData = {};
 
+// Removed legacy publishBaseMenuConfiguration in favor of full-config publishing
+
+/**
+ * Converts a structured ButtonsConfig into raw MenuConfigData.
+ */
+export function unparseMenuConfiguration(menuConfig: ButtonsConfig): MenuConfigData {
+    const configData: MenuConfigData = {};
     menuConfig.forEach((pagesInMenu, menuId) => {
         const menuKey = menuId.toString();
         configData[menuKey] = {};
-
         pagesInMenu.forEach((buttonsOnPage, pageId) => {
             const pageKey = pageId.toString();
             configData[menuKey][pageKey] = {};
-
             buttonsOnPage.forEach((button, buttonId) => {
                 const buttonKey = buttonId.toString();
                 configData[menuKey][pageKey][buttonKey] = {
@@ -287,26 +300,32 @@ export function publishBaseMenuConfiguration(menuConfig: MenuConfiguration): voi
             });
         });
     });
-
-    // Publish the ConfigData
-    logger.info("Publishing updated Base Menu Configuration");
-    publishMessage<ConfigData>(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE, configData);
+    return configData;
 }
 
 /**
- * Adds a new empty page to a specified menu within a given MenuConfiguration.
+ * Publishes the entire piemenu configuration (buttons, shortcuts, starred)
+ * to the backend adapter using the new subject.
+ */
+export function publishPieMenuConfig(fullConfig: PieMenuConfig): void {
+    logger.info("Publishing updated Pie Menu Configuration");
+    publishMessage<PieMenuConfig>(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_FRONTEND_UPDATE, fullConfig);
+}
+
+/**
+ * Adds a new empty page to a specified menu within a given ButtonsConfig.
  * This function operates on a copy of the input configuration and returns the modified copy.
  * Newly added pages will be pre-filled with default 'ShowAnyWindow' buttons for 8 slots.
  *
- * @param currentMenuConfig - The MenuConfiguration to modify.
+ * @param currentMenuConfig - The ButtonsConfig to modify.
  * @param menuIdToAddPageTo - The ID of the menu to which the new page will be added.
- * @returns An object containing the new MenuConfiguration with the added page and the ID of the new page,
+ * @returns An object containing the new ButtonsConfig with the added page and the ID of the new page,
  *          or null if the menuIdToAddPageTo is invalid or not found.
  */
 export function addPageToMenuConfiguration(
-    currentMenuConfig: MenuConfiguration,
+    currentMenuConfig: ButtonsConfig,
     menuIdToAddPageTo: number
-): { newConfig: MenuConfiguration; newPageID: number } | null {
+): { newConfig: ButtonsConfig; newPageID: number } | null {
     if (!currentMenuConfig.has(menuIdToAddPageTo) && menuIdToAddPageTo !== 0 && currentMenuConfig.size > 0) {
         logger.warn(`Menu ID ${menuIdToAddPageTo} not found in the provided configuration.`);
         // Allow creating the first menu (ID 0) if the config is empty
@@ -336,16 +355,16 @@ export function addPageToMenuConfiguration(
 }
 
 /**
- * Adds a new empty menu to the MenuConfiguration.
+ * Adds a new empty menu to the ButtonsConfig.
  * The new menu will be pre-filled with a single page (ID 0),
  * which itself is pre-filled with default 'ShowAnyWindow' buttons for 8 slots.
  *
- * @param currentMenuConfig - The MenuConfiguration to modify.
- * @returns An object containing the new MenuConfiguration with the added menu and the ID of the new menu.
+ * @param currentMenuConfig - The ButtonsConfig to modify.
+ * @returns An object containing the new ButtonsConfig with the added menu and the ID of the new menu.
  */
 export function addMenuToMenuConfiguration(
-    currentMenuConfig: MenuConfiguration
-): { newConfig: MenuConfiguration; newMenuID: number } {
+    currentMenuConfig: ButtonsConfig
+): { newConfig: ButtonsConfig; newMenuID: number } {
     // Find the next available menu ID
     const existingMenuKeys = Array.from(currentMenuConfig.keys());
     const newMenuId = existingMenuKeys.length > 0 ? Math.max(...existingMenuKeys) + 1 : 0;
@@ -370,7 +389,7 @@ export function addMenuToMenuConfiguration(
 }
 
 /**
- * Removes a page from a specified menu within a given MenuConfiguration.
+ * Removes a page from a specified menu within a given ButtonsConfig.
  * If the menu becomes empty after removing the page, the menu itself is removed.
  * Remaining pages in the affected menu are re-indexed.
  * This function operates on a copy of the input configuration and returns the modified copy.
@@ -378,14 +397,14 @@ export function addMenuToMenuConfiguration(
  * @param currentMenuConfig - The MenuConfiguration to modify.
  * @param menuIdToRemoveFrom - The ID of the menu from which the page will be removed.
  * @param pageIdToRemove - The ID of the page to remove.
- * @returns The new MenuConfiguration with the page removed (and potentially the menu removed if it became empty),
+ * @returns The new ButtonsConfig with the page removed (and potentially the menu removed if it became empty),
  *          or null if the menu or page ID is invalid.
  */
 export function removePageFromMenuConfiguration(
-    currentMenuConfig: MenuConfiguration,
+    currentMenuConfig: ButtonsConfig,
     menuIdToRemoveFrom: number,
     pageIdToRemove: number
-): MenuConfiguration | null {
+): ButtonsConfig | null {
     if (!currentMenuConfig.has(menuIdToRemoveFrom)) {
         logger.warn(`Menu ID ${menuIdToRemoveFrom} not found in current configuration.`);
         return null;
@@ -422,16 +441,16 @@ export function removePageFromMenuConfiguration(
 }
 
 /**
- * Removes a menu from the MenuConfiguration and re-indexes the remaining menus to close any gaps.
+ * Removes a menu from the ButtonsConfig and re-indexes the remaining menus to close any gaps.
  *
  * @param currentMenuConfig - The MenuConfiguration to modify.
  * @param menuIdToRemove - The ID of the menu to remove.
- * @returns The new MenuConfiguration with the menu removed and indexes closed, or null if menuIdToRemove is invalid.
+ * @returns The new ButtonsConfig with the menu removed and indexes closed, or null if menuIdToRemove is invalid.
  */
 export function removeMenuFromMenuConfiguration(
-    currentMenuConfig: MenuConfiguration,
+    currentMenuConfig: ButtonsConfig,
     menuIdToRemove: number
-): MenuConfiguration | null {
+): ButtonsConfig | null {
     if (!currentMenuConfig.has(menuIdToRemove)) {
         logger.warn(`Menu ID ${menuIdToRemove} not found in the provided configuration.`);
         return null;
@@ -442,7 +461,7 @@ export function removeMenuFromMenuConfiguration(
     // Re-index menus
     const sortedMenuEntries = Array.from(tempConfig.entries()).sort(
         ([menu_A], [menu_B]) => menu_A - menu_B);
-    const newConfig: MenuConfiguration = new Map();
+    const newConfig: ButtonsConfig = new Map();
     sortedMenuEntries.forEach(([newMenuID, pagesInMenu]) => {
         // Re-index pages and buttons inside each menu if needed (but keep as is for now)
         newConfig.set(newMenuID, pagesInMenu);
@@ -451,23 +470,23 @@ export function removeMenuFromMenuConfiguration(
 }
 
 /**
- * Updates a button in the MenuConfiguration map for a specific menu, page, and button slot.
- * Returns a new MenuConfiguration with the update applied.
+ * Updates a button in the ButtonsConfig map for a specific menu, page, and button slot.
+ * Returns a new ButtonsConfig with the update applied.
  *
- * @param config - The MenuConfiguration to update.
+ * @param config - The ButtonsConfig to update.
  * @param menuID - The ID of the menu to update.
  * @param pageID - The ID of the page to update.
  * @param buttonID - The ID of the button slot to update.
  * @param newButton - The new Button to set at the specified slot.
- * @returns The updated MenuConfiguration.
+ * @returns The updated ButtonsConfig.
  */
 export function updateButtonInMenuConfig(
-    config: MenuConfiguration,
+    config: ButtonsConfig,
     menuID: number,
     pageID: number,
     buttonID: number,
     newButton: Button
-): MenuConfiguration {
+): ButtonsConfig {
     const newConfig = new Map(config);
     const menuToUpdate = new Map(newConfig.get(menuID) ?? new Map<number, ButtonsOnPageMap>());
     const pageToUpdate = new Map(menuToUpdate.get(pageID) ?? new Map<number, Button>());

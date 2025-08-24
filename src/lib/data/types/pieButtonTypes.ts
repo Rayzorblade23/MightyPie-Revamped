@@ -88,7 +88,7 @@ export type ButtonPropertiesUnion =
     | OpenResourceProperties;
 
 // Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }
-export type ConfigData = Record<string, Record<string, Record<string, ButtonData>>>;
+export type MenuConfigData = Record<string, Record<string, Record<string, ButtonData>>>;
 
 export type ButtonData = {
     button_type: string;
@@ -108,7 +108,7 @@ export type ButtonsOnPageMap = Map<number, Button>;
 export type PagesInMenuMap = Map<number, ButtonsOnPageMap>;
 
 /**
- * Represents the overall configuration for all menus.
+ * Represents the overall buttons-only configuration for all menus.
  * Key: Menu Index, Value: Map of pages in that menu.
  */
-export type MenuConfiguration = Map<number, PagesInMenuMap>;
+export type ButtonsConfig = Map<number, PagesInMenuMap>;

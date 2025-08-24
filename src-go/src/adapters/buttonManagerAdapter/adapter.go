@@ -35,77 +35,42 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		natsAdapter: natsAdapter,
 	}
 
-	buttonUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE")
 	windowUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	baseConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG")
-	saveConfigBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
-	loadConfigBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
-	receiveNewBaseConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_UPDATE")
+	// New unified full-config flow subjects
+	backendFullConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE")
+	liveButtonsSubject := os.Getenv("PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG")
 	fillGapsSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS")
 
-	config, err := ReadButtonConfig()
-	if err != nil {
-		log.Fatal("FATAL: Failed to read initial button configuration: %v", err)
+	// Do NOT read/write the unified on-disk config here. The unified file is owned by PieMenuConfigManager.
+	// Initialize with an empty in-memory config and wait for full-config updates from PieMenuConfigManager.
+	updateButtonConfig(make(ConfigData))
+	log.Info("Waiting for full config from PieMenuConfigManager...")
+
+	// Removed legacy base config update subscription; full-config flow is the source of truth
+
+	// Subscribe to full-config backend updates and extract buttons for this adapter
+	if backendFullConfigSubject != "" {
+		a.natsAdapter.SubscribeToSubject(backendFullConfigSubject, func(msg *nats.Msg) {
+			// Only care about the buttons field from the unified config
+			var payload struct {
+				Buttons ConfigData `json:"buttons"`
+			}
+			if err := json.Unmarshal(msg.Data, &payload); err != nil {
+				log.Error("Failed to unmarshal full config (buttons): %v", err)
+				return
+			}
+			if len(payload.Buttons) == 0 {
+				log.Warn("Full config update contained empty buttons; ignoring")
+				return
+			}
+
+			// Update in-memory state and publish buttons to live subject
+			updateButtonConfig(payload.Buttons)
+			a.natsAdapter.PublishMessage(liveButtonsSubject, payload.Buttons)
+			a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
+			log.Info("Processed full backend update and republished buttons to '%s'", liveButtonsSubject)
+		})
 	}
-
-	updateButtonConfig(config)
-	log.Info("INFO: Initial button configuration loaded.")
-	// PrintConfig(config, true)
-
-	a.natsAdapter.PublishMessage(baseConfigSubject, config)
-
-	a.natsAdapter.SubscribeToSubject(receiveNewBaseConfigSubject, func(msg *nats.Msg) {
-		log.Info("Raw config coming in on '%s'.", msg.Subject)
-
-		var newConfig ConfigData
-		if err := json.Unmarshal(msg.Data, &newConfig); err != nil {
-			log.Error("Failed to unmarshal config: %v", err)
-			return
-		}
-
-		// Reject empty config updates
-		if len(newConfig) == 0 {
-			log.Error("Rejected incoming config update: config is empty!")
-			return
-		}
-
-		if err := WriteButtonConfig(newConfig); err != nil {
-			log.Error("Failed to write config: %v", err)
-			return
-		}
-
-		// Read it back in to update in-memory state
-		loadedConfig, err := ReadButtonConfig()
-		if err != nil {
-			log.Error("Failed to reload config after write: %v", err)
-			return
-		}
-
-		updateButtonConfig(loadedConfig)
-
-		log.Info("INFO: Config written and reloaded from disk.")
-		// PrintConfig(buttonConfig, false)
-
-		// Republish the updated BaseMenuConfiguration so JetStream snapshot is current and reconnects get the latest
-		a.natsAdapter.PublishMessage(baseConfigSubject, loadedConfig)
-		log.Info("Published updated BaseMenuConfiguration to '%s'", baseConfigSubject)
-
-		a.natsAdapter.PublishMessage(windowUpdateSubject, windowsList)
-	})
-
-	a.natsAdapter.SubscribeToSubject(saveConfigBackupSubject, func(msg *nats.Msg) {
-		// Assume BackupConfigToFile exists and takes the config as argument
-		var configToBackup ConfigData
-		if err := json.Unmarshal(msg.Data, &configToBackup); err != nil {
-			log.Error("Failed to unmarshal backup config: %v", err)
-			return
-		}
-		if err := BackupConfigToFile(configToBackup); err != nil {
-			log.Error("Failed to backup config to file: %v", err)
-			return
-		}
-		log.Info("Config backup successful.")
-	})
 
 	// Subscribe to window updates for subsequent changes
 	a.natsAdapter.SubscribeToSubject(windowUpdateSubject, func(msg *nats.Msg) {
@@ -132,8 +97,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 			// Update global state first
 			updateButtonConfig(processedConfig)
 			log.Info("Button configuration updated (due to window event) and will be published.")
-			// Publish the updated configuration object
-			a.natsAdapter.PublishMessage(buttonUpdateSubject, processedConfig)
+			// Publish the updated configuration
+			a.natsAdapter.PublishMessage(liveButtonsSubject, processedConfig)
 			// PrintConfig(processedConfig, true)
 		}
 	})
@@ -146,46 +111,11 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 		gapFilledConfig, cleared := FillWindowAssignmentGaps(currentConfig)
 		if cleared > 0 {
 			updateButtonConfig(gapFilledConfig)
-			a.natsAdapter.PublishMessage(os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE"), gapFilledConfig)
+			a.natsAdapter.PublishMessage(liveButtonsSubject, gapFilledConfig)
 			log.Info("Gap-filling/compaction performed and update published (no processWindowUpdate).")
 		} else {
 			log.Info("Gap-filling triggered but no gaps were found.")
 		}
-	})
-
-	a.natsAdapter.SubscribeToSubject(loadConfigBackupSubject, func(msg *nats.Msg) {
-
-		// msg.Data contains the path to the backup file as a string (may include quotes)
-		backupPath := string(msg.Data)
-		// Remove any leading/trailing quotes (single or double)
-		if len(backupPath) > 0 && (backupPath[0] == '"' || backupPath[0] == '\'') {
-			backupPath = backupPath[1:]
-		}
-		if len(backupPath) > 0 && (backupPath[len(backupPath)-1] == '"' || backupPath[len(backupPath)-1] == '\'') {
-			backupPath = backupPath[:len(backupPath)-1]
-		}
-		log.Info("Loading config backup from")
-		log.Info("↳ '%s'", backupPath)
-
-		// Load config from the backup file
-		backupConfig, err := LoadConfigFromFile(backupPath)
-		if err != nil {
-			log.Error("Failed to load config from backup: %v", err)
-			return
-		}
-
-		// Overwrite the current config file
-		if err := WriteButtonConfig(backupConfig); err != nil {
-			log.Error("Failed to overwrite buttonConfig.json: %v", err)
-			return
-		}
-
-		// Update in-memory config
-		updateButtonConfig(backupConfig)
-		log.Info("↳ Config loaded from backup and set as current.")
-
-		// Publish the updated config
-		a.natsAdapter.PublishMessage(baseConfigSubject, backupConfig)
 	})
 
 	return a

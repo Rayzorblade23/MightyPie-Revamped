@@ -12,30 +12,32 @@
     import {
         addMenuToMenuConfiguration,
         addPageToMenuConfiguration,
-        getBaseMenuConfiguration,
-        publishBaseMenuConfiguration,
+        getPieMenuConfig,
+        parseButtonConfig,
+        publishPieMenuConfig,
         removeMenuFromMenuConfiguration,
         removePageFromMenuConfiguration,
-        updateBaseMenuConfiguration,
+        unparseMenuConfiguration,
         updateButtonInMenuConfig
     } from '$lib/data/configManager.svelte.ts';
-    import type {Button, ButtonsOnPageMap, MenuConfiguration, PagesInMenuMap} from '$lib/data/types/pieButtonTypes.ts';
+    import type {Button, ButtonsConfig, ButtonsOnPageMap, PagesInMenuMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
     import {horizontalScroll} from "$lib/generalUtil.ts";
-    import {publishMessage} from "$lib/natsAdapter.svelte.ts";
+    import {publishMessage, useNatsSubscription} from "$lib/natsAdapter.svelte.ts";
     // --- Function Definitions for CallFunction Buttons ---
     import {
         PUBLIC_CONFIG_SIZE_X,
         PUBLIC_CONFIG_SIZE_Y,
         PUBLIC_DIR_CONFIGBACKUPS,
+        PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE
     } from "$env/static/public";
-    import {getShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
+    import type {PieMenuConfig, ShortcutEntry, ShortcutsMap} from '$lib/data/types/piemenuConfigTypes.ts';
     import {getInstalledAppsInfo} from "$lib/data/installedAppsInfoManager.svelte.ts";
     import {createLogger} from "$lib/logger";
     import StandardButton from '$lib/components/StandardButton.svelte';
@@ -86,7 +88,10 @@
     // --- State ---
     let currentWindow: Window | null = null;
 
-    let baseMenuConfig = $state<MenuConfiguration>(new Map());
+    // Full local editor config (authoritative for the editor until Save)
+    let editorPieMenuConfig = $state<PieMenuConfig>({buttons: {}, shortcuts: {}, starred: null});
+    // Buttons-only map derived from editorPieMenuConfig.buttons for UI editing
+    let editorButtonsConfig = $state<ButtonsConfig>(new Map());
     let selectedMenuID = $state<number | undefined>(undefined);
     let selectedButtonDetails = $state<
         { menuID: number; pageID: number; buttonID: number; slotIndex: number; button: Button } | undefined
@@ -94,17 +99,75 @@
     let sortedPagesForSelectedMenu = $state<[number, ButtonsOnPageMap][]>([]);
     let showRemoveMenuDialog = $state(false);
     let isShortcutDialogOpen = $state(false);
-    let shortcutLabels = $derived(getShortcutLabels());
+    let shortcutLabels = $derived.by(() => {
+        const labels: Record<number, string> = {};
+        const sc = editorPieMenuConfig?.shortcuts || {};
+        Object.entries(sc).forEach(([k, entry]: [string, any]) => {
+            const n = Number(k);
+            if (!isNaN(n) && entry && typeof entry.label === 'string') {
+                labels[n] = entry.label;
+            }
+        });
+        return labels;
+    });
     let prevShortcutLabels: Record<number, string> | undefined;
     let hasMounted = false;
     let pagesContainer = $state<HTMLDivElement | null>(null);
     let lastTrackedMenuID: number | undefined = undefined;
 
-    let initialMenuConfigSnapshot: MenuConfiguration | undefined = undefined;
+    // Listen for live shortcut capture updates from the backend capture adapter and stage them in local editor state
+    const subscription_shortcutsetter_update = useNatsSubscription(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE, (msg: string) => {
+        logger.debug('ShortcutSetter UPDATE raw message:', msg);
+        try {
+            const obj = JSON.parse(msg) as ShortcutsMap;
+            if (!obj || typeof obj !== 'object') {
+                logger.warn('ShortcutSetter UPDATE ignored: payload not an object');
+                return;
+            }
+            const entries = Object.entries(obj).filter(([k, v]) => {
+                const n = Number(k);
+                return !isNaN(n) && v && typeof v === 'object' && Array.isArray((v as ShortcutEntry).codes);
+            });
+            if (entries.length === 0) {
+                logger.warn('ShortcutSetter UPDATE ignored: no valid ShortcutEntry items found');
+                return;
+            }
+            // Make incoming shortcut capture undoable
+            pushUndoState();
+            const current = editorPieMenuConfig.shortcuts || {};
+            const next: ShortcutsMap = {...current} as ShortcutsMap;
+            for (const [k, v] of entries) {
+                next[k] = {codes: (v as ShortcutEntry).codes, label: (v as ShortcutEntry).label} as ShortcutEntry;
+            }
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: next};
+            logger.debug('ShortcutSetter UPDATE applied for indices:', entries.map(([k]) => k).join(','));
+        } catch (e) {
+            logger.error('ShortcutSetter UPDATE handler error:', e);
+        }
+        // Close dialog regardless to reflect the end of capture
+        isShortcutDialogOpen = false;
+    });
+
+    // Track subscription status and errors, consistent with other pages
+    $effect(() => {
+        if (subscription_shortcutsetter_update.status === "subscribed") {
+            logger.debug("NATS subscription_shortcutsetter_update ready.");
+        }
+        if (subscription_shortcutsetter_update.error) {
+            logger.error("NATS subscription_shortcutsetter_update error:", subscription_shortcutsetter_update.error);
+            // If we were capturing a shortcut, close the dialog on error to avoid a stuck UI
+            if (isShortcutDialogOpen) {
+                isShortcutDialogOpen = false;
+            }
+        }
+    });
+
+    let initialEditPieMenuConfigSnapshot: PieMenuConfig | undefined = undefined;
 
     // --- Undo State ---
     type UndoState = {
-        config: MenuConfiguration;
+        editorButtonsConfigSnapshot: ButtonsConfig;
+        editorPieMenuConfigSnapshot: PieMenuConfig;
         selectedMenuID: number | undefined;
         selectedButtonDetails: typeof selectedButtonDetails;
     };
@@ -126,7 +189,7 @@
         return usage;
     });
 
-    function cloneMenuConfig(config: MenuConfiguration): MenuConfiguration {
+    function cloneMenuConfig(config: ButtonsConfig): ButtonsConfig {
         return new Map(
             Array.from(config.entries()).map(([menuId, pagesMap]) => [
                 menuId,
@@ -141,8 +204,14 @@
     }
 
     function pushUndoState() {
+        const editorPieMenuConfigSnapshot: PieMenuConfig = JSON.parse(JSON.stringify({
+            ...editorPieMenuConfig,
+            // ensure buttons in snapshot reflect current editorButtonsConfig
+            buttons: unparseMenuConfiguration(editorButtonsConfig)
+        }));
         undoHistory.push({
-            config: cloneMenuConfig(baseMenuConfig),
+            editorButtonsConfigSnapshot: cloneMenuConfig(editorButtonsConfig),
+            editorPieMenuConfigSnapshot: editorPieMenuConfigSnapshot,
             selectedMenuID,
             selectedButtonDetails: selectedButtonDetails ? {...selectedButtonDetails} : undefined
         });
@@ -153,18 +222,22 @@
         if (undoHistory.length === 0) return;
         const prev = undoHistory.pop();
         if (!prev) return;
-        baseMenuConfig = prev.config;
+        editorButtonsConfig = prev.editorButtonsConfigSnapshot;
         selectedMenuID = prev.selectedMenuID;
         selectedButtonDetails = prev.selectedButtonDetails;
-        updateBaseMenuConfiguration(baseMenuConfig);
+        if (prev.editorPieMenuConfigSnapshot) {
+            editorPieMenuConfig = prev.editorPieMenuConfigSnapshot;
+        }
     }
 
     function discardChanges() {
-        if (!initialMenuConfigSnapshot) return;
-        baseMenuConfig = cloneMenuConfig(initialMenuConfigSnapshot);
-        updateBaseMenuConfiguration(cloneMenuConfig(initialMenuConfigSnapshot));
+        if (!initialEditPieMenuConfigSnapshot) return;
+        // Restore full baseline config captured at mount
+        editorPieMenuConfig = JSON.parse(JSON.stringify(initialEditPieMenuConfigSnapshot));
+        // Re-derive the editable buttons map from the restored baseline
+        editorButtonsConfig = parseButtonConfig(editorPieMenuConfig.buttons);
         // Select first menu if available
-        const initialMenuIndices = Array.from(baseMenuConfig.keys());
+        const initialMenuIndices = Array.from(editorButtonsConfig.keys());
         if (initialMenuIndices.length > 0) {
             selectedMenuID = initialMenuIndices[0];
         } else {
@@ -174,18 +247,12 @@
         undoHistory.length = 0;
     }
 
-    // --- Reset All Menus ---
-    function handleResetAllMenus() {
+    // --- Reset the whole Config ---
+    function handleResetConfig() {
         pushUndoState();
-        const menuKeys = Array.from(baseMenuConfig.keys()).sort((a, b) => a - b);
+        const menuKeys = Array.from(editorButtonsConfig.keys()).sort((a, b) => a - b);
         if (menuKeys.length === 0) return;
         const firstMenuID = menuKeys[0];
-        // Remove shortcuts for all menus except the first
-        for (const menuID of menuKeys) {
-            if (menuID !== firstMenuID) {
-                publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE, {index: menuID});
-            }
-        }
         // Reset menu config to only the first menu with one default page
         const newConfig = new Map();
         const defaultButtons = new Map();
@@ -195,41 +262,36 @@
         const pagesInMenu = new Map();
         pagesInMenu.set(0, defaultButtons);
         newConfig.set(firstMenuID, pagesInMenu);
-        baseMenuConfig = newConfig;
+        editorButtonsConfig = newConfig;
         selectedMenuID = firstMenuID;
         selectedButtonDetails = undefined;
-        updateBaseMenuConfiguration(baseMenuConfig);
+        // Also clear shortcuts and starred in local editor config
+        editorPieMenuConfig = {
+            ...editorPieMenuConfig,
+            shortcuts: {},
+            starred: null,
+        };
     }
 
-    function confirmResetAllMenus() {
+    function confirmResetConfig() {
         showResetAllConfirmDialog = false;
-        handleResetAllMenus();
+        handleResetConfig();
     }
 
     function cancelResetAllMenus() {
         showResetAllConfirmDialog = false;
     }
 
-    // --- Backup handler for Menu Settings
+    // --- Backup handler: save full editor config (buttons + shortcuts + starred)
     function handleBackupConfig() {
-        // Convert baseMenuConfig (MenuConfiguration) to ConfigData
-        const configData: Record<string, any> = {};
-        baseMenuConfig.forEach((pagesInMenu, menuId) => {
-            const menuKey = menuId.toString();
-            configData[menuKey] = {};
-            pagesInMenu.forEach((buttonsOnPage, pageId) => {
-                const pageKey = pageId.toString();
-                configData[menuKey][pageKey] = {};
-                buttonsOnPage.forEach((button, buttonId) => {
-                    const buttonKey = buttonId.toString();
-                    configData[menuKey][pageKey][buttonKey] = {
-                        button_type: button.button_type,
-                        properties: button.properties,
-                    };
-                });
-            });
-        });
-        publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP, configData);
+        const fullBackup = {
+            buttons: unparseMenuConfiguration(editorButtonsConfig),
+            shortcuts: {...(editorPieMenuConfig.shortcuts || {})},
+            starred: editorPieMenuConfig.starred ?? null,
+        };
+
+        logger.debug('Backup: payload (pretty)\n' + JSON.stringify(fullBackup, null, 2));
+        publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP, fullBackup);
     }
 
     function handleBackupWithConfirmation() {
@@ -302,11 +364,44 @@
         }
     });
 
+    // Re-seed local editor state from unified backend full-config updates (e.g., after loading a backup)
+    const subscription_backend_update = useNatsSubscription(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE, (msg: string) => {
+        try {
+            const full = JSON.parse(msg);
+            if (!full || !full.buttons) return;
+            const prevSelected = selectedMenuID;
+            // Make loading a backup undoable by capturing current state first
+            pushUndoState();
+            editorPieMenuConfig = full as PieMenuConfig;
+            editorButtonsConfig = parseButtonConfig(full.buttons);
+            // preserve selection if possible
+            if (prevSelected !== undefined && editorButtonsConfig.has(prevSelected)) {
+                selectedMenuID = prevSelected;
+            } else {
+                const keys = Array.from(editorButtonsConfig.keys());
+                selectedMenuID = keys.length > 0 ? keys[0] : undefined;
+                selectedButtonDetails = undefined;
+            }
+        } catch (e) {
+            logger.error('Failed to handle BACKEND_UPDATE in editor:', e);
+        }
+    });
+
+    // Track subscription status and errors, consistent with other pages
+    $effect(() => {
+        if (subscription_backend_update.status === "subscribed") {
+            logger.debug("NATS subscription_backend_update ready.");
+        }
+        if (subscription_backend_update.error) {
+            logger.error("NATS subscription_backend_update error:", subscription_backend_update.error);
+        }
+    });
+
     // Auto-select first button of first page when menu changes or on mount (IDs = 0)
     $effect(() => {
         if (selectedMenuID === undefined) return;
         if (selectedButtonDetails && selectedButtonDetails.menuID === selectedMenuID) return;
-        const pagesMap = baseMenuConfig.get(selectedMenuID);
+        const pagesMap = editorButtonsConfig.get(selectedMenuID);
         if (!pagesMap || !pagesMap.has(0)) return;
         const buttonsOnPage = pagesMap.get(0);
         if (!buttonsOnPage) return;
@@ -322,16 +417,18 @@
     });
 
     // --- Derived State ---
-    const menuIndices = $derived(Array.from(baseMenuConfig.keys()));
+    const menuIndices = $derived(Array.from(editorButtonsConfig.keys()));
     const pagesForSelectedMenu = $derived<PagesInMenuMap | undefined>(
-        selectedMenuID !== undefined ? baseMenuConfig.get(selectedMenuID) : undefined
+        selectedMenuID !== undefined ? editorButtonsConfig.get(selectedMenuID) : undefined
     );
 
     // --- Lifecycle ---
     onMount(async () => {
-        baseMenuConfig = getBaseMenuConfiguration();
-        initialMenuConfigSnapshot = cloneMenuConfig(baseMenuConfig);
-        const initialMenuIndices = Array.from(baseMenuConfig.keys());
+        // Seed local editor state from current full config
+        editorPieMenuConfig = JSON.parse(JSON.stringify(getPieMenuConfig()));
+        editorButtonsConfig = parseButtonConfig(editorPieMenuConfig.buttons);
+        initialEditPieMenuConfigSnapshot = JSON.parse(JSON.stringify(editorPieMenuConfig));
+        const initialMenuIndices = Array.from(editorButtonsConfig.keys());
         if (initialMenuIndices.length > 0 && selectedMenuID === undefined) {
             selectedMenuID = initialMenuIndices[0];
         }
@@ -368,10 +465,12 @@
         };
     });
 
-    onDestroy(async () => {
-        publishBaseMenuConfiguration(baseMenuConfig);
+    onDestroy(() => {
+        // Auto-save only if there are staged in-memory changes
+        if (undoHistory.length > 0) {
+            savePieMenuConfig();
+        }
     });
-
 
     // --- Event Handlers ---
     /** Close the shortcut dialog and abort shortcut recording. */
@@ -399,8 +498,8 @@
     ) {
         pushUndoState();
         const {menuID, pageID, buttonID, newButton} = payload;
-        baseMenuConfig = updateButtonInMenuConfig(baseMenuConfig, menuID, pageID, buttonID, newButton);
-        updateBaseMenuConfiguration(baseMenuConfig);
+        editorButtonsConfig = updateButtonInMenuConfig(editorButtonsConfig, menuID, pageID, buttonID, newButton);
+        // Local-only update
         if (
             selectedButtonDetails &&
             selectedButtonDetails.menuID === menuID &&
@@ -444,10 +543,10 @@
             logger.warn("No menu selected to add a page to.");
             return;
         }
-        const result = addPageToMenuConfiguration(baseMenuConfig, selectedMenuID);
+        const result = addPageToMenuConfiguration(editorButtonsConfig, selectedMenuID);
         if (result) {
-            baseMenuConfig = result.newConfig;
-            updateBaseMenuConfiguration(baseMenuConfig);
+            editorButtonsConfig = result.newConfig;
+            // local-only
             logger.log(`Locally added new page ${result.newPageID} to menu ${selectedMenuID}.`);
             setTimeout(() => {
                 if (pagesContainer && (pagesContainer as any).lockMomentum) {
@@ -480,10 +579,10 @@
             logger.warn("Attempting to remove page from a menu that is not currently selected or invalid state.");
             return;
         }
-        const result = removePageFromMenuConfiguration(baseMenuConfig, menuIDToRemoveFrom, pageIDToRemove);
+        const result = removePageFromMenuConfiguration(editorButtonsConfig, menuIDToRemoveFrom, pageIDToRemove);
         if (result) {
-            baseMenuConfig = result;
-            updateBaseMenuConfiguration(result);
+            editorButtonsConfig = result;
+            // local-only
             if (selectedButtonDetails && selectedButtonDetails.menuID === menuIDToRemoveFrom) {
                 if (selectedButtonDetails.pageID === pageIDToRemove) {
                     selectedButtonDetails = undefined;
@@ -503,9 +602,9 @@
     /** Add a new menu and select it. */
     function handleAddMenu() {
         pushUndoState();
-        const result = addMenuToMenuConfiguration(baseMenuConfig);
-        baseMenuConfig = result.newConfig;
-        updateBaseMenuConfiguration(baseMenuConfig);
+        const result = addMenuToMenuConfiguration(editorButtonsConfig);
+        editorButtonsConfig = result.newConfig;
+        // local-only
         selectedMenuID = result.newMenuID;
     }
 
@@ -518,13 +617,21 @@
     /** Confirm removal of the selected menu. */
     function confirmRemoveMenu() {
         pushUndoState();
-        publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE, {index: selectedMenuID});
         if (selectedMenuID === undefined) return;
-        const newConfig = removeMenuFromMenuConfiguration(baseMenuConfig, selectedMenuID);
+        // Clear local shortcut and starred if they reference this menu
+        const key = String(selectedMenuID);
+        const newShortcuts = {...(editorPieMenuConfig.shortcuts || {})};
+        if (newShortcuts[key]) delete newShortcuts[key];
+        const newStarred = editorPieMenuConfig.starred && editorPieMenuConfig.starred.menuID === selectedMenuID
+            ? null
+            : editorPieMenuConfig.starred;
+        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts, starred: newStarred};
+
+        const newConfig = removeMenuFromMenuConfiguration(editorButtonsConfig, selectedMenuID);
         if (newConfig) {
-            baseMenuConfig = newConfig;
-            updateBaseMenuConfiguration(baseMenuConfig);
-            const indices = Array.from(baseMenuConfig.keys());
+            editorButtonsConfig = newConfig;
+            // local-only
+            const indices = Array.from(editorButtonsConfig.keys());
             selectedMenuID = indices.length > 0 ? indices[0] : undefined;
         }
         showRemoveMenuDialog = false;
@@ -538,6 +645,10 @@
     /** Publish a shortcut setter update for the selected menu. */
     function handlePublishShortcutSetterUpdate() {
         if (selectedMenuID !== undefined) {
+            // Make setting a shortcut undoable (actual staging occurs when the dialog/capture resolves)
+            pushUndoState();
+            // NOTE: Currently starts backend capture; if we fully move to in-memory-only staging,
+            // we will replace this with a local capture mechanism and NOT publish.
             publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE, {index: selectedMenuID});
             logger.log("Published shortcut setter update for menu index:", selectedMenuID);
             isShortcutDialogOpen = true;
@@ -545,9 +656,18 @@
     }
 
     function handleClearShortcut() {
-        if (selectedMenuID !== undefined && shortcutLabels[selectedMenuID]) {
-            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE, {index: selectedMenuID});
+        if (selectedMenuID === undefined) return;
+        // Stage clear in unified config and make it undoable; do NOT publish immediately
+        pushUndoState();
+        const newShortcuts: Record<string, {
+            codes: number[];
+            label: string
+        }> = {...(editorPieMenuConfig.shortcuts || {})} as any;
+        const key = String(selectedMenuID);
+        if (newShortcuts[key]) {
+            delete newShortcuts[key];
         }
+        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
     }
 
     const buttonTypeFriendlyNames: Record<ButtonType, string> = {
@@ -605,56 +725,53 @@
             }
             newButtonsOnPage.set(i, newButton);
         }
-        const newConfig = new Map(baseMenuConfig);
+        const newConfig = new Map(editorButtonsConfig);
         const menuPages = new Map(newConfig.get(selectedMenuID));
         menuPages.set(pageID, newButtonsOnPage);
         newConfig.set(selectedMenuID, menuPages);
-        baseMenuConfig = newConfig;
-        updateBaseMenuConfiguration(newConfig);
-        publishBaseMenuConfiguration(newConfig);
+        editorButtonsConfig = newConfig;
     }
 
-    // --- Quick Menu Favorite Logic ---
-    const QUICK_MENU_FAVORITE_KEY = 'quickMenuFavorite';
-    let quickMenuFavoriteVersion = $state(0);
-
-    function getQuickMenuFavorite() {
-        try {
-            const raw = localStorage.getItem(QUICK_MENU_FAVORITE_KEY);
-            if (!raw) return null;
-            return JSON.parse(raw);
-        } catch {
-            return null;
-        }
-    }
-
-    function setQuickMenuFavorite(menuID: number, pageID: number) {
-        localStorage.setItem(QUICK_MENU_FAVORITE_KEY, JSON.stringify({menuID, pageID}));
-        quickMenuFavoriteVersion++;
-    }
-
-    let isQuickMenuFavorite = $state(false);
+    // --- Quick Menu Favorite (starred) Logic ---
+    let isStarred = $state(false);
 
     $effect(() => {
-        if (selectedMenuID !== undefined && selectedButtonDetails && selectedButtonDetails.pageID !== undefined) {
-            const fav = getQuickMenuFavorite();
-            isQuickMenuFavorite = !!fav && fav.menuID === selectedMenuID && fav.pageID === selectedButtonDetails.pageID;
+        const starred = editorPieMenuConfig.starred;
+        if (selectedMenuID !== undefined && selectedButtonDetails && selectedButtonDetails.pageID !== undefined && starred) {
+            isStarred = starred.menuID === selectedMenuID && starred.pageID === selectedButtonDetails.pageID;
         } else {
-            isQuickMenuFavorite = false;
+            isStarred = false;
         }
     });
 
     function handleUseForQuickMenu() {
         if (selectedMenuID !== undefined && selectedButtonDetails && selectedButtonDetails.pageID !== undefined) {
-            setQuickMenuFavorite(selectedMenuID, selectedButtonDetails.pageID);
-            isQuickMenuFavorite = true;
+            // If already Starred, do nothing (button will be disabled in UI)
+            if (isStarred) return;
+            // Make setting Starred undoable in local editor config
+            pushUndoState();
+            editorPieMenuConfig = {
+                ...editorPieMenuConfig,
+                starred: {menuID: selectedMenuID, pageID: selectedButtonDetails.pageID}
+            };
+            isStarred = true;
         }
     }
 
-    // Reload the base menu configuration when it changes
-    $effect(() => {
-        baseMenuConfig = getBaseMenuConfiguration();
-    });
+    // Compose and publish the full editorPieMenuConfig (buttons + shortcuts + starred)
+    function savePieMenuConfig() {
+        // Unparse buttons from staged editorButtonsConfig
+        const buttons = unparseMenuConfiguration(editorButtonsConfig);
+        const newFull: PieMenuConfig = {
+            buttons,
+            shortcuts: {...(editorPieMenuConfig.shortcuts || {})},
+            starred: editorPieMenuConfig.starred ?? null,
+        };
+        // Publish to backend and update global authoritative store
+        publishPieMenuConfig(newFull);
+    }
+
+    // Editor config is owned by this page and should not be continuously reloaded or fall back to live config.
 </script>
 
 <div class="w-full h-screen p-2">
@@ -698,7 +815,7 @@
                                         style="scrollbar-gutter: stable both-edges;"
                                 >
                                     <div class="flex flex-row gap-x-6 pb-0">
-                                        {#key quickMenuFavoriteVersion}
+                                        {#key JSON.stringify(editorPieMenuConfig.starred)}
                                             {#each sortedPagesForSelectedMenu as [pageIDOfLoop, buttonsOnPage] (pageIDOfLoop)}
                                                 {@const currentMenuIDForCallback = selectedMenuID}
                                                 <button type="button"
@@ -732,7 +849,7 @@
                                                             ? selectedButtonDetails.slotIndex
                                                             : -1
                                                         }
-                                                            isQuickMenuFavorite={(() => { const fav = getQuickMenuFavorite(); return !!fav && fav.menuID === currentMenuIDForCallback && fav.pageID === pageIDOfLoop; })()}
+                                                            isStarred={(() => { const starred = editorPieMenuConfig.starred; return !!starred && starred.menuID === currentMenuIDForCallback && starred.pageID === pageIDOfLoop; })()}
                                                     />
                                                 </button>
                                             {/each}
@@ -759,7 +876,7 @@
                                     <ButtonInfoDisplay
                                             selectedButtonDetails={selectedButtonDetails}
                                             onConfigChange={handleButtonConfigUpdate}
-                                            menuConfig={baseMenuConfig}
+                                            menuConfig={editorButtonsConfig}
                                     />
                                 {:else}
                                     <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
@@ -788,16 +905,16 @@
                                 />
                                 <button
                                         aria-label="Use for Quick Menu"
-                                        class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                        class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                         onclick={handleUseForQuickMenu}
-                                        disabled={isQuickMenuFavorite || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                                        disabled={isStarred || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                                 >
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[1.25rem]">
                                     <img src="/tabler_icons/star.svg" alt="star icon"
                                          class="inline w-5 h-5 align-text-bottom invert"/>
                                 </span>
                                     <span class="mx-auto w-full text-center block">
-                                    {#if isQuickMenuFavorite}Used for Quick Menu{:else}Use for Quick Menu{/if}
+                                    {#if isStarred}Used for Quick Menu{:else}Use for Quick Menu{/if}
                                 </span>
                                 </button>
                             </div>
@@ -883,27 +1000,27 @@
             <div class="absolute bottom-4 right-4">
                 <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
                     <StandardButton
-                            label="Undo"
                             ariaLabel="Undo"
+                            bold={true}
+                            disabled={undoHistory.length === 0}
+                            label="Undo"
                             onClick={handleUndo}
-                            disabled={undoHistory.length === 0}
                             variant="primary"
-                            bold={true}
                     />
                     <StandardButton
-                            label="Discard Changes"
                             ariaLabel="Discard Changes"
-                            onClick={() => showDiscardConfirmDialog = true}
-                            disabled={undoHistory.length === 0}
-                            variant="primary"
                             bold={true}
+                            disabled={undoHistory.length === 0}
+                            label="Discard Changes"
+                            onClick={() => showDiscardConfirmDialog = true}
+                            variant="primary"
                     />
                     <StandardButton
-                            label="Done"
                             ariaLabel="Done"
-                            onClick={() => goto('/')}
-                            variant="primary"
                             bold={true}
+                            label="Done"
+                            onClick={() => { savePieMenuConfig(); goto('/'); }}
+                            variant="primary"
                     />
                 </div>
             </div>
@@ -920,9 +1037,9 @@
                 confirmText="Discard Changes"
                 isOpen={showDiscardConfirmDialog}
                 message="You have unsaved changes. What would you like to do?"
-                onCancel={() => { showDiscardConfirmDialog = false; goto('/'); }}
-                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
+                onCancel={() => { showDiscardConfirmDialog = false; savePieMenuConfig(); goto('/'); }}
                 onClose={() => { showDiscardConfirmDialog = false; }}
+                onConfirm={() => { showDiscardConfirmDialog = false; discardChanges(); goto('/'); }}
                 title="Unsaved Changes"
         />
         <ConfirmationDialog
@@ -931,7 +1048,7 @@
                 isOpen={showResetAllConfirmDialog}
                 message="This will remove all menus except the first menu and reset it to a single page with default buttons. Are you sure? (Undo will still work.)"
                 onCancel={cancelResetAllMenus}
-                onConfirm={confirmResetAllMenus}
+                onConfirm={confirmResetConfig}
                 title="Reset All Menus?"
         />
         <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>

@@ -1,18 +1,18 @@
 package buttonManagerAdapter
 
 import (
-	"slices"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/jsonUtils"
 )
 
 const (
-	backupFilePrefix = "buttonConfig_BACKUP"
+	backupFilePrefix = "piemenuConfig_BACKUP"
 )
 
 // GetButtonConfig returns a deep copy of the current button configuration.
@@ -113,11 +113,8 @@ func BackupConfigToFile(config ConfigData) error {
 	if err != nil {
 		return err
 	}
-	// Determine backups directory from environment, with sensible fallback
+	// Determine backups directory from environment (no hardcoded fallback)
 	backupsRel := os.Getenv("PUBLIC_DIR_CONFIGBACKUPS")
-	if backupsRel == "" {
-		backupsRel = "buttonConfigBackups"
-	}
 	backupDir := filepath.Join(appDataDir, backupsRel)
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		return fmt.Errorf("failed to create backups directory '%s': %w", backupDir, err)
@@ -185,11 +182,36 @@ func ReadButtonConfig() (ConfigData, error) {
 
 // LoadConfigFromFile loads a ConfigData from a specific file path.
 func LoadConfigFromFile(path string) (ConfigData, error) {
-	var config ConfigData
-	if err := jsonUtils.ReadFromFile(path, &config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config from '%s': %w", path, err)
-	}
-	return config, nil
+    // Read raw bytes to probe structure without cross-adapter imports
+    raw, err := os.ReadFile(path)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read file '%s': %w", path, err)
+    }
+
+    // Probe for unified full-config by checking presence of top-level fields
+    var probe struct {
+        Buttons   json.RawMessage `json:"buttons"`
+        Shortcuts any             `json:"shortcuts"`
+        Starred   any             `json:"starred"`
+    }
+    if err := json.Unmarshal(raw, &probe); err == nil && (probe.Buttons != nil || probe.Shortcuts != nil || probe.Starred != nil) {
+        // Extract only buttons into our local ConfigData type
+        var buttons ConfigData
+        if probe.Buttons == nil {
+            return make(ConfigData), nil
+        }
+        if err := json.Unmarshal(probe.Buttons, &buttons); err == nil {
+            return buttons, nil
+        }
+        // If buttons failed to unmarshal, fall through to legacy attempt below
+    }
+
+    // Fallback: legacy buttons-only ConfigData
+    var config ConfigData
+    if err := json.Unmarshal(raw, &config); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal config from '%s': %w", path, err)
+    }
+    return config, nil
 }
 
 // validateAndRepairConfig checks that each page has exactly 8 buttons (indexes 0-7)

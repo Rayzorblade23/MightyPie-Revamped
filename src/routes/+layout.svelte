@@ -1,9 +1,9 @@
 <script lang="ts">
     import {
-        getBaseMenuConfiguration,
+        getPieMenuConfig,
         parseButtonConfig,
-        updateBaseMenuConfiguration,
-        updateMenuConfiguration
+        updateLiveButtonConfig,
+        updatePieMenuConfig
     } from '$lib/data/configManager.svelte.ts';
     import {
         getInstalledAppsInfo,
@@ -24,16 +24,15 @@
     } from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_APPNAME,
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
-        PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
+        PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG,
+        PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
         PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
         PUBLIC_PIEMENU_SIZE_X,
         PUBLIC_PIEMENU_SIZE_Y
     } from '$env/static/public';
-    import type {ConfigData} from '$lib/data/types/pieButtonTypes.ts';
-    import {parseShortcutLabelsMessage, updateShortcutLabels} from '$lib/data/shortcutLabelsManager.svelte.ts';
+    import type {MenuConfigData} from '$lib/data/types/pieButtonTypes.ts';
+    import type {PieMenuConfig} from '$lib/data/types/piemenuConfigTypes';
     import {goto} from '$app/navigation';
     import {listen} from '@tauri-apps/api/event';
     import {getSettings, type SettingsMap, updateSettings} from '$lib/data/settingsManager.svelte.ts';
@@ -56,14 +55,17 @@
     let showDisconnectDialog = $state(false);
 
     $effect(() => {
-        const baseMenuConfiguration = getBaseMenuConfiguration();
-        const apps = getInstalledAppsInfo();
+        const pieMenuConfig = getPieMenuConfig();
+        const installedAppsInfo = getInstalledAppsInfo();
 
         // Update apps info tracking
-        hasAppsInfo = apps.size > 0;
+        hasAppsInfo = installedAppsInfo.size > 0;
 
-        // Run validation whenever we have both menu config and apps info
-        if (!validationHasRun && baseMenuConfiguration.size > 0 && hasAppsInfo) {
+        // Determine if the full Pie Menu Config contains any buttons
+        const hasPieMenuButtons = !!pieMenuConfig && !!pieMenuConfig.buttons && Object.keys(pieMenuConfig.buttons).length > 0;
+
+        // Run validation once when both full config and apps info are present
+        if (!validationHasRun && hasPieMenuButtons && hasAppsInfo) {
             logger.debug("Running initial config validation...");
             validateAndSyncConfig();
             validationHasRun = true;
@@ -135,34 +137,32 @@
         logger.debug("NATS connection status:", connectionStatus);
     });
 
-    const handleButtonUpdateMessage = (message: string) => {
-        handleJsonMessage<ConfigData>(
+    const handleLiveButtonUpdateMessage = (message: string) => {
+        handleJsonMessage<MenuConfigData>(
             message,
-            (configData) => {
-                const newParsedConfig = parseButtonConfig(configData);
-                updateMenuConfiguration(newParsedConfig);
+            (LiveButtonConfig) => {
+                const newParsedConfig = parseButtonConfig(LiveButtonConfig);
+                updateLiveButtonConfig(newParsedConfig);
             },
             '+layout.svelte: Button Update'
         );
     };
 
-    const handleBaseConfigUpdateMessage = (message: string) => {
-        // logger.debug('[handleBaseConfigUpdateMessage] Raw message:', message);
-        handleJsonMessage<ConfigData>(
-            message,
-            (configData) => {
-                logger.debug('[handleBaseConfigUpdateMessage] Parsed configData:', configData);
-                const newParsedConfig = parseButtonConfig(configData);
-                logger.debug('[handleBaseConfigUpdateMessage] Parsed MenuConfiguration:', newParsedConfig);
-                updateBaseMenuConfiguration(newParsedConfig);
+    // Removed legacy Base Config Update handler; unified backend update is the source of truth
 
-                // Run validation immediately if we have apps info
-                if (hasAppsInfo && newParsedConfig.size > 0) {
-                    logger.debug("Running config validation after receiving new base config");
+    // Handle unified full-config backend messages by storing full config and deriving buttons
+    const handleBackendConfigMessage = (message: string) => {
+        handleJsonMessage<PieMenuConfig>(
+            message,
+            (piemenuConfig) => {
+                updatePieMenuConfig(piemenuConfig);
+                // Run validation only when we have apps info and there are buttons in the full config
+                const hasButtons = !!piemenuConfig && !!piemenuConfig.buttons && Object.keys(piemenuConfig.buttons).length > 0;
+                if (hasAppsInfo && hasButtons) {
                     validateAndSyncConfig();
                 }
             },
-            '+layout.svelte: Base Config Update'
+            '+layout.svelte: Unified Backend Config Update'
         );
     };
 
@@ -175,14 +175,7 @@
         }
     };
 
-    const handleShortcutLabelsUpdateMessage = (msg: string) => {
-        try {
-            const newLabels = parseShortcutLabelsMessage(msg);
-            updateShortcutLabels(newLabels);
-        } catch (error) {
-            logger.error("[+layout.svelte] Failed to process shortcut labels message:", error);
-        }
-    };
+    // Removed redundant shortcut labels handler; unified config contains shortcuts
 
     const handleSettingsUpdateMessage = (message: string) => {
         handleJsonMessage<SettingsMap>(
@@ -223,29 +216,32 @@
     });
 
     $effect(() => {
-        let stopButtonUpdate: (() => void) | null = null;
+        let stopLiveButtons: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopButtonUpdate = await fetchLatestFromStream(
-                    PUBLIC_NATSSUBJECT_BUTTONMANAGER_UPDATE,
-                    handleButtonUpdateMessage
+                stopLiveButtons = await fetchLatestFromStream(
+                    PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG,
+                    handleLiveButtonUpdateMessage
                 );
             })();
         }
-        return () => stopButtonUpdate?.();
+        return () => stopLiveButtons?.();
     });
 
+    // Removed legacy Base Config subscription; unified backend update below replaces it
+
+    // Subscribe to unified BACKEND update (full config) and derive base menu config from buttons
     $effect(() => {
-        let stopBaseConfig: (() => void) | null = null;
+        let stopBackendFull: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
-                stopBaseConfig = await fetchLatestFromStream(
-                    PUBLIC_NATSSUBJECT_BUTTONMANAGER_BASECONFIG,
-                    handleBaseConfigUpdateMessage
+                stopBackendFull = await fetchLatestFromStream(
+                    PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
+                    handleBackendConfigMessage
                 );
             })();
         }
-        return () => stopBaseConfig?.();
+        return () => stopBackendFull?.();
     });
 
     $effect(() => {
@@ -261,18 +257,7 @@
         return () => stopInstalledApps?.();
     });
 
-    $effect(() => {
-        let stopShortcutLabels: (() => void) | null = null;
-        if (getConnectionStatus() === "connected") {
-            (async () => {
-                stopShortcutLabels = await fetchLatestFromStream(
-                    PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE,
-                    handleShortcutLabelsUpdateMessage
-                );
-            })();
-        }
-        return () => stopShortcutLabels?.();
-    });
+    // Removed redundant shortcut labels subscription; shortcuts are part of unified full config
 
     $effect(() => {
         let stopSettingsUpdate: (() => void) | null = null;
@@ -350,7 +335,7 @@
         listen('show-settings', () => goto('/settings')).then(unlisten => {
             unlistenSettings = unlisten;
         });
-        listen('show-piemenuconfig', () => goto('/piemenuConfig')).then(unlisten => {
+        listen('show-piemenuconfig', () => goto('/piemenuConfigEditor')).then(unlisten => {
             unlistenPieMenuConfig = unlisten;
         });
         return () => {

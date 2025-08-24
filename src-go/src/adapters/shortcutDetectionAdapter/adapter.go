@@ -64,20 +64,21 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 	}()
 
-	setterUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
-	err := adapter.natsAdapter.SubscribeJetStreamPull(setterUpdateSubject, "", func(natsMessage *nats.Msg) {
-		var receivedShortcuts map[string]core.ShortcutEntry
-		if err := json.Unmarshal(natsMessage.Data, &receivedShortcuts); err != nil {
-			log.Error("Failed to decode shortcuts update from JetStream: %v", err)
+	// Listen to unified backend config updates; update detector shortcuts only on explicit save
+	backendSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE")
+	adapter.natsAdapter.SubscribeToSubject(backendSubject, func(natsMessage *nats.Msg) {
+		var payload struct {
+			Shortcuts map[string]core.ShortcutEntry `json:"shortcuts"`
+		}
+		if err := json.Unmarshal(natsMessage.Data, &payload); err != nil {
+			log.Error("Failed to decode backend config update: %v", err)
 			return
 		}
-
-		log.Info("Received shortcuts update from JetStream:")
-		for label, shortcut := range receivedShortcuts {
-			log.Info("↳ Shortcut %v: %s, (Codes: %v)", label, shortcut.Label, shortcut.Codes)
+		// Apply shortcuts from full config
+		if payload.Shortcuts == nil {
+			payload.Shortcuts = make(map[string]core.ShortcutEntry)
 		}
-
-		adapter.shortcuts = receivedShortcuts
+		adapter.shortcuts = payload.Shortcuts
 		newPressedState := make(map[string]bool)
 		for shortcutKey := range adapter.shortcuts {
 			newPressedState[shortcutKey] = false
@@ -87,11 +88,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		case adapter.updateHookChan <- struct{}{}:
 		default:
 		}
+		log.Info("[ShortcutDetector] Applied shortcuts from unified config (%d entries)", len(adapter.shortcuts))
 	})
-
-	if err != nil {
-		log.Error("Failed to subscribe to JetStream subject: %v", err)
-	}
 
 	pressedEventSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")
 	adapter.natsAdapter.SubscribeToSubject(pressedEventSubject, func(natsMessage *nats.Msg) {

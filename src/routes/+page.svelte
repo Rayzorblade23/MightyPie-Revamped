@@ -13,7 +13,7 @@
         PUBLIC_PIEMENU_SIZE_X,
         PUBLIC_PIEMENU_SIZE_Y
     } from "$env/static/public";
-    import {hasPageForMenu} from "$lib/data/configManager.svelte.ts";
+    import {hasPageForMenuInLiveButtonConfig} from "$lib/data/configManager.svelte.ts";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
     import {onDestroy, onMount} from "svelte";
     import {centerWindowAtCursor, moveCursorToWindowCenter} from "$lib/components/piemenu/piemenuUtils.ts";
@@ -60,7 +60,7 @@
             sessionStorage.setItem('alreadyRedirectedToConfig', '1');
             setPieMenuState(false);
 
-            goto('/piemenuConfig', {replaceState: true});
+            goto('/piemenuConfigEditor', {replaceState: true});
         }
     });
 
@@ -242,7 +242,7 @@
                 } else if (isChangingPage) {
                     // Cycle to the next page
                     const nextPotentialPageID = pageID + 1;
-                    newPageID = hasPageForMenu(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
+                    newPageID = hasPageForMenuInLiveButtonConfig(menuID, nextPotentialPageID) ? nextPotentialPageID : 0;
                     logger.info(`Displaying menu ${menuID}, page ${newPageID} (cycling pages)`);
                     if (!keepPieMenuAnchored) {
                         monitorScaleFactor = await centerWindowAtCursor(monitorScaleFactor);

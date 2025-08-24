@@ -19,7 +19,7 @@
         onButtonClick,
         onRemovePage,
         activeSlotIndex = -1,
-        isQuickMenuFavorite = false, // Add new prop for quick menu favorite
+        isStarred = false,
     } = $props<{
         menuID: number;
         pageID: number;
@@ -33,7 +33,7 @@
         }) => void;
         onRemovePage: (pageID: number) => void;
         activeSlotIndex?: number;
-        isQuickMenuFavorite?: boolean;
+        isStarred?: boolean;
     }>();
 
     // --- Layout Constants ---
@@ -283,7 +283,7 @@
             >
                 Page {pageID + 1}
             </span>
-            {#if isQuickMenuFavorite}
+            {#if isStarred}
                 <span style="vertical-align:middle;"><img src="/tabler_icons/star.svg" alt="star icon"
                                                           class="inline w-5 h-5 align-text-bottom dark:invert"/></span>
             {/if}

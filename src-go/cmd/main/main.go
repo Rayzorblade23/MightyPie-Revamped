@@ -19,6 +19,7 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/mouseInputAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/pieButtonExecutionAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/piemenuConfigManager"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/settingsManagerAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/shortcutDetectionAdapter"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/shortcutSetterAdapter"
@@ -40,7 +41,8 @@ var (
 		"settingsManager":   flag.Bool("settingsManager", false, "Run as settings manager worker"),
 		"shortcutDetector":  flag.Bool("shortcutDetector", false, "Run as shortcut detector worker"),
 		"shortcutSetter":    flag.Bool("shortcutSetter", false, "Run as shortcut setter worker"),
-		"windowManager":  flag.Bool("windowManager", false, "Run as window management worker"),
+		"piemenuConfigManager": flag.Bool("piemenuConfigManager", false, "Run as pie menu config manager worker"),
+		"windowManager":     flag.Bool("windowManager", false, "Run as window management worker"),
 	}
 )
 
@@ -92,6 +94,7 @@ func main() {
 		"settingsManager",
 		"shortcutDetector",
 		"shortcutSetter",
+		"piemenuConfigManager",
 		"windowManager",
 	}
 
@@ -426,6 +429,9 @@ func runWorker(workerType string) {
 	case "shortcutSetter":
 		shortcutSetterAdapter := shortcutSetterAdapter.New(natsAdapter)
 		shortcutSetterAdapter.Run()
+	case "piemenuConfigManager":
+		_ = piemenuConfigManager.New(natsAdapter)
+		select {}
 	case "windowManager":
 		windowManagement, err := windowManagementAdapter.New(natsAdapter)
 		if err != nil {

@@ -11,7 +11,7 @@
     } from "$env/static/public";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
     import QuickMenuPieButton from '$lib/components/quickMenu/QuickMenuPieButton.svelte';
-    import {getMenuConfiguration} from '$lib/data/configManager.svelte.ts';
+    import {getLiveButtonConfig, getPieMenuConfig} from '$lib/data/configManager.svelte.ts';
     import type {Button, ButtonsOnPageMap} from '$lib/data/types/pieButtonTypes.ts';
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
     import {createLogger} from "$lib/logger";
@@ -34,7 +34,7 @@
     }
 
     function navigateToPieMenuConfig() {
-        goto('/piemenuConfig');
+        goto('/piemenuConfigEditor');
     }
 
     function navigateToFuzzySearch() {
@@ -48,40 +48,29 @@
         goto('/');
     }
 
-    // --- Quick Menu Favorite Logic ---
-    const QUICK_MENU_FAVORITE_KEY = 'quickMenuFavorite';
-
-    function getQuickMenuFavorite() {
-        try {
-            const raw = localStorage.getItem(QUICK_MENU_FAVORITE_KEY);
-            if (!raw) return null;
-            return JSON.parse(raw);
-        } catch {
-            return null;
-        }
-    }
-
     let menuID = $state(0);
     let pageID = $state(0);
-    const favorite = getQuickMenuFavorite();
-    if (favorite && typeof favorite.menuID === 'number' && typeof favorite.pageID === 'number') {
-        menuID = favorite.menuID;
-        pageID = favorite.pageID;
-    }
 
     const buttonWidth = Number(PUBLIC_PIEBUTTON_WIDTH);
     const buttonHeight = Number(PUBLIC_PIEBUTTON_HEIGHT);
-    const menuConfig = getMenuConfiguration();
+    const liveButtonsConfig = getLiveButtonConfig();
     let buttonsOnPage: ButtonsOnPageMap | undefined = $state(undefined);
     let buttonList: [number, Button][] = $state([]);
 
     $effect(() => {
-        buttonsOnPage = menuConfig.get(menuID)?.get(pageID);
+        buttonsOnPage = liveButtonsConfig.get(menuID)?.get(pageID);
         buttonList = buttonsOnPage ? Array.from(buttonsOnPage.entries()) : [];
     });
 
     onMount(() => {
         logger.info('Quick Menu Mounted');
+
+        const piemenuConfig = getPieMenuConfig();
+        const starred = piemenuConfig?.starred;
+        if (starred) {
+            menuID = starred.menuID;
+            pageID = starred.pageID;
+        }
 
         isDark = document.documentElement.classList.contains('dark');
         const initialize = async () => {

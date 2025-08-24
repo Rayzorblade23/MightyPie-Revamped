@@ -7,7 +7,7 @@
         PUBLIC_QUICKMENU_SIZE_Y
     } from "$env/static/public";
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
-    import {getMenuConfiguration} from "$lib/data/configManager.svelte.ts";
+    import {getLiveButtonConfig} from "$lib/data/configManager.svelte.ts";
     import type {IPieButtonExecuteMessage} from '$lib/data/types/pieButtonTypes.ts';
     import {type Button, ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import Fuse from "fuse.js";
@@ -37,7 +37,7 @@
     }
 
     function extractButtons() {
-        const config = getMenuConfiguration();
+        const config = getLiveButtonConfig();
         const arr: { button: Button; menuId: number; pageId: number; buttonId: number }[] = [];
         for (const [menuId, pages] of config) {
             for (const [pageId, buttons] of pages) {
@@ -94,8 +94,12 @@
             const window = getCurrentWindow();
             await window.show();
             await window.setFocus();
-            setTimeout(() => { window.setFocus(); }, 50);
-            setTimeout(() => { window.setFocus(); }, 200);
+            setTimeout(() => {
+                window.setFocus();
+            }, 50);
+            setTimeout(() => {
+                window.setFocus();
+            }, 200);
             await window.setSize(new LogicalSize(Number(PUBLIC_QUICKMENU_SIZE_X), Number(PUBLIC_QUICKMENU_SIZE_Y)));
             await ensureWindowWithinMonitorBounds();
         };

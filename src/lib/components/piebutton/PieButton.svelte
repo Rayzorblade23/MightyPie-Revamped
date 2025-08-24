@@ -1,6 +1,9 @@
 <!--PieButton.svelte-->
 <script lang="ts">
-    import {getButtonProperties, getButtonType,} from "$lib/data/configManager.svelte.ts";
+    import {
+        getButtonPropertiesFromLiveButtonConfig,
+        getButtonTypeFromLiveButtonConfig,
+    } from "$lib/data/configManager.svelte.ts";
     import type {IPieButtonExecuteMessage} from "$lib/data/types/pieButtonTypes.ts";
     import {ButtonType} from "$lib/data/types/pieButtonTypes.ts";
     import {publishMessage} from "$lib/natsAdapter.svelte.ts";
@@ -24,8 +27,8 @@
         onClose?: () => void
     } = $props();
 
-    const taskType = $derived(getButtonType(menuID, pageID, buttonID));
-    const properties = $derived(getButtonProperties(menuID, pageID, buttonID));
+    const taskType = $derived(getButtonTypeFromLiveButtonConfig(menuID, pageID, buttonID));
+    const properties = $derived(getButtonPropertiesFromLiveButtonConfig(menuID, pageID, buttonID));
 
     const buttonTextUpper = $derived.by(() => {
         if (taskType === ButtonType.Disabled) {

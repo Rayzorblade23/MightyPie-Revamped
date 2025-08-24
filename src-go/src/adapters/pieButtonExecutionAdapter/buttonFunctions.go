@@ -329,7 +329,7 @@ func (a *PieButtonExecutionAdapter) OpenSettings() error {
 // OpenConfig opens the Pie Menu configuration window.
 func (a *PieButtonExecutionAdapter) OpenConfig() error {
 	log.Info("Publishing navigation message for Config")
-	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "piemenuConfig")
+	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "piemenuConfigEditor")
 	return nil
 }
 

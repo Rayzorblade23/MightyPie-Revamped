@@ -1,7 +1,7 @@
 <!-- src/lib/components/piemenuConfig/ButtonInfoDisplay.svelte -->
 <script lang="ts">
     import {type Button, ButtonType} from "$lib/data/types/pieButtonTypes.ts";
-    import {getMenuConfiguration} from "$lib/data/configManager.svelte.ts";
+    import {getPieMenuButtons} from "$lib/data/configManager.svelte.ts";
     import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
     import {createLogger} from "$lib/logger";
     import {getInstalledAppsInfo} from '$lib/data/installedAppsInfoManager.svelte.ts';
@@ -183,7 +183,7 @@
 {#if selectedButtonDetails && currentButtonLocal} <!-- Ensure currentButtonLocal is defined -->
     {@const {menuID, pageID, buttonID, slotIndex} = selectedButtonDetails}
     {@const button = currentButtonLocal}
-    {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getMenuConfiguration().get(menuID)?.get(pageID)?.has(buttonID)}
+    {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getPieMenuButtons().get(menuID)?.get(pageID)?.has(buttonID)}
 
     <div class="p-4 border border-none bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md w-full min-w-0">
         <div class="flex items-center justify-between mb-3">

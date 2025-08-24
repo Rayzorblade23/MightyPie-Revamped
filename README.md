@@ -241,10 +241,9 @@ the properties, in the `Target` field, add
 
 ### Configuration Files
 
-- The Pie Menu Configuration, Settings and Shortcuts are all stored in the App Data folder:
-    - `AppData\Local\MightyPieRevamped\buttonConfig.json`
+- The Pie Menu Configuration and Settings are stored in the App Data folder:
+    - `AppData\Local\MightyPieRevamped\piemenuConfig.json`
     - `AppData\Local\MightyPieRevamped\settings.json`
-    - `AppData\Local\MightyPieRevamped\shortcuts.json`
 
 
 - There is also `windowExclusionList.json`, where you can define windows by application or title (or both) to exclude

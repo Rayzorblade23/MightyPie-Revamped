@@ -1,15 +1,16 @@
 import {
     type Button,
+    type ButtonsConfig,
     type ButtonsOnPageMap,
     ButtonType,
-    type MenuConfiguration,
     type PagesInMenuMap
 } from './types/pieButtonTypes.ts';
 import {
-    getBaseMenuConfiguration,
-    publishBaseMenuConfiguration,
-    updateBaseMenuConfiguration,
-    updateButtonInMenuConfig
+    getPieMenuButtons,
+    getPieMenuConfig,
+    updateButtonInMenuConfig,
+    updatePieMenuButtons,
+    updatePieMenuConfig
 } from './configManager.svelte.ts';
 import {getInstalledAppsInfo} from './installedAppsInfoManager.svelte.ts';
 import {getDefaultButton} from './types/pieButtonDefaults.ts';
@@ -51,8 +52,9 @@ function updateButtonIconPath(button: Button, iconPath: string): Button {
 }
 
 export function validateAndSyncConfig() {
+    logger.debug("Validating and syncing config.")
     const apps = getInstalledAppsInfo();
-    const menuConfig = getBaseMenuConfiguration() as MenuConfiguration;
+    const menuConfig = getPieMenuButtons() as ButtonsConfig;
 
     let updated = false;
     let newConfig = menuConfig;
@@ -98,8 +100,51 @@ export function validateAndSyncConfig() {
     }
 
     if (updated) {
-        logger.info('Updated and published menu configuration with icon path updates and button resets');
-        updateBaseMenuConfiguration(newConfig);
-        publishBaseMenuConfiguration(newConfig);
+        logger.info('Updated menu configuration with icon path updates and button resets');
+        updatePieMenuButtons(newConfig);
+    }
+
+    // --- Validate full PieMenuConfig: shortcuts and starred must reference existing menus/pages ---
+    try {
+        const pieMenuConfig = getPieMenuConfig();
+        if (!pieMenuConfig) return;
+
+        const existingMenuIds = new Set<number>(Array.from((updated ? newConfig : menuConfig).keys()));
+
+        // Validate shortcuts: keep only those whose numeric menuID exists
+        const oldShortcuts = pieMenuConfig.shortcuts || {} as Record<string, { codes: number[]; label: string }>;
+        const newShortcuts: Record<string, { codes: number[]; label: string }> = {};
+        let shortcutsChanged = false;
+        for (const [k, v] of Object.entries(oldShortcuts)) {
+            const n = Number(k);
+            if (!Number.isNaN(n) && existingMenuIds.has(n)) {
+                newShortcuts[k] = v;
+            } else {
+                shortcutsChanged = true; // dropped invalid entry
+            }
+        }
+
+        // Validate starred: must reference existing menu and page
+        let newStarred = pieMenuConfig.starred ?? null as null | { menuID: number; pageID: number };
+        let starredChanged = false;
+        if (newStarred) {
+            const pages = (updated ? newConfig : menuConfig).get(newStarred.menuID);
+            if (!pages || !pages.has(newStarred.pageID)) {
+                newStarred = null;
+                starredChanged = true;
+            }
+        }
+
+        if (shortcutsChanged || starredChanged) {
+            updatePieMenuConfig({
+                ...pieMenuConfig,
+                shortcuts: newShortcuts,
+                starred: newStarred,
+            });
+            if (shortcutsChanged) logger.warn('Removed invalid shortcut entries referencing non-existent menus');
+            if (starredChanged) logger.warn('Cleared invalid starred reference to non-existent menu/page');
+        }
+    } catch (e) {
+        logger.error('Failed validating shortcuts/starred against menu config:', e);
     }
 }

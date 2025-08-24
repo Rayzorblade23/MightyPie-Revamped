@@ -2,10 +2,14 @@ package shortcutSetterAdapter
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/adapters/natsAdapter"
+	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core/logger"
 	"github.com/nats-io/nats.go"
 )
@@ -17,6 +21,7 @@ var log = logger.New("ShortcutSetter")
 type ShortcutSetterAdapter struct {
 	natsAdapter  *natsAdapter.NatsAdapter
 	keyboardHook *setterKeyboardHook
+	updateSubject string
 }
 
 // Run blocks forever to keep the worker process alive.
@@ -32,17 +37,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	}
 
 	captureShortcutSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE")
-	updateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 	abortSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT")
-	deleteSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_DELETE")
+	shortcutSetterAdapter.updateSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE")
 
-	// Load and print existing shortcuts
-	shortcuts, err := LoadShortcuts()
-	if err != nil {
-		log.Error("Failed to load shortcuts for initial update: %v", err)
-	} else {
-		natsAdapter.PublishMessage(updateSubject, shortcuts)
-	}
+	// Stateless: do not read or publish existing shortcuts here. Persistence is handled by piemenuConfigManager.
 
 	// Subscribe to requests to record a new shortcut at a given index.
 	// When a message is received, begin listening for a shortcut to assign to that index.
@@ -65,18 +63,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		}
 	})
 
-	// Subscribe to delete shortcut messages
-	natsAdapter.SubscribeToSubject(deleteSubject, func(msg *nats.Msg) {
-		var payload ShortcutIndexMessage
-		if err := json.Unmarshal(msg.Data, &payload); err != nil {
-			log.Error("Failed to decode index for delete: %v", err)
-			return
-		}
-		log.Info("Deleting shortcut at index: %d", payload.Index)
-		if err := shortcutSetterAdapter.DeleteShortcut(payload.Index); err != nil {
-			log.Error("Failed to delete shortcut: %v", err)
-		}
-	})
+	// No delete subscription here; UI publishes delete directly to piemenuConfigManager.
 
 	return shortcutSetterAdapter
 }
@@ -99,11 +86,16 @@ func (a *ShortcutSetterAdapter) ListenForShortcutAtIndex(index int) {
 				return
 			}
 
-			if err := a.SaveShortcut(index, shortcut); err != nil {
-				log.Error("Failed to save shortcut: %v", err)
-			} else {
-				log.Info("Shortcut detected and saved for index %d", index)
+			// Publish partial update directly; piemenuConfigManager will merge and persist
+			update := map[string]core.ShortcutEntry{
+				strconv.Itoa(index): {Codes: shortcut, Label: ShortcutCodesToString(shortcut)},
 			}
+			if a.updateSubject == "" {
+				log.Error("Update subject is empty; cannot publish shortcut update")
+				return
+			}
+			a.natsAdapter.PublishMessage(a.updateSubject, update)
+			log.Info("Shortcut detected and published for index %d", index)
 		})
 	})
 	go func() {
@@ -111,4 +103,17 @@ func (a *ShortcutSetterAdapter) ListenForShortcutAtIndex(index int) {
 			log.Error("Keyboard hook error: %v", err)
 		}
 	}()
+}
+
+
+func ShortcutCodesToString(codes []int) string {
+	names := []string{}
+	for _, k := range codes {
+		name := core.FindKeyByValue(k)
+		if name == "" {
+			name = fmt.Sprintf("VK_%d", k)
+		}
+		names = append(names, name)
+	}
+	return strings.Join(names, " + ")
 }
