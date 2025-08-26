@@ -84,6 +84,7 @@ Pages with eight configurable buttons each.
   from
   closed windows, this will re-assign all buttons. (Lowest indexes of menus/pages/buttons are always assigned first.)
 - Access your favorite menu directly, which you can set in the Pie Menu Configuration.
+- The _Quick Menu_ auto-closes when you click anywhere else.
 
 <p align="center">
   <img width="40%" src="assets/Revamped_QuickMenu_Preview.png" alt="Pie Menus">
@@ -91,9 +92,9 @@ Pages with eight configurable buttons each.
 
 ### Pie Menu Configuration
 
-- Create menus, add pages and assign all your buttons here. Assign keyboard shortcuts for each menu.
-- _(new!)_ Save and Load your Configuration with backup files.
-- _(new!)_ Choose one menu to be displayed in the Quick Menu.
+- Create Menus, add Pages and assign all your Buttons here. Assign keyboard shortcuts for each menu.
+- _(new!)_ Save and Load your Configurations.
+- _(new!)_ Choose one Page to be displayed in the Quick Menu.
 - _(new!)_ Quickly make all Buttons of a page the same type.
 
 <p align="center">
@@ -137,68 +138,58 @@ Note: There is no portable version of **_MightyPie Revamped_** unlike the origin
 
 ## Usage
 
-MightyPie Revamped will open to the Pie Menu Configuration by default (this can be changed in the Settings). Here you
-can
-customize your first Pie Menus and assign keyboard shortcuts to them.
+1. **Run the application.**
 
-> [!NOTE]
-> You can undo any changes you make in the Pie Menu Configuration by clicking the "Undo" button in the top left corner.
->
-> Only Setting a Shortcut and the Star button are not undoable.
+2. **Pie Menu Configuration:** MightyPie Revamped will open to the _Pie Menu Configuration Editor_ by default (this can
+   be
+   changed in the _Settings_ menu). Here you can customize your first Pie Menus and assign keyboard shortcuts to them.
+   Each
+   Menu has Pages and each Page consists of eight Buttons to configure.
 
-1. **Run the application:** The program is portable so just run MightyPie.exe.
+    - **Button Details** section:
 
+      To configure a Button, click it and set a button type and its options. Click the Question Mark to get more
+      information
+      about the selected button type.
 
-2. **Configure Hotkeys:** The settings open at the first start. Here you can configure your hotkeys. (Default are
-   _Alt+F1_ for the Primary Pie Menu and _Alt+F2_ for the Secondary Pie Menu. The hotkeys are keyboard only and some
-   restriction apply, i.e. Windows Key can't be used.
+    - **Page Settings** section:
 
-   (Be aware that many key combinations are already in use by programs, though MightyPie will suppress them. I
-   personally use AHK to map mouse buttons to keys like _F13_ and _F14_ and use those as hotkeys.)
+      To quickly set all Buttons of a Page to the same type, select that Page by clicking it (or a Button within it) and
+      use the `Reset Page with Type` button in the **Page Settings** section. Above it, you can select the button type
+      this applies from the dropdown.
 
+      One Page out of all the Pages can be starred with the `Use for Quick Menu` button. This Page will be displayed in
+      the _Quick Menu_.
 
-3. **Trigger the Pie Menu:** The Pie Menu opens on button-down. You can also hold the hotkey, hover over a button (or
-   its section) and just release for triggering a button.
+    - **Menu Settings** section:
 
+      Set and clear the shortcut for the active Menu. See the note below for more information.
 
-4. **Pie Menu:** Use the mouse to select a button in the pie menu.
-    - _Left-click_ is the normal function.
-    - _Middle-click_ on Show Window Buttons will close that window.
-    - _Right-click_ anywhere will close the Pie Menu.
-    - _Left-click_ on the Center Button of a Pie Menu triggers the "forward" mouse button by default (because I am using
-      that for opening the Pie Menu and this way I still have that functionality). You can also set it to "backward" or
-      nothing.
+    - **Pie Menu Config** section:
 
+      Save, Load or Clear the whole Pie Menu Configuration (incl. shortcuts and starred pages).
 
-5. **Special Menu:** More Windows functions and settings.
+   To close the _Pie Menu Configuration Editor_, hit the `Done` or `Discard All` button or just hit `Esc`.
 
 
-- _Middle-click_ the Center Button in any Pie Menu to open the Special Menu.
-- All the buttons have tool tips.
+3. **Ready to Go:** MightyPie Revamped runs in the background and waits for you to trigger a Pie Menu shortcut.
 
+   Pressing the shortcut once will open the Pie Menu. Hitting it again will cycle through it Pages.
 
-- the other unlabeled buttons are:
-    - **Windows Shortcuts:**
-        - Open Task Manager
-        - Open Sound Settings
-        - Open Network Settings
-        - Open Projection Settings (Windows monitor switching)
-        - Open an explorer window
+   You don't have to click a Button directly. Its clickable area is the **whole** slice that the Button is in.
 
+   Right-clicking **anywhere** or hitting `Esc` will close the Pie Menu.
 
-- **Monitor Switching:** The Monitor Switching area is turned off in the settings by default. It uses my specific
-  shortcuts set in DisplayFusion to switch screens and is probably of use for anyone else. (You can change the shortcuts
-  though.)
+   **Drag-select:** Press and hold the shortcut, then hover anywhere over the Button's slice, and release the
+   shortcut to trigger it. This triggers its left-click action with needing to actually left-click the Button.
 
+   **Pie Menu Center Button:** The ring in the center of the Pie Menu is also a button.
 
-- **MightyPie Shortcuts:**
-    - Clear / Reset the App Info Cache
-    - Re-assign all Buttons: will re-assign Show Any Window Buttons starting on the lower Pie Menu levels first. (
-      normally windows will stay on one button, once assigned)
-    - Open the Button Config: Here you can assign the functions of all buttons in all Pie Menus
-    - Open App Settings: General Settings of MightyPie (settings require a restart to take effect)
-    - Restart
-    - Quit
+   Middle-click it to open the _Quick Menu_.
+
+   The left-click action of it is configurable in the _Settings_ menu.
+
+For more info on the _Settings_ menu and _Quick Menu_ see the [Features](#features) section.
 
 > [!NOTE]
 > You can assign almost any keyboard key, combined with any modifier, as a shortcut. In theory, you could even use
@@ -237,7 +228,7 @@ of the Settings menu to open this folder directly.
 
 By default, the logging level is set to `info`. To change it, find `MightyPieRevamped.lnk` from the start menu, and in
 the properties, in the `Target` field, add
-` -- --log-level debug` (or `error`/`warn` instead of `info`) after the path.
+` -- --log-level debug` (or `warn` instead of `info`) after the path.
 
 ### Configuration Files
 

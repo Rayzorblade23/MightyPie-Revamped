@@ -1,7 +1,7 @@
 <svelte:window on:contextmenu={(e) => e.preventDefault()}/>
 
 <script lang="ts">
-    import {onDestroy, onMount} from 'svelte';
+    import {onMount} from 'svelte';
     import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
@@ -365,10 +365,6 @@
             await goto('/');
         }
     }
-
-    onDestroy(() => {
-        publishSettings(settings);
-    });
 </script>
 
 <div class="w-full h-screen p-2">

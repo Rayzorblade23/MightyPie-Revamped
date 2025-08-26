@@ -72,6 +72,33 @@
         }
     });
 
+    // Globally block browser back/forward triggered by mouse X1/X2 buttons
+    onMount(() => {
+        const block = (event: Event) => {
+            const button = (event as MouseEvent).button;
+            if (button !== 3 && button !== 4) return; // only X1/X2
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        };
+
+        const opts: AddEventListenerOptions = { capture: true, passive: false };
+        window.addEventListener('pointerdown', block, opts);
+        window.addEventListener('pointerup', block, opts);
+        window.addEventListener('mousedown', block, opts);
+        window.addEventListener('mouseup', block, opts);
+        window.addEventListener('auxclick', block, opts);
+        logger.debug('Registered global X1/X2 back-forward mouse blocker');
+
+        return () => {
+            window.removeEventListener('pointerdown', block, opts);
+            window.removeEventListener('pointerup', block, opts);
+            window.removeEventListener('mousedown', block, opts);
+            window.removeEventListener('mouseup', block, opts);
+            window.removeEventListener('auxclick', block, opts);
+            logger.debug('Unregistered global X1/X2 back-forward mouse blocker');
+        };
+    });
+
     let {children} = $props();
     let connectionStatus = $state('Idle');
     let minDisplayTimeMs = 3000; // 3 seconds display time for success screen

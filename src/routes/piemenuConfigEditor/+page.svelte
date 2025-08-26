@@ -808,9 +808,9 @@
 </script>
 
 <div class="w-full h-screen p-2">
-    <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-md">
+    <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-t-3xl rounded-b-2xl shadow-md">
         <!-- --- Title Bar --- -->
-        <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
+        <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-2xl border-b border-none h-8 flex-shrink-0">
             <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>
             <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center pointer-events-none select-none">
                 <span class="font-semibold text-sm lg:text-base text-zinc-900 dark:text-zinc-400">Pie Menu Config</span>
@@ -980,19 +980,10 @@
                                             variant="primary"
                                     />
                                 </div>
-                                <div class="flex flex-row justify-between mt-2 items-center w-full">
-                                    <span class="text-zinc-700 dark:text-zinc-200">Reset the whole Config:</span>
-                                    <StandardButton
-                                            label="Reset"
-                                            variant="warning"
-                                            onClick={() => showResetAllConfirmDialog = true}
-                                            style="max-width: 120px;"
-                                    />
-                                </div>
                             </div>
                             <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
                                 <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
-                                    Save/Load Config
+                                    Pie Menu Config
                                 </h3>
                                 <div class="flex flex-col items-start gap-2 w-full">
                                     <StandardButton
@@ -1006,6 +997,12 @@
                                             onClick={openFileDialog}
                                             style={`width: 100%;`}
                                             variant="primary"
+                                    />
+                                    <StandardButton
+                                            label="Reset it all!"
+                                            variant="warning"
+                                            onClick={() => showResetAllConfirmDialog = true}
+                                            style={`width: 100%;`}
                                     />
                                 </div>
                             </div>

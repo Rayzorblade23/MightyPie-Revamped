@@ -97,7 +97,7 @@
   },
   "keepPieMenuAnchored": {
     "index": 1,
-    "label": "Keep open Pie Menu in place",
+    "label": "Keep Pie Menu in place when cycling through Pages",
     "isExposed": true,
     "type": "bool",
     "value": false,

@@ -375,33 +375,6 @@
         }
     });
 
-    // Block browser back/forward triggered by mouse X1/X2 buttons
-    onMount(() => {
-        const block = (event: Event) => {
-            const button = (event as MouseEvent).button;
-            // Quick guard: ignore everything except X1/X2
-            if (button !== 3 && button !== 4) return;
-            event.preventDefault();
-            event.stopImmediatePropagation();
-        };
-
-        // Use capture + non-passive so preventDefault works before default navigation
-        const opts: AddEventListenerOptions = {capture: true, passive: false};
-        window.addEventListener('pointerdown', block, opts);
-        window.addEventListener('pointerup', block, opts);
-        window.addEventListener('mousedown', block, opts);
-        window.addEventListener('mouseup', block, opts);
-        window.addEventListener('auxclick', block, opts);
-
-        return () => {
-            window.removeEventListener('pointerdown', block, opts);
-            window.removeEventListener('pointerup', block, opts);
-            window.removeEventListener('mousedown', block, opts);
-            window.removeEventListener('mouseup', block, opts);
-            window.removeEventListener('auxclick', block, opts);
-        };
-    });
-
     onMount(async () => {
         const currentWindow = getCurrentWindow();
         await currentWindow.setSize(new LogicalSize(Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y)));
