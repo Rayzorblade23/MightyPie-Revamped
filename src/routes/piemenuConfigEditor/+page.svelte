@@ -5,7 +5,7 @@
     // --- Svelte and Third-Party Imports ---
     import {onDestroy, onMount} from 'svelte';
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
-    import {open} from '@tauri-apps/plugin-dialog';
+    import {open, save} from '@tauri-apps/plugin-dialog';
     import {join} from '@tauri-apps/api/path';
 
     // --- Internal Library Imports ---
@@ -31,6 +31,7 @@
         PUBLIC_DIR_CONFIGBACKUPS,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
+        PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE,
@@ -177,6 +178,9 @@
     let showDiscardConfirmDialog = $state(false);
     let showResetAllConfirmDialog = $state(false);
     let showBackupCreatedDialog = $state(false);
+    // Load Config error notification state
+    let showLoadFailedDialog = $state(false);
+    let loadFailedMessage = $state<string>("Failed to load config.");
 
     // --- Duplicate Shortcut Detection ---
     let shortcutUsage = $derived.by(() => {
@@ -282,21 +286,27 @@
         showResetAllConfirmDialog = false;
     }
 
-    // --- Backup handler: save full editor config (buttons + shortcuts + starred)
-    function handleBackupConfig() {
-        const fullBackup = {
-            buttons: unparseMenuConfiguration(editorButtonsConfig),
-            shortcuts: {...(editorPieMenuConfig.shortcuts || {})},
-            starred: editorPieMenuConfig.starred ?? null,
-        };
+    // --- Backup handler: open Save dialog and persist full editor config via backend
+    async function handleSaveConfigViaDialog() {
+        try {
+            // Resolve default backups directory and filename
+            const configPath = await invoke<string>('get_app_data_dir');
+            const backupsDir = await join(configPath, PUBLIC_DIR_CONFIGBACKUPS);
+            const defaultFile = await join(backupsDir, 'piemenuConfig.json');
 
-        logger.debug('Backup: payload (pretty)\n' + JSON.stringify(fullBackup, null, 2));
-        publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP, fullBackup);
-    }
+            const targetPath = await save({
+                defaultPath: defaultFile,
+                filters: [{name: 'JSON', extensions: ['json']}]
+            });
 
-    function handleBackupWithConfirmation() {
-        handleBackupConfig();
-        showBackupCreatedDialog = true;
+            if (targetPath) {
+                // Send the chosen path to backend; it will write the current authoritative config there
+                publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP, String(targetPath));
+                showBackupCreatedDialog = true;
+            }
+        } catch (e) {
+            logger.error('Save Backup dialog failed:', e);
+        }
     }
 
     // --- Effects ---
@@ -364,7 +374,7 @@
         }
     });
 
-    // Re-seed local editor state from unified backend full-config updates (e.g., after loading a backup)
+    // Re-seed local editor state from backend full-config updates (e.g., after loading a backup)
     const subscription_backend_update = useNatsSubscription(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE, (msg: string) => {
         try {
             const full = JSON.parse(msg);
@@ -387,6 +397,19 @@
         }
     });
 
+    // Listen for explicit backend load errors and notify user immediately
+    const subscription_backend_load_error = useNatsSubscription(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR, (msg: string) => {
+        try {
+            const payload = JSON.parse(msg);
+            const baseMsg = 'Failed to load config';
+            const detail = typeof payload?.error === 'string' ? payload.error : '';
+            loadFailedMessage = `${baseMsg}${detail ? `: ${detail}` : ''}`;
+        } catch (_e) {
+            loadFailedMessage = 'Failed to load config.';
+        }
+        showLoadFailedDialog = true;
+    });
+
     // Track subscription status and errors, consistent with other pages
     $effect(() => {
         if (subscription_backend_update.status === "subscribed") {
@@ -394,6 +417,16 @@
         }
         if (subscription_backend_update.error) {
             logger.error("NATS subscription_backend_update error:", subscription_backend_update.error);
+        }
+    });
+
+    // Track load error subscription as well
+    $effect(() => {
+        if (subscription_backend_load_error.status === "subscribed") {
+            logger.debug("NATS subscription_backend_load_error ready.");
+        }
+        if (subscription_backend_load_error.error) {
+            logger.error("NATS subscription_backend_load_error error:", subscription_backend_load_error.error);
         }
     });
 
@@ -520,16 +553,16 @@
             // Get app data directory from Tauri backend
             const configPath = await invoke<string>('get_app_data_dir');
             const backupsDir = await join(configPath, PUBLIC_DIR_CONFIGBACKUPS);
-            const selected = await open({multiple: false, defaultPath: backupsDir});
+            const selected = await open({
+                multiple: false,
+                defaultPath: backupsDir,
+                filters: [{name: 'JSON', extensions: ['json']}]
+            });
 
             if (selected) {
-                if (selected.includes('_BACKUP')) {
-                    pushUndoState();
-                    publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
-                    logger.log('Published selected file path:', selected);
-                } else {
-                    alert('Please select a file with "_BACKUP" in the name.');
-                }
+                pushUndoState();
+                publishMessage(PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP, selected);
+                logger.log('Published selected file path:', selected);
             }
         } catch (error) {
             logger.error(`Error opening file dialog: ${error}`);
@@ -657,7 +690,7 @@
 
     function handleClearShortcut() {
         if (selectedMenuID === undefined) return;
-        // Stage clear in unified config and make it undoable; do NOT publish immediately
+        // Stage clear in full config and make it undoable; do NOT publish immediately
         pushUndoState();
         const newShortcuts: Record<string, {
             codes: number[];
@@ -959,17 +992,17 @@
                             </div>
                             <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
                                 <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
-                                    Config Backup
+                                    Save/Load Config
                                 </h3>
                                 <div class="flex flex-col items-start gap-2 w-full">
                                     <StandardButton
-                                            label="Create Backup"
-                                            onClick={handleBackupWithConfirmation}
+                                            label="Save Config"
+                                            onClick={handleSaveConfigViaDialog}
                                             style={`width: 100%;`}
                                             variant="primary"
                                     />
                                     <StandardButton
-                                            label="Load Backup"
+                                            label="Load Config"
                                             onClick={openFileDialog}
                                             style={`width: 100%;`}
                                             variant="primary"
@@ -1054,9 +1087,15 @@
         <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
         <NotificationDialog
                 isOpen={showBackupCreatedDialog}
-                message="A backup of the current Config has been created."
+                message="Pie Menu Configuration has been saved."
                 onClose={() => showBackupCreatedDialog = false}
-                title="Backup Created"
+                title="Config Saved"
+        />
+        <NotificationDialog
+                isOpen={showLoadFailedDialog}
+                message={loadFailedMessage}
+                onClose={() => showLoadFailedDialog = false}
+                title="Load Failed"
         />
     </div>
 </div>

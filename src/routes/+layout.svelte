@@ -148,9 +148,8 @@
         );
     };
 
-    // Removed legacy Base Config Update handler; unified backend update is the source of truth
 
-    // Handle unified full-config backend messages by storing full config and deriving buttons
+    // Handle backend full-config messages by storing full config
     const handleBackendConfigMessage = (message: string) => {
         handleJsonMessage<PieMenuConfig>(
             message,
@@ -162,7 +161,7 @@
                     validateAndSyncConfig();
                 }
             },
-            '+layout.svelte: Unified Backend Config Update'
+            '+layout.svelte: Backend Config Update'
         );
     };
 
@@ -174,8 +173,6 @@
             logger.error("[+layout.svelte] Failed to process installed apps message:", error);
         }
     };
-
-    // Removed redundant shortcut labels handler; unified config contains shortcuts
 
     const handleSettingsUpdateMessage = (message: string) => {
         handleJsonMessage<SettingsMap>(
@@ -228,9 +225,7 @@
         return () => stopLiveButtons?.();
     });
 
-    // Removed legacy Base Config subscription; unified backend update below replaces it
-
-    // Subscribe to unified BACKEND update (full config) and derive base menu config from buttons
+    // Subscribe to BACKEND update (full config)
     $effect(() => {
         let stopBackendFull: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
@@ -257,7 +252,8 @@
         return () => stopInstalledApps?.();
     });
 
-    // Removed redundant shortcut labels subscription; shortcuts are part of unified full config
+    // Removed redundant shortcut labels subscription; shortcuts are part of the full config
+
 
     $effect(() => {
         let stopSettingsUpdate: (() => void) | null = null;

@@ -11,8 +11,8 @@ import (
 	"github.com/Rayzorblade23/MightyPie-Revamped/src/core"
 )
 
-// ReadConfigFromFile reads the unified PieMenuConfig from disk.
-// It primarily expects the unified format and ensures non-nil maps on success.
+// ReadConfigFromFile reads the PieMenuConfig from disk.
+// It primarily expects the full-format and ensures non-nil maps on success.
 // If the file contains a legacy buttons-only structure (ConfigData), it will be
 // wrapped into a PieMenuConfig to allow seamless migration.
 func ReadConfigFromFile(path string) (PieMenuConfig, error) {
@@ -26,7 +26,7 @@ func ReadConfigFromFile(path string) (PieMenuConfig, error) {
 		return PieMenuConfig{}, err
 	}
 
-	// Try unified format first
+	// Try full-format first
 	var cfg PieMenuConfig
 	if err := json.Unmarshal(data, &cfg); err == nil {
 		if cfg.Buttons == nil {
@@ -50,7 +50,7 @@ func ReadConfigFromFile(path string) (PieMenuConfig, error) {
 		return wrapped, nil
 	}
 
-	return PieMenuConfig{}, errors.New("invalid unified PieMenuConfig format")
+	return PieMenuConfig{}, errors.New("invalid PieMenuConfig format")
 }
 
 func WriteConfigToFile(path string, cfg PieMenuConfig) error {
@@ -69,7 +69,7 @@ func WriteConfigToFile(path string, cfg PieMenuConfig) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// BackupFullConfigToFile writes the unified PieMenuConfig to a backup file in the standard backups directory.
+// BackupFullConfigToFile writes the PieMenuConfig to a backup file in the standard backups directory.
 func BackupFullConfigToFile(cfg PieMenuConfig) error {
 	appDataDir, err := core.GetAppDataDir()
 	if err != nil {

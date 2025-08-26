@@ -2,7 +2,7 @@ package piemenuConfigManager
 
 import "encoding/json"
 
-// Mirror the frontend structure for the unified config file
+// Mirror the frontend structure for the config file
 
 type Button struct {
     ButtonType string          `json:"button_type"`

@@ -64,7 +64,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 	}()
 
-	// Listen to unified backend config updates; update detector shortcuts only on explicit save
+	// Listen to backend full-config updates; update detector shortcuts only on explicit save
 	backendSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE")
 	adapter.natsAdapter.SubscribeToSubject(backendSubject, func(natsMessage *nats.Msg) {
 		var payload struct {
@@ -88,7 +88,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		case adapter.updateHookChan <- struct{}{}:
 		default:
 		}
-		log.Info("[ShortcutDetector] Applied shortcuts from unified config (%d entries)", len(adapter.shortcuts))
+		log.Info("[ShortcutDetector] Applied shortcuts from full config (%d entries)", len(adapter.shortcuts))
 	})
 
 	pressedEventSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_PRESSED")

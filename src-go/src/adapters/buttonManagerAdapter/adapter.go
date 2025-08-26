@@ -36,12 +36,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	}
 
 	windowUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_WINDOWMANAGER_UPDATE")
-	// New unified full-config flow subjects
+	// Full-config flow subjects
 	backendFullConfigSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE")
 	liveButtonsSubject := os.Getenv("PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG")
 	fillGapsSubject := os.Getenv("PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS")
 
-	// Do NOT read/write the unified on-disk config here. The unified file is owned by PieMenuConfigManager.
+	// Do NOT read/write the on-disk config here. The file is owned by PieMenuConfigManager.
 	// Initialize with an empty in-memory config and wait for full-config updates from PieMenuConfigManager.
 	updateButtonConfig(make(ConfigData))
 	log.Info("Waiting for full config from PieMenuConfigManager...")
@@ -51,7 +51,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	// Subscribe to full-config backend updates and extract buttons for this adapter
 	if backendFullConfigSubject != "" {
 		a.natsAdapter.SubscribeToSubject(backendFullConfigSubject, func(msg *nats.Msg) {
-			// Only care about the buttons field from the unified config
+			// Only care about the buttons field from the full config
 			var payload struct {
 				Buttons ConfigData `json:"buttons"`
 			}

@@ -188,7 +188,7 @@ func LoadConfigFromFile(path string) (ConfigData, error) {
         return nil, fmt.Errorf("failed to read file '%s': %w", path, err)
     }
 
-    // Probe for unified full-config by checking presence of top-level fields
+    // Probe for full config by checking presence of top-level fields
     var probe struct {
         Buttons   json.RawMessage `json:"buttons"`
         Shortcuts any             `json:"shortcuts"`

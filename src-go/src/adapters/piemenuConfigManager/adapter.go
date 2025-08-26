@@ -99,26 +99,46 @@ func New(na *natsAdapter.NatsAdapter) *Adapter {
 		}
 		ad.setConfig(incoming)
 		if err := WriteConfigToFile(configPath, incoming); err != nil {
-			log.Error("Failed to write unified config to file: %v", err)
+			log.Error("Failed to write config to file: %v", err)
 			return
 		}
 		ad.publish(backendSubject)
 	})
 
-    // Removed partial shortcut update/delete handling. Only full unified config updates are persisted.
+    // Removed partial shortcut update/delete handling. Only full config updates are persisted.
 
-    // Backups are owned by the unified config manager
+    // Backups are owned by the config manager
     saveBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP")
     loadBackupSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP")
+    loadErrorSubject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR")
 
-    // Save backup: ignore payload and snapshot current authoritative config
+    // Save backup: if payload contains a path, write there; otherwise use default backup location
     ad.nats.SubscribeToSubject(saveBackupSubject, func(msg *nats.Msg) {
         cfg := ad.getConfig()
+        path := string(msg.Data)
+        // Trim surrounding quotes if present
+        if len(path) > 0 && (path[0] == '"' || path[0] == '\'') {
+            path = path[1:]
+        }
+        if n := len(path); n > 0 && (path[n-1] == '"' || path[n-1] == '\'') {
+            path = path[:len(path)-1]
+        }
+
+        if path != "" {
+            // Ensure directory exists and write JSON using existing helper
+            if err := WriteConfigToFile(path, cfg); err != nil {
+                log.Error("Failed to write backup to '%s': %v", path, err)
+                return
+            }
+            log.Info("Full config backup written to explicit path: '%s'", path)
+            return
+        }
+
         if err := BackupFullConfigToFile(cfg); err != nil {
             log.Error("Failed to write full backup: %v", err)
             return
         }
-        log.Info("Full config backup successful.")
+        log.Info("Full config backup written to default backups directory.")
     })
 
     // Load backup from provided file path (string)
@@ -135,6 +155,14 @@ func New(na *natsAdapter.NatsAdapter) *Adapter {
         loaded, err := ReadConfigFromFile(backupPath)
         if err != nil {
             log.Error("Failed to load backup file: %v", err)
+            // Notify frontend of load failure with details
+            if loadErrorSubject != "" {
+                ad.nats.PublishMessage(loadErrorSubject, map[string]any{
+                    "path":    backupPath,
+                    "error":   fmt.Sprintf("%v", err),
+                    "message": "Failed to load backup file",
+                })
+            }
             return
         }
         // Basic sanity: ensure maps are non-nil
@@ -146,7 +174,7 @@ func New(na *natsAdapter.NatsAdapter) *Adapter {
         }
         ad.setConfig(loaded)
         if err := WriteConfigToFile(configPath, loaded); err != nil {
-            log.Error("Failed to persist loaded backup to unified config file: %v", err)
+            log.Error("Failed to write config to file: %v", err)
             return
         }
         ad.publish(backendSubject)
