@@ -24,7 +24,6 @@ than just window switching.
 - [Installation](#installation)
 - [Usage](#usage)
 - [Known Issues / Limitations](#known-issues--limitations)
-- [Debugging](#debugging)
 - [Advanced Usage](#advanced-usage)
     - [Debugging](#debugging)
     - [Configuration Files](#configuration-files)
