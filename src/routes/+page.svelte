@@ -207,6 +207,13 @@
             logger.debug("[onDestroy] Failsafe: sent piemenuOpened=false");
         }
         stopHeartbeat("onDestroy: component unmount");
+        // Ensure window becomes resizable again on unmount
+        try {
+            const win = getCurrentWindow();
+            void win.setResizable(true);
+        } catch (e) {
+            logger.error('[onDestroy] Failed to set window resizable=true', e);
+        }
     });
 
     const handleShortcutMessage = async (message: string) => {
@@ -380,6 +387,13 @@
         await currentWindow.setSize(new LogicalSize(Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y)));
         logger.debug("[onMount] Forcing initial hidden state.");
         await handlePieMenuHidden();
+        // Disable window resizing while this page is active
+        try {
+            await currentWindow.setResizable(false);
+            logger.debug('[onMount] Temporarily disabled window resizing.');
+        } catch (e) {
+            logger.error('[onMount] Failed to set window resizable=false', e);
+        }
     });
 </script>
 

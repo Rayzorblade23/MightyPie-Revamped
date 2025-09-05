@@ -14,8 +14,8 @@
   ],
   "specific_exclusions": [
     {
-      "app": "",
-      "title": ""
+      "app": "Paint",
+      "title": "Pop-upHost"
     }
   ]
 }

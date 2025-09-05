@@ -367,8 +367,8 @@
     }
 </script>
 
-<div class="w-full h-screen p-2">
-    <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-md">
+<div class="w-full h-screen p-1">
+    <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)]">
         <!-- Title Bar -->
         <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
             <div class="w-0.5 min-w-[2px] h-full" data-tauri-drag-region="none"></div>

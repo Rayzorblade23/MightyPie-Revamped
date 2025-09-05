@@ -15,6 +15,7 @@
     "core:window:default",
     "core:window:allow-set-shadow",
     "core:window:allow-set-size",
+    "core:window:allow-set-resizable",
     "core:window:allow-available-monitors",
     "core:window:allow-create",
     "core:window:allow-current-monitor",
