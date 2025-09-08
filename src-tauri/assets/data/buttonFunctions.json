@@ -73,7 +73,7 @@
   },
   "Open Settings": {
     "icon_path": "/tabler_icons/settings.svg",
-    "description": "Opens the settings window."
+    "description": "Opens the MightyPie settings window."
   },
   "Open Config": {
     "icon_path": "/tabler_icons/brand-cakephp.svg",
@@ -82,5 +82,25 @@
   "Fuzzy Search": {
     "icon_path": "/tabler_icons/search.svg",
     "description": "Opens the Fuzzy Search window."
+  },
+  "New Virtual Desktop": {
+    "icon_path": "/tabler_icons/device-desktop-plus.svg",
+    "description": "Creates a new virtual desktop. (Win+Ctrl+D)"
+  },
+  "Close Virtual Desktop": {
+    "icon_path": "/tabler_icons/device-desktop-x.svg",
+    "description": "Closes the current virtual desktop. (Win+Ctrl+F4)"
+  },
+  "Next Virtual Desktop": {
+    "icon_path": "/tabler_icons/square-chevrons-right.svg",
+    "description": "Switches to the next virtual desktop. (Win+Ctrl+Right)"
+  },
+  "Previous Virtual Desktop": {
+    "icon_path": "/tabler_icons/square-chevrons-left.svg",
+    "description": "Switches to the previous virtual desktop. (Win+Ctrl+Left)"
+  },
+  "Task View": {
+    "icon_path": "/tabler_icons/layout-dashboard.svg",
+    "description": "Opens Task View to manage windows and desktops. (Win+Tab)"
   }
 }

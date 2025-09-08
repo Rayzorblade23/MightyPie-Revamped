@@ -150,6 +150,74 @@ func (a *PieButtonExecutionAdapter) OpenClipboard() error {
 	return nil
 }
 
+// NewVirtualDesktop simulates Win+Ctrl+D to create a new virtual desktop.
+func (a *PieButtonExecutionAdapter) NewVirtualDesktop() error {
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("d")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("d")
+	robotgo.KeyUp("ctrl")
+	robotgo.KeyUp("cmd")
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+// CloseVirtualDesktop simulates Win+Ctrl+F4 to close the current virtual desktop.
+func (a *PieButtonExecutionAdapter) CloseVirtualDesktop() error {
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("f4")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("f4")
+	robotgo.KeyUp("ctrl")
+	robotgo.KeyUp("cmd")
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+// NextVirtualDesktop simulates Win+Ctrl+Right Arrow to switch to the next virtual desktop.
+func (a *PieButtonExecutionAdapter) NextVirtualDesktop() error {
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("right")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("right")
+	robotgo.KeyUp("ctrl")
+	robotgo.KeyUp("cmd")
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+// PreviousVirtualDesktop simulates Win+Ctrl+Left Arrow to switch to the previous virtual desktop.
+func (a *PieButtonExecutionAdapter) PreviousVirtualDesktop() error {
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("ctrl")
+	robotgo.KeyDown("left")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("left")
+	robotgo.KeyUp("ctrl")
+	robotgo.KeyUp("cmd")
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+// TaskView simulates Win+Tab to open Task View.
+func (a *PieButtonExecutionAdapter) TaskView() error {
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyDown("cmd")
+	robotgo.KeyDown("tab")
+	time.Sleep(50 * time.Millisecond)
+	robotgo.KeyUp("tab")
+	robotgo.KeyUp("cmd")
+	time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
 // Fullscreen_F11 simulates pressing F11 to toggle fullscreen mode in most applications.
 func (a *PieButtonExecutionAdapter) Fullscreen_F11() error {
 	time.Sleep(100 * time.Millisecond)
