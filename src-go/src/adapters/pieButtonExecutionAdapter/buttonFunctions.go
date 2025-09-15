@@ -55,14 +55,14 @@ func (a *PieButtonExecutionAdapter) BringAllExplorerWindowsToForeground() error 
 // ForwardsButtonClick simulates a press and release of the XBUTTON1 (Forwards) mouse button.
 func (a *PieButtonExecutionAdapter) ForwardsButtonClick() error {
 	// Give the UI a brief moment to defocus/hide before sending the XBUTTON click
-	time.Sleep(150 * time.Millisecond)
+	releaseAllModifiers()
 	return sendXButtonClick(XBUTTON2)
 }
 
 // BackwardsButtonClick simulates a press and release of the XBUTTON2 (Backwards) mouse button.
 func (a *PieButtonExecutionAdapter) BackwardsButtonClick() error {
 	// Give the UI a brief moment to defocus/hide before sending the XBUTTON click
-	time.Sleep(150 * time.Millisecond)
+	releaseAllModifiers()
 	return sendXButtonClick(XBUTTON1)
 }
 
@@ -115,124 +115,116 @@ func (a *PieButtonExecutionAdapter) RestartAndRestoreExplorerWindows() error {
 
 // Copy simulates Ctrl+C to copy selected content to the clipboard.
 
-func (a *PieButtonExecutionAdapter) Copy() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("c")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("c")
+func releaseAllModifiers() {
+	time.Sleep(10 * time.Millisecond)
+	robotgo.KeyUp("shift")
+	robotgo.KeyUp("alt")
 	robotgo.KeyUp("ctrl")
-	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyUp("cmd") // Windows key is often 'cmd' in robotgo
+	time.Sleep(10 * time.Millisecond)
+}
+
+func (a *PieButtonExecutionAdapter) Copy() error {
+	releaseAllModifiers()
+	// Simulate Ctrl+C
+	err := robotgo.KeyTap("c", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Paste simulates Ctrl+V to paste clipboard content.
 func (a *PieButtonExecutionAdapter) Paste() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("v")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("v")
-	robotgo.KeyUp("ctrl")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Ctrl+V
+	err := robotgo.KeyTap("v", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // OpenClipboard simulates Win+V to open the Windows clipboard history UI.
 func (a *PieButtonExecutionAdapter) OpenClipboard() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("v")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("v")
-	robotgo.KeyUp("cmd")
-	time.Sleep(200 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+V
+	err := robotgo.KeyTap("v", "cmd")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // NewVirtualDesktop simulates Win+Ctrl+D to create a new virtual desktop.
 func (a *PieButtonExecutionAdapter) NewVirtualDesktop() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("d")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("d")
-	robotgo.KeyUp("ctrl")
-	robotgo.KeyUp("cmd")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+Ctrl+D
+	err := robotgo.KeyTap("d", "cmd", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // CloseVirtualDesktop simulates Win+Ctrl+F4 to close the current virtual desktop.
 func (a *PieButtonExecutionAdapter) CloseVirtualDesktop() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("f4")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("f4")
-	robotgo.KeyUp("ctrl")
-	robotgo.KeyUp("cmd")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+Ctrl+F4
+	err := robotgo.KeyTap("f4", "cmd", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // NextVirtualDesktop simulates Win+Ctrl+Right Arrow to switch to the next virtual desktop.
 func (a *PieButtonExecutionAdapter) NextVirtualDesktop() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("right")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("right")
-	robotgo.KeyUp("ctrl")
-	robotgo.KeyUp("cmd")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+Ctrl+Right
+	err := robotgo.KeyTap("right", "cmd", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // PreviousVirtualDesktop simulates Win+Ctrl+Left Arrow to switch to the previous virtual desktop.
 func (a *PieButtonExecutionAdapter) PreviousVirtualDesktop() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("ctrl")
-	robotgo.KeyDown("left")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("left")
-	robotgo.KeyUp("ctrl")
-	robotgo.KeyUp("cmd")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+Ctrl+Left
+	err := robotgo.KeyTap("left", "cmd", "ctrl")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // TaskView simulates Win+Tab to open Task View.
 func (a *PieButtonExecutionAdapter) TaskView() error {
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyDown("cmd")
-	robotgo.KeyDown("tab")
-	time.Sleep(50 * time.Millisecond)
-	robotgo.KeyUp("tab")
-	robotgo.KeyUp("cmd")
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
+	// Simulate Win+Tab
+	err := robotgo.KeyTap("tab", "cmd")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Fullscreen_F11 simulates pressing F11 to toggle fullscreen mode in most applications.
 func (a *PieButtonExecutionAdapter) Fullscreen_F11() error {
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
 	err := robotgo.KeyTap("f11")
 	if err != nil {
 		log.Error("[DEBUG] robotgo.KeyTap f11 failed: %v", err)
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
 	return nil
 }
 
 // MediaPrev simulates pressing the Previous Track media key twice to skip to the previous track.
 func (a *PieButtonExecutionAdapter) MediaPrev() error {
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
 	err := robotgo.KeyTap("audio_prev")
 	if err != nil {
 		log.Error("[DEBUG] robotgo.KeyTap audio_prev (first press) failed: %v", err)
@@ -244,43 +236,39 @@ func (a *PieButtonExecutionAdapter) MediaPrev() error {
 		log.Error("[DEBUG] robotgo.KeyTap audio_prev (second press) failed: %v", err)
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
 	return nil
 }
 
 // MediaNext simulates pressing the Next Track media key.
 func (a *PieButtonExecutionAdapter) MediaNext() error {
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
 	err := robotgo.KeyTap("audio_next")
 	if err != nil {
 		log.Error("[DEBUG] robotgo.KeyTap audio_next failed: %v", err)
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
 	return nil
 }
 
 // MediaPlayPause toggles play/pause using the media key (audio_play).
 func (a *PieButtonExecutionAdapter) MediaPlayPause() error {
-	time.Sleep(100 * time.Millisecond)
+	releaseAllModifiers()
 	err := robotgo.KeyTap("audio_play")
 	if err != nil {
 		log.Error("[DEBUG] robotgo.KeyTap audio_play failed: %v", err)
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
+	log.Debug("[DEBUG] robotgo.KeyTap audio_play successful")
 	return nil
 }
 
 // MediaToggleMute toggles mute using the media key (audio_mute).
 func (a *PieButtonExecutionAdapter) MediaToggleMute() error {
-	time.Sleep(100 * time.Millisecond)
 	err := robotgo.KeyTap("audio_mute")
 	if err != nil {
 		log.Error("[DEBUG] robotgo.KeyTap audio_mute failed: %v", err)
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
 	return nil
 }
 
