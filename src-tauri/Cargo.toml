@@ -1,6 +1,6 @@
 [package]
 name = "MightyPieRevamped"
-version = "1.0.1"
+version = "1.1.0"
 description = "Second iteration of a Window Switcher (and more) as a Pie / Radial Menu"
 authors = ["rayzorblade23"]
 edition = "2021"

@@ -43,7 +43,7 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			showProgramButtons, _, _, _, _, _ := a.separateButtonsByType(pageConfig)
+			showProgramButtons, _, _, _, _, _, _ := a.separateButtonsByType(pageConfig)
 			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, pageConfig)
 		}
 	}
@@ -56,7 +56,7 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			_, showAnyButtons, _, _, _, _ := a.separateButtonsByType(pageConfig)
+			_, showAnyButtons, _, _, _, _, _ := a.separateButtonsByType(pageConfig)
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
 			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, pageConfig)
 		}
@@ -107,7 +107,8 @@ func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 	launchProgram map[string]*Button,
 	functionCall map[string]*Button,
 	openPageInMenu map[string]*Button,
-	openResource map[string]*Button) {
+	openResource map[string]*Button,
+	keyboardShortcut map[string]*Button) {
 
 	showProgram = make(map[string]*Button)
 	showAny = make(map[string]*Button)
@@ -115,6 +116,7 @@ func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 	functionCall = make(map[string]*Button)
 	openPageInMenu = make(map[string]*Button)
 	openResource = make(map[string]*Button)
+	keyboardShortcut = make(map[string]*Button)
 
 	for btnID := range pageConfig {
 		// Create a pointer to the button *in the map* to allow modification by callers
@@ -133,6 +135,8 @@ func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
 			openPageInMenu[btnID] = &buttonPtr // Store pointer
 		case core.ButtonTypeOpenResource:
 			openResource[btnID] = &buttonPtr // Store pointer
+		case core.ButtonTypeKeyboardShortcut:
+			keyboardShortcut[btnID] = &buttonPtr // Store pointer
 		}
 	}
 	return

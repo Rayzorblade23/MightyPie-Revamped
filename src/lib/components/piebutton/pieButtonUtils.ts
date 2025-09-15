@@ -9,6 +9,7 @@ const borderClassMap: Record<ButtonType | 'default', string> = {
     [ButtonType.CallFunction]: 'border-[var(--color-accent-function)]',
     [ButtonType.OpenSpecificPieMenuPage]: 'border-[var(--color-accent-openpage)]',
     [ButtonType.OpenResource]: 'border-[var(--color-accent-resource)]',
+    [ButtonType.KeyboardShortcut]: 'border-[var(--color-accent-shortcut)]',
     [ButtonType.Disabled]: 'border-neutral-400 dark:border-gray-700',
     default: 'border-neutral-400 dark:border-grey-600',
 };

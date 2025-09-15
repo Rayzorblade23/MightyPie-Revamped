@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { onDestroy } from 'svelte';
+    import {onDestroy} from 'svelte';
     import StandardButton from '$lib/components/StandardButton.svelte';
 
-    let { isOpen, onCancel } = $props<{
+    let {isOpen, onCancel, errorMessage} = $props<{
         isOpen: boolean;
         onCancel: () => void;
+        errorMessage?: string | null;
     }>();
 
     function handleKeydown(event: KeyboardEvent) {
@@ -39,12 +40,19 @@
                 Shortcut
             </div>
             <div class="text-zinc-500 dark:text-zinc-300">Waiting for input...</div>
+
+            {#if errorMessage}
+                <div class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert" aria-live="assertive">
+                    {errorMessage}
+                </div>
+            {/if}
+
             <div class="flex justify-center mt-4">
                 <StandardButton
-                    label="Cancel"
-                    variant="primary"
-                    onClick={onCancel}
-                    style="margin-top: 1.5rem;"
+                        label="Cancel"
+                        variant="primary"
+                        onClick={onCancel}
+                        style="margin-top: 1.5rem;"
                 />
             </div>
         </div>

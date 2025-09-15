@@ -5,6 +5,7 @@ import {
     ButtonType,
     type CallFunctionProperties,
     type DisabledProperties,
+    type KeyboardShortcutProperties,
     type LaunchProgramProperties,
     type OpenResourceProperties,
     type OpenSpecificPieMenuPageProperties,
@@ -75,6 +76,15 @@ const BUTTON_PROPERTIES_MAP = {
             button_text_lower: "",
             icon_path: "",
         } as DisabledProperties,
+    },
+    [ButtonType.KeyboardShortcut]: {
+        button_type: ButtonType.KeyboardShortcut,
+        properties: {
+            button_text_upper: "ctrl+c",
+            button_text_lower: "",
+            icon_path: "tabler_icons\\keyboard.svg",
+            keys: "ctrl+c",
+        } as KeyboardShortcutProperties,
     }
 } as const;
 

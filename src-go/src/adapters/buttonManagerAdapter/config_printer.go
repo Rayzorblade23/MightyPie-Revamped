@@ -226,6 +226,18 @@ func PrintConfig(config ConfigData, shorten bool) { // Added 'shorten' parameter
 							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
 						)
 					}
+				case core.ButtonTypeKeyboardShortcut:
+					props, err := GetButtonProperties[core.KeyboardShortcut](button)
+					if err != nil {
+						log.Error("Failed to get props for KeyboardShortcut (P:%s M:%s B:%s) - %v", menuID, pageID, buttonIDStr, err)
+						buttonSpecificDetails = "<Error reading props>"
+					} else {
+						buttonSpecificDetails = formatProperties(
+							fmt.Sprintf("Name: '%s'", shortenString(props.ButtonTextUpper, maxTextDisplayLength, shorten)),
+							fmt.Sprintf("Keys: '%s'", props.Keys),
+							condStr(props.IconPath != "", fmt.Sprintf("Icon: '%s'", shortenPath(props.IconPath, maxPathDisplayLength, shorten))),
+						)
+					}
 				case core.ButtonTypeDisabled:
 					buttonSpecificDetails = "(Disabled)"
 				default:

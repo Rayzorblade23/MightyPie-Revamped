@@ -16,6 +16,7 @@ export enum ButtonType {
     OpenSpecificPieMenuPage = 'open_page_in_menu',
     OpenResource = 'open_resource',
     Disabled = 'disabled',
+    KeyboardShortcut = 'keyboard_shortcut',
 }
 
 // Button Interfaces
@@ -69,6 +70,13 @@ export interface OpenResourceProperties {
     resource_path: string;
 }
 
+export interface KeyboardShortcutProperties {
+    button_text_upper: string; // display name
+    button_text_lower: string; // empty string
+    icon_path: string;
+    keys: string; // keyboard shortcut string like "ctrl+c", "alt+tab", etc.
+}
+
 export type Button =
     | { button_type: ButtonType.ShowProgramWindow; properties: ShowProgramWindowProperties }
     | { button_type: ButtonType.ShowAnyWindow; properties: ShowAnyWindowProperties }
@@ -76,7 +84,8 @@ export type Button =
     | { button_type: ButtonType.LaunchProgram; properties: LaunchProgramProperties }
     | { button_type: ButtonType.Disabled; properties: DisabledProperties }
     | { button_type: ButtonType.OpenSpecificPieMenuPage; properties: OpenSpecificPieMenuPageProperties }
-    | { button_type: ButtonType.OpenResource; properties: OpenResourceProperties };
+    | { button_type: ButtonType.OpenResource; properties: OpenResourceProperties }
+    | { button_type: ButtonType.KeyboardShortcut; properties: KeyboardShortcutProperties };
 
 export type ButtonPropertiesUnion =
     | ShowProgramWindowProperties
@@ -85,7 +94,8 @@ export type ButtonPropertiesUnion =
     | LaunchProgramProperties
     | OpenSpecificPieMenuPageProperties
     | DisabledProperties
-    | OpenResourceProperties;
+    | OpenResourceProperties
+    | KeyboardShortcutProperties;
 
 // Represents the raw JSON structure: { "menuID": { "pageID": { "buttonID": ButtonData, ... }, ... }, ... }
 export type MenuConfigData = Record<string, Record<string, Record<string, ButtonData>>>;

@@ -285,6 +285,23 @@ func (a *PieButtonExecutionAdapter) handleOpenResource(executionInfo *pieButtonE
 	return nil
 }
 
+func (a *PieButtonExecutionAdapter) handleKeyboardShortcut(executionInfo *pieButtonExecute_Message) error {
+	var shortcutProps core.KeyboardShortcut
+	if err := unmarshalProperties(executionInfo.Properties, &shortcutProps); err != nil {
+		return fmt.Errorf("failed to process properties for keyboard_shortcut: %w", err)
+	}
+
+	log.Info("Button %d - Action: KeyboardShortcut - ClickType: %s", executionInfo.ButtonIndex, executionInfo.ClickType)
+	log.Info("↳ Keys: %s", shortcutProps.Keys)
+
+	// Only respond to left-click
+	if executionInfo.ClickType == ClickTypeLeftUp {
+		return a.executeKeyboardShortcut(shortcutProps.Keys)
+	}
+	
+	return nil
+}
+
 // unmarshalProperties safely converts the generic properties map into a specific struct.
 func unmarshalProperties(props any, target any) error {
 	// Convert the properties to JSON and then unmarshal into the target struct

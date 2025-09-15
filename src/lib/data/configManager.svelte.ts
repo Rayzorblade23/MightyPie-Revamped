@@ -7,6 +7,7 @@ import {
     type ButtonsOnPageMap,
     ButtonType,
     type CallFunctionProperties,
+    type KeyboardShortcutProperties,
     type LaunchProgramProperties,
     type MenuConfigData,
     type OpenResourceProperties,
@@ -261,6 +262,13 @@ function convertToButton(
                 return getDefaultButton(ButtonType.Disabled);
             }
             return {button_type, properties: properties as OpenResourceProperties};
+
+        case ButtonType.KeyboardShortcut:
+            if (!properties) {
+                logger.warn(createLogMessage("Properties missing"));
+                return getDefaultButton(ButtonType.Disabled);
+            }
+            return {button_type, properties: properties as KeyboardShortcutProperties};
 
         case ButtonType.Disabled:
             return getDefaultButton(ButtonType.Disabled);

@@ -395,3 +395,135 @@ func (a *PieButtonExecutionAdapter) FuzzySearch() error {
 	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "fuzzySearch")
 	return nil
 }
+
+// executeKeyboardShortcut parses and executes a keyboard shortcut string.
+// The keys string can contain combinations like "ctrl+c", "alt+tab", "win+d", etc.
+func (a *PieButtonExecutionAdapter) executeKeyboardShortcut(keys string) error {
+	if keys == "" {
+		return fmt.Errorf("empty keyboard shortcut")
+	}
+
+	log.Info("Executing keyboard shortcut: %s", keys)
+	
+	// Release any currently held modifiers before executing the shortcut
+	releaseAllModifiers()
+	
+	// Parse the keys string and execute the shortcut
+	return parseAndExecuteShortcut(keys)
+}
+
+// parseAndExecuteShortcut parses a keyboard shortcut string and executes it using robotgo.
+// Supports combinations like "ctrl+c", "alt+tab", "win+d", "ctrl+shift+n", etc.
+func parseAndExecuteShortcut(keys string) error {
+	if keys == "" {
+		return fmt.Errorf("empty shortcut string")
+	}
+
+	// Convert to lowercase for consistent parsing
+	keys = strings.ToLower(strings.TrimSpace(keys))
+	
+	// Split by '+' to get individual keys
+	keyParts := strings.Split(keys, "+")
+	if len(keyParts) == 0 {
+		return fmt.Errorf("invalid shortcut format: %s", keys)
+	}
+
+	// Separate modifiers from the main key
+	var modifiers []string
+	var mainKey string
+	
+	for i, part := range keyParts {
+		part = strings.TrimSpace(part)
+		if i == len(keyParts)-1 {
+			// Last part is the main key
+			mainKey = part
+		} else {
+			// All other parts are modifiers
+			modifiers = append(modifiers, normalizeModifier(part))
+		}
+	}
+
+	if mainKey == "" {
+		return fmt.Errorf("no main key found in shortcut: %s", keys)
+	}
+
+	// Normalize the main key
+	mainKey = normalizeKey(mainKey)
+
+	// Execute the keyboard shortcut
+	log.Debug("Executing shortcut - Main key: %s, Modifiers: %v", mainKey, modifiers)
+	
+	// Convert []string to []interface{} for robotgo.KeyTap
+	modifierInterfaces := make([]interface{}, len(modifiers))
+	for i, mod := range modifiers {
+		modifierInterfaces[i] = mod
+	}
+	
+	var err error
+	if len(modifierInterfaces) > 0 {
+		err = robotgo.KeyTap(mainKey, modifierInterfaces...)
+	} else {
+		err = robotgo.KeyTap(mainKey)
+	}
+	
+	if err != nil {
+		return fmt.Errorf("failed to execute keyboard shortcut '%s': %w", keys, err)
+	}
+
+	return nil
+}
+
+// normalizeModifier converts modifier names to robotgo-compatible format
+func normalizeModifier(modifier string) string {
+	switch modifier {
+	case "ctrl", "control":
+		return "ctrl"
+	case "alt":
+		return "alt"
+	case "shift":
+		return "shift"
+	case "win", "windows", "cmd", "super":
+		return "cmd" // robotgo uses "cmd" for Windows key
+	default:
+		return modifier
+	}
+}
+
+// normalizeKey converts key names to robotgo-compatible format
+func normalizeKey(key string) string {
+	switch key {
+	case "space", "spacebar":
+		return "space"
+	case "enter", "return":
+		return "enter"
+	case "tab":
+		return "tab"
+	case "esc", "escape":
+		return "escape"
+	case "backspace", "back":
+		return "backspace"
+	case "delete", "del":
+		return "delete"
+	case "home":
+		return "home"
+	case "end":
+		return "end"
+	case "pageup", "pgup":
+		return "pageup"
+	case "pagedown", "pgdn":
+		return "pagedown"
+	case "up", "uparrow":
+		return "up"
+	case "down", "downarrow":
+		return "down"
+	case "left", "leftarrow":
+		return "left"
+	case "right", "rightarrow":
+		return "right"
+	case "insert", "ins":
+		return "insert"
+	default:
+		// For function keys, letters, numbers, and other keys, return as-is
+		return key
+	}
+}

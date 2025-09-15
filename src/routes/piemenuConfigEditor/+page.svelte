@@ -33,9 +33,10 @@
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_ABORT,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_CAPTURE,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT
     } from "$env/static/public";
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import type {PieMenuConfig, ShortcutEntry, ShortcutsMap} from '$lib/data/types/piemenuConfigTypes.ts';
@@ -75,6 +76,23 @@
         getCurrentWindow().show();
     });
 
+    // Also listen for button-abort at page level to force-close the dialog state
+    const subscription_button_abort = useNatsSubscription(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT, (_msg: string) => {
+        logger.debug('Button shortcut ABORT received at page level');
+        isButtonShortcutDialogOpen = false;
+        buttonShortcutErrorMessage = null;
+    });
+
+    // Track page-level button abort subscription status/errors
+    $effect(() => {
+        if (subscription_button_abort.status === "subscribed") {
+            logger.debug("NATS subscription_button_abort ready.");
+        }
+        if (subscription_button_abort.error) {
+            logger.error("NATS subscription_button_abort error:", subscription_button_abort.error);
+        }
+    });
+
     $effect(() => {
         (async () => {
             try {
@@ -100,6 +118,8 @@
     let sortedPagesForSelectedMenu = $state<[number, ButtonsOnPageMap][]>([]);
     let showRemoveMenuDialog = $state(false);
     let isShortcutDialogOpen = $state(false);
+    let isButtonShortcutDialogOpen = $state(false);
+    let buttonShortcutErrorMessage = $state<string | null>(null);
     let shortcutLabels = $derived.by(() => {
         const labels: Record<number, string> = {};
         const sc = editorPieMenuConfig?.shortcuts || {};
@@ -117,7 +137,7 @@
     let lastTrackedMenuID: number | undefined = undefined;
 
     // Listen for live shortcut capture updates from the backend capture adapter and stage them in local editor state
-    const subscription_shortcutsetter_update = useNatsSubscription(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_UPDATE, (msg: string) => {
+    const subscription_shortcutsetter_update = useNatsSubscription(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE, (msg: string) => {
         logger.debug('ShortcutSetter UPDATE raw message:', msg);
         try {
             const obj = JSON.parse(msg) as ShortcutsMap;
@@ -483,7 +503,7 @@
                     (active as HTMLElement).blur();
                     return;
                 }
-                if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen || showBackupCreatedDialog) return;
+                if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen || isButtonShortcutDialogOpen || showBackupCreatedDialog) return;
                 // Use the same logic as Discard Changes button for unsaved changes
                 if (undoHistory.length === 0) {
                     goto('/');
@@ -509,7 +529,7 @@
     /** Close the shortcut dialog and abort shortcut recording. */
     function closeShortcutDialog() {
         isShortcutDialogOpen = false;
-        publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_ABORT, {});
+        publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_ABORT, {});
     }
 
     /** Handle menu tab selection. */
@@ -682,7 +702,7 @@
             pushUndoState();
             // NOTE: Currently starts backend capture; if we fully move to in-memory-only staging,
             // we will replace this with a local capture mechanism and NOT publish.
-            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_CAPTURE, {index: selectedMenuID});
+            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_CAPTURE, {index: selectedMenuID});
             logger.log("Published shortcut setter update for menu index:", selectedMenuID);
             isShortcutDialogOpen = true;
         }
@@ -710,6 +730,7 @@
         [ButtonType.LaunchProgram]: "Launch Program",
         [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
         [ButtonType.OpenResource]: "Open Resource",
+        [ButtonType.KeyboardShortcut]: "Keyboard Shortcut",
         [ButtonType.Disabled]: "Disabled",
     };
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
@@ -807,6 +828,16 @@
     // Editor config is owned by this page and should not be continuously reloaded or fall back to live config.
 </script>
 
+<!-- Page-level overlay dialogs (avoid parent transparency) -->
+<SetShortcutDialog
+        isOpen={isButtonShortcutDialogOpen}
+        onCancel={() => {
+            isButtonShortcutDialogOpen = false;
+            publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT, {});
+        }}
+        errorMessage={buttonShortcutErrorMessage}
+/>
+
 <div class="w-full h-screen p-1">
     <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-t-3xl rounded-b-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)]">
         <!-- --- Title Bar --- -->
@@ -860,12 +891,13 @@
                                                         class:border-zinc-300={!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop}
                                                         onclick={() => {
                                                     if (!selectedButtonDetails || selectedButtonDetails.menuID !== currentMenuIDForCallback || selectedButtonDetails.pageID !== pageIDOfLoop) {
+                                                        const button: Button = buttonsOnPage.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow);
                                                         selectedButtonDetails = {
                                                             menuID: currentMenuIDForCallback,
                                                             pageID: pageIDOfLoop,
                                                             buttonID: 0,
                                                             slotIndex: 0,
-                                                            button: buttonsOnPage.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow)
+                                                            button: button
                                                         };
                                                     }
                                                  }}
@@ -910,6 +942,8 @@
                                             selectedButtonDetails={selectedButtonDetails}
                                             onConfigChange={handleButtonConfigUpdate}
                                             menuConfig={editorButtonsConfig}
+                                            bind:isButtonShortcutDialogOpen={isButtonShortcutDialogOpen}
+                                            bind:buttonShortcutErrorMessage={buttonShortcutErrorMessage}
                                     />
                                 {:else}
                                     <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">

@@ -117,6 +117,9 @@ func (a *PieButtonExecutionAdapter) executeCommand(executionInfo *pieButtonExecu
 	case core.ButtonTypeLaunchProgram:
 		log.Info("Button %d - Launching program: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
 		return a.handleLaunchProgram(executionInfo)
+	case core.ButtonTypeKeyboardShortcut:
+		log.Info("Button %d - Executing keyboard shortcut: %s", executionInfo.ButtonIndex, executionInfo.ButtonType)
+		return a.handleKeyboardShortcut(executionInfo)
 	case core.ButtonTypeDisabled:
 		log.Info("Button %d is disabled, doing nothing.", executionInfo.ButtonIndex)
 		return nil // Nothing to do for disabled buttons

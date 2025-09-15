@@ -13,6 +13,7 @@
     import ShowProgramButtonConfig from './buttonConfigs/ShowProgramButtonConfig.svelte'; // New
     import OpenPageButtonConfig from './buttonConfigs/OpenPageButtonConfig.svelte';
     import OpenResourceButtonConfig from './buttonConfigs/OpenResourceButtonConfig.svelte';
+    import KeyboardShortcutButtonConfig from './buttonConfigs/KeyboardShortcutButtonConfig.svelte';
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
 
     // Create a logger for this component
@@ -21,7 +22,9 @@
     let {
         selectedButtonDetails,
         onConfigChange,
-        menuConfig
+        menuConfig,
+        isButtonShortcutDialogOpen = $bindable(),
+        buttonShortcutErrorMessage = $bindable<string | null>(null)
     } = $props<{
         selectedButtonDetails: {
             menuID: number; pageID: number; buttonID: number; slotIndex: number; button: Button;
@@ -30,6 +33,8 @@
             menuID: number; pageID: number; buttonID: number; newButton: Button;
         }) => void;
         menuConfig: any;
+        isButtonShortcutDialogOpen?: boolean;
+        buttonShortcutErrorMessage?: string | null;
     }>();
 
     // Data sources, passed down
@@ -50,6 +55,7 @@
         [ButtonType.LaunchProgram]: "Launch Program",
         [ButtonType.OpenSpecificPieMenuPage]: "Open Page",
         [ButtonType.OpenResource]: "Open Resource",
+        [ButtonType.KeyboardShortcut]: "Keyboard Shortcut",
         [ButtonType.Disabled]: "Disabled",
     };
 
@@ -61,6 +67,7 @@
         [ButtonType.LaunchProgram]: "Launches a program from the list of installed applications.",
         [ButtonType.OpenSpecificPieMenuPage]: "Opens any page in any menu.\nDisplays a custom text label.",
         [ButtonType.OpenResource]: "Opens a file or folder specified by the resource path, using the default application.\nDisplays a custom text label.",
+        [ButtonType.KeyboardShortcut]: "Executes a keyboard shortcut when clicked.\n\nSupports combinations like 'ctrl+c', 'alt+tab', 'win+d', etc.\nLeft-click executes the keyboard shortcut.",
         [ButtonType.Disabled]: "This button is disabled and will not perform any action when clicked.",
     };
 
@@ -241,6 +248,13 @@
                 <OpenPageButtonConfig button={button} menuConfig={menuConfig} onUpdate={handleButtonChange}/>
             {:else if currentButtonTypeValue === ButtonType.OpenResource}
                 <OpenResourceButtonConfig button={button} onUpdate={handleButtonChange}/>
+            {:else if currentButtonTypeValue === ButtonType.KeyboardShortcut}
+                <KeyboardShortcutButtonConfig
+                    button={button}
+                    onUpdate={handleButtonChange}
+                    bind:isDialogOpen={isButtonShortcutDialogOpen}
+                    bind:errorMessage={buttonShortcutErrorMessage}
+                />
             {:else if button.button_type !== ButtonType.Disabled}
                 <p class="text-zinc-600 dark:text-zinc-300 mt-2">
                     {getFriendlyButtonTypeName(button.button_type)} has no other specific properties to configure here.

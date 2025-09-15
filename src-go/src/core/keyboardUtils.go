@@ -42,17 +42,17 @@ func GetMousePosition() (int, int, error) {
 }
 
 type POINT struct {
-    X int32
-    Y int32
+	X int32
+	Y int32
 }
 
 type MSG struct {
-    Hwnd   uintptr
-    Msg    uint32
-    WParam uintptr
-    LParam uintptr
-    Time   uint32
-    Pt     POINT
+	Hwnd   uintptr
+	Msg    uint32
+	WParam uintptr
+	LParam uintptr
+	Time   uint32
+	Pt     POINT
 }
 
 const (
@@ -97,10 +97,10 @@ type HARDWAREINPUT struct {
 }
 
 type INPUT struct {
-	Type    uint32
-	_       [4]byte    // explicit padding to align Ki to 8-byte boundary (x64)
-	Ki      KEYBDINPUT // 24 bytes
-	_       [8]byte    // explicit padding to reach 40 bytes total (Windows x64 expects sizeof(INPUT)==40)
+	Type uint32
+	_    [4]byte    // explicit padding to align Ki to 8-byte boundary (x64)
+	Ki   KEYBDINPUT // 24 bytes
+	_    [8]byte    // explicit padding to reach 40 bytes total (Windows x64 expects sizeof(INPUT)==40)
 }
 
 var (
@@ -136,17 +136,17 @@ var (
 	PostQuitMessage     = User32.NewProc("PostQuitMessage")
 
 	// Keyboard/Mouse state - ADD THESE
-	GetKeyState        = User32.NewProc("GetKeyState")
-	GetCursorPos       = User32.NewProc("GetCursorPos")
+	GetKeyState  = User32.NewProc("GetKeyState")
+	GetCursorPos = User32.NewProc("GetCursorPos")
 
 	// Clipboard
-	OpenClipboard      = User32.NewProc("OpenClipboard")
-	CloseClipboard     = User32.NewProc("CloseClipboard")
+	OpenClipboard  = User32.NewProc("OpenClipboard")
+	CloseClipboard = User32.NewProc("CloseClipboard")
 
 	// Message loop - ADD/MODIFY THESE
-	GetMessage          = User32.NewProc("GetMessageW")
-	TranslateMessage   = User32.NewProc("TranslateMessage")
-	DispatchMessage    = User32.NewProc("DispatchMessageW")
+	GetMessage       = User32.NewProc("GetMessageW")
+	TranslateMessage = User32.NewProc("TranslateMessage")
+	DispatchMessage  = User32.NewProc("DispatchMessageW")
 )
 
 var KeyMap = map[string]int{
@@ -190,33 +190,118 @@ var KeyMap = map[string]int{
 	"Right": 0x27,
 
 	// Special keys
-	"Esc":       0x1B,
-	"Tab":       0x09,
-	"CapsLock":  0x14,
-	"Space":     0x20,
-	"Enter":     0x0D,
-	"Backspace": 0x08,
-	"Delete":    0x2E,
-	"Insert":    0x2D,
-	"Home":      0x24,
-	"End":       0x23,
-	"PageUp":    0x21,
-	"PageDown":  0x22,
+	"Esc":         0x1B,
+	"Tab":         0x09,
+	"CapsLock":    0x14,
+	"Space":       0x20,
+	"Enter":       0x0D,
+	"Backspace":   0x08,
+	"Delete":      0x2E,
+	"Insert":      0x2D,
+	"Home":        0x24,
+	"End":         0x23,
+	"PageUp":      0x21,
+	"PageDown":    0x22,
+	"PrintScreen": 0x2C,
+	"ScrollLock":  0x91,
+	"Pause":       0x13,
 
 	// Media keys
-	"VolumeMute":      0xAD, // VK_VOLUME_MUTE
-	"VolumeDown":      0xAE, // VK_VOLUME_DOWN
-	"VolumeUp":        0xAF, // VK_VOLUME_UP
-	"MediaNext":       0xB0, // VK_MEDIA_NEXT_TRACK
-	"MediaPrevious":   0xB1, // VK_MEDIA_PREV_TRACK
-	"MediaStop":       0xB2, // VK_MEDIA_STOP
-	"MediaPlayPause":  0xB3, // VK_MEDIA_PLAY_PAUSE
-	"MediaSelect":     0xB5, // VK_LAUNCH_MEDIA_SELECT
+	"VolumeMute":     0xAD, // VK_VOLUME_MUTE
+	"VolumeDown":     0xAE, // VK_VOLUME_DOWN
+	"VolumeUp":       0xAF, // VK_VOLUME_UP
+	"MediaNext":      0xB0, // VK_MEDIA_NEXT_TRACK
+	"MediaPrevious":  0xB1, // VK_MEDIA_PREV_TRACK
+	"MediaStop":      0xB2, // VK_MEDIA_STOP
+	"MediaPlayPause": 0xB3, // VK_MEDIA_PLAY_PAUSE
+	"MediaSelect":    0xB5, // VK_LAUNCH_MEDIA_SELECT
 
 	// Symbols
 	"Semicolon": 0xBA, "Equal": 0xBB, "Comma": 0xBC,
 	"Minus": 0xBD, "Period": 0xBE, "Slash": 0xBF,
 	"Backtick": 0xC0, "BracketOpen": 0xDB,
 	"Backslash": 0xDC, "BracketClose": 0xDD,
-	"Quote": 0xDE,
+	"Quote": 0xDE, "<": 0xE2,
+}
+
+// RobotGoKeyName maps our canonical key names (as used in KeyMap) to RobotGo-compatible key tokens.
+// If a key is not present here, callers should fallback to a sensible default (e.g., strings.ToLower of the name)
+// or a vendor-specific representation like "vk_<code>".
+var RobotGoKeyName = map[string]string{
+	// Modifiers
+	"Shift": "shift",
+	"Ctrl":  "ctrl",
+	"Alt":   "alt",
+	"Win":   "cmd", // RobotGo uses "cmd" on Windows for the Win key
+
+	// Letters
+	"A": "a", "B": "b", "C": "c", "D": "d", "E": "e",
+	"F": "f", "G": "g", "H": "h", "I": "i", "J": "j",
+	"K": "k", "L": "l", "M": "m", "N": "n", "O": "o",
+	"P": "p", "Q": "q", "R": "r", "S": "s", "T": "t",
+	"U": "u", "V": "v", "W": "w", "X": "x", "Y": "y",
+	"Z": "z",
+
+	// Numbers (top row)
+	"0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+	"5": "5", "6": "6", "7": "7", "8": "8", "9": "9",
+
+	// Function keys
+	"F1": "f1", "F2": "f2", "F3": "f3", "F4": "f4",
+	"F5": "f5", "F6": "f6", "F7": "f7", "F8": "f8",
+	"F9": "f9", "F10": "f10", "F11": "f11", "F12": "f12",
+	"F13": "f13", "F14": "f14", "F15": "f15", "F16": "f16",
+	"F17": "f17", "F18": "f18", "F19": "f19", "F20": "f20",
+	"F21": "f21", "F22": "f22", "F23": "f23", "F24": "f24",
+
+	// Arrow keys
+	"Up": "up", "Down": "down", "Left": "left", "Right": "right",
+
+	// Special keys
+	"Esc":         "escape",
+	"Tab":         "tab",
+	"CapsLock":    "capslock",
+	"Space":       "space",
+	"Enter":       "enter",
+	"Backspace":   "backspace",
+	"Delete":      "delete",
+	"Insert":      "insert",
+	"Home":        "home",
+	"End":         "end",
+	"PageUp":      "pageup",
+	"PageDown":    "pagedown",
+	"PrintScreen": "printscreen",
+
+	// Numpad keys (RobotGo expects explicit num- prefixed tokens)
+	"Num0": "num0", "Num1": "num1", "Num2": "num2", "Num3": "num3",
+	"Num4": "num4", "Num5": "num5", "Num6": "num6", "Num7": "num7",
+	"Num8": "num8", "Num9": "num9",
+	"NumLock":  "num_lock",
+	"Divide":   "num/",
+	"Multiply": "num*",
+	"Subtract": "num-",
+	"Add":      "num+",
+	"Decimal":  "num.",
+
+	// Media keys
+	"VolumeMute":     "audio_mute",
+	"VolumeDown":     "audio_vol_down",
+	"VolumeUp":       "audio_vol_up",
+	"MediaNext":      "audio_next",
+	"MediaPrevious":  "audio_prev",
+	"MediaStop":      "audio_stop",
+	"MediaPlayPause": "audio_play", // or "audio_pause" depending on desired action
+
+	// Symbols/punctuation
+	"Semicolon":    ";",
+	"Equal":        "=",
+	"Comma":        ",",
+	"Minus":        "-",
+	"Period":       ".",
+	"Slash":        "/",
+	"Backtick":     "`",
+	"BracketOpen":  "[",
+	"Backslash":    "\\",
+	"BracketClose": "]",
+	"Quote":        "'",
 }

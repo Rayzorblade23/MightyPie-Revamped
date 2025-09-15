@@ -364,6 +364,14 @@ func validateButtonProperties(button Button) bool {
 		}
 		return true
 
+	case "keyboard_shortcut":
+		var props core.KeyboardShortcut
+		if err := json.Unmarshal(button.Properties, &props); err != nil {
+			log.Warn("Failed to unmarshal KeyboardShortcut: %v", err)
+			return false
+		}
+		return true
+
 	case "disabled":
 		// Disabled buttons don't need specific properties
 		return true
