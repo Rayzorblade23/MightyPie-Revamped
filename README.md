@@ -74,6 +74,7 @@ Pages with eight configurable buttons each.
 | **Call Function**                           | Executes handy functions from the available functions list, i.e. Play, Pause, Maximize under cursor etc.                                                                                                                                  |
 | **Open specific Page in Pie Menu** _(new!)_ | Opens any existing page you choose in any menu. You can assign it a custom text label.                                                                                                                                                    |
 | **Open Resource** _(new!)_                  | Opens any file or folder you choose (using the default application). You can assign it a custom text label as well.                                                                                                                       |
+| **Keyboard Shortcut** _(new!)_              | Executes a keyboard shortcut. (valid keys can be found [here](assets/KeyboardShortcutButton-ValidKeys.md))                                                                                                                                |
 
 ### **Quick Menu:**
 
@@ -200,22 +201,23 @@ For more info on the _Settings_ menu and _Quick Menu_ see the [Features](#featur
 ## Known Issues / Limitations
 
 - Sometimes a window is not being focused first try. I think it works more reliably than in the original _MightyPie_ but
-  it's still not a
-  100%. At this point I assume it is a quirk of Windows.
+  it's still not a 100%. At this point I assume it is a quirk of Windows.
 
 
-- Some of the functions that can be used with the Function Call buttons use keyboard input simulation, i.e. _Open
-  Clipboard_ (`Win + V`), _Copy_ (`Ctrl + C`) etc. So if you use a keyboard shortcut for opening your Pie Menu that uses
-  modifiers (like `Alt`, `Ctrl`, `Win`, `Shift`) and try to **drag-select** the button, the action is likely to fail,
-  since
-  all the modifiers interfere and break the intended shortcut for the function.
+- The keys that the _Keyboard Shortcut_ button can execute are more limited than the ones that can be
+  assigned to open Pie Menus (see the Note above). You can find the list of valid keys for the _Keyboard Shortcut_
+  button [here](assets/KeyboardShortcutButton-ValidKeys.md).
 
-  Example: Your Pie Menu shortcut is `Shift + Alt + F1`. You try to drag-select the button for _Copy_.
-  `Ctrl + C` should be executed but effectively `Ctrl + Shift + Alt + C` will be pressed).
 
-  It might work, if you're quick to release the
-  modifiers, since there is a small delay in the execution of those buttons. In any case, it should work if you select
-  the button via normal left-click, instead of drag-selecting it.
+- Application icons are sometimes not displayed, and display a warning symbol as a placeholder. This can happen when...
+    - ... a config is loaded that has an outdated icon path (should be fixed when you leave the menu)
+    - ... an application update changed it's exe path (should be fixed on re-starting the app)
+    - ... the application has just been installed (should be fixed on re-starting the app)
+
+
+- Very rarely, Pie Menu keyboard shortcuts stop working. This is usually fixed when opening the Pie Menu Config via the
+  tray
+  icon. Please let me know if you experience this issue.
 
 ## Advanced Usage
 
