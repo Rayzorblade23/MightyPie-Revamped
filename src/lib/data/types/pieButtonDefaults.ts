@@ -80,7 +80,7 @@ const BUTTON_PROPERTIES_MAP = {
     [ButtonType.KeyboardShortcut]: {
         button_type: ButtonType.KeyboardShortcut,
         properties: {
-            button_text_upper: "ctrl+c",
+            button_text_upper: "Ctrl + C",
             button_text_lower: "",
             icon_path: "tabler_icons\\keyboard.svg",
             keys: "ctrl+c",
