@@ -41,6 +41,7 @@
     let settings = $state<SettingsMap>(cloneSettings(getSettings()));
     let currentWindow: Window | null = null;
     let appVersion = $state<string>("");
+    let logLevel = $state<string>("");
 
     // Autostart state (managed separately from settings)
     let autoStartEnabled = $state<boolean | null>(null);
@@ -102,6 +103,14 @@
                 appVersion = await getVersion();
             } catch (e) {
                 logger.error('Failed to get app version:', e);
+            }
+            try {
+                // Retrieve current log level from backend
+                const {invoke} = await import('@tauri-apps/api/core');
+                const level = await invoke<string>('get_log_level');
+                logLevel = (level || '').toString();
+            } catch (e) {
+                logger.error('Failed to get log level:', e);
             }
             try {
                 // Get the buttonFunctions.json parsed data using the utility function
@@ -524,6 +533,9 @@
                 <div class="text-xs text-zinc-600 dark:text-zinc-400 select-none">
                     {#if appVersion}
                         v{appVersion}
+                        {#if logLevel && (logLevel || '').toLowerCase() !== 'info'}
+                            <span class="whitespace-nowrap">&nbsp;(Log level: {(logLevel || '').slice(0,1).toUpperCase() + (logLevel || '').slice(1).toLowerCase()})</span>
+                        {/if}
                     {/if}
                 </div>
                 <div class="flex flex-row items-center gap-2">
