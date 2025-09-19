@@ -238,3 +238,9 @@ func newDefaultButtons() ConfigData {
     }
     return buttons
 }
+
+// Run keeps the adapter process alive if needed (e.g., for NATS subscriptions)
+func (a *Adapter) Run() error {
+    log.Info("PieMenuConfigManager running.")
+    select {}
+}
