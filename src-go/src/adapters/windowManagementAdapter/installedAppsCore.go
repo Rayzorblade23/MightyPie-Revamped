@@ -25,7 +25,6 @@ const (
 const (
 	DisneyPlusPattern = "Disney."
 	NetflixPattern    = ".Netflix"
-	YTMusicPattern    = "music.youtube"
 )
 
 // Filtering lists
@@ -44,9 +43,10 @@ var (
 	whitelistKeywords = []string{"sleepington"} // Example: Keep "Sleepington Updater"
 
 	systemApps = map[string]string{
-		"explorer.exe": "Windows Explorer",
-		"taskmgr.exe":  "Task Manager",
-		"cmd.exe":      "Command Prompt",
+		"explorer.exe":        "Windows Explorer",
+		"taskmgr.exe":         "Task Manager",
+		"cmd.exe":             "Command Prompt",
+		"windowsterminal.exe": "Terminal",
 	}
 )
 
@@ -201,6 +201,14 @@ func normalizeAppName(name string) string {
 // --- Executable Selection Heuristic ---
 
 func selectPrimaryExecutable(appName string, exePaths []string) string {
+	// Guarantee hardcoded exe selection for system apps
+	for _, p := range exePaths {
+		exeName := strings.ToLower(filepath.Base(p))
+		if _, ok := systemApps[exeName]; ok {
+			return p
+		}
+	}
+
 	if len(exePaths) == 0 {
 		return ""
 	}
@@ -221,8 +229,7 @@ func selectPrimaryExecutable(appName string, exePaths []string) string {
 
 	normalizedAppNameBase := normalizeAppName(appName)
 	bestCandidate := ""
-	shortestMatchLen := -1
-
+	
 	// 1. Prefer exact name match
 	for _, p := range candidates {
 		exeNameOnly := strings.TrimSuffix(strings.ToLower(filepath.Base(p)), ".exe")
@@ -231,24 +238,22 @@ func selectPrimaryExecutable(appName string, exePaths []string) string {
 		}
 	}
 
-	// 2. Prefer name containment (shortest path wins tie)
+	// 2. Prefer containment in either direction
 	for _, p := range candidates {
 		exeNameOnly := strings.TrimSuffix(strings.ToLower(filepath.Base(p)), ".exe")
-		if strings.Contains(exeNameOnly, normalizedAppNameBase) {
-			if bestCandidate == "" || len(p) < shortestMatchLen {
-				bestCandidate = p
-				shortestMatchLen = len(p)
-			}
+		if strings.Contains(exeNameOnly, normalizedAppNameBase) || strings.Contains(normalizedAppNameBase, exeNameOnly) {
+			return p
 		}
 	}
 
-	// 3. Fallback to shortest path overall if no name match found
-	if bestCandidate == "" {
-		bestCandidate = candidates[0]
-		for _, p := range candidates[1:] {
-			if len(p) < len(bestCandidate) {
-				bestCandidate = p
-			}
+	// 3. Fallback to shortest path overall if no name/containment match found
+	if len(candidates) > 1 {
+		log.Debug("[ExeSelect] No name or containment match for app '%s' (normalized: '%s'), candidates: %v", appName, normalizedAppNameBase, candidates)
+	}
+	bestCandidate = candidates[0]
+	for _, p := range candidates[1:] {
+		if len(p) < len(bestCandidate) {
+			bestCandidate = p
 		}
 	}
 	return bestCandidate
@@ -568,8 +573,7 @@ func findUWPExecutables(installLocation string) []string {
 func processStartMenuEntry(name, appid string, packageLocations map[string]string) *AppEntry {
 	// Check for web apps first by their package patterns
 	if strings.Contains(appid, DisneyPlusPattern) ||
-		strings.Contains(appid, NetflixPattern) ||
-		strings.Contains(appid, YTMusicPattern) {
+		strings.Contains(appid, NetflixPattern) {
 		return &AppEntry{
 			Name: name,
 			Path: fmt.Sprintf("shell:AppsFolder\\%s", appid), // Store the URI as path
