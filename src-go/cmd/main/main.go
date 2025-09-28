@@ -430,8 +430,8 @@ func runWorker(workerType string) {
 		shortcutSetterAdapter := shortcutSetterAdapter.New(natsAdapter)
 		shortcutSetterAdapter.Run()
 	case "piemenuConfigManager":
-		_ = piemenuConfigManager.New(natsAdapter)
-		select {}
+		piemenuConfigManagerAdapter := piemenuConfigManager.New(natsAdapter)
+		piemenuConfigManagerAdapter.Run()
 	case "windowManager":
 		windowManagement, err := windowManagementAdapter.New(natsAdapter)
 		if err != nil {

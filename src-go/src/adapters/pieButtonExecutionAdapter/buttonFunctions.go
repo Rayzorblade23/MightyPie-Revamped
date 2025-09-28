@@ -439,7 +439,7 @@ func parseAndExecuteShortcut(keys string) error {
 			mainKey = part
 		} else {
 			// All other parts are modifiers
-			modifiers = append(modifiers, normalizeModifier(part))
+			modifiers = append(modifiers, part)
 		}
 	}
 
@@ -447,14 +447,11 @@ func parseAndExecuteShortcut(keys string) error {
 		return fmt.Errorf("no main key found in shortcut: %s", keys)
 	}
 
-	// Normalize the main key
-	mainKey = normalizeKey(mainKey)
-
 	// Execute the keyboard shortcut
 	log.Debug("Executing shortcut - Main key: %s, Modifiers: %v", mainKey, modifiers)
 	
 	// Convert []string to []interface{} for robotgo.KeyTap
-	modifierInterfaces := make([]interface{}, len(modifiers))
+	modifierInterfaces := make([]any, len(modifiers))
 	for i, mod := range modifiers {
 		modifierInterfaces[i] = mod
 	}
@@ -471,59 +468,4 @@ func parseAndExecuteShortcut(keys string) error {
 	}
 
 	return nil
-}
-
-// normalizeModifier converts modifier names to robotgo-compatible format
-func normalizeModifier(modifier string) string {
-	switch modifier {
-	case "ctrl", "control":
-		return "ctrl"
-	case "alt":
-		return "alt"
-	case "shift":
-		return "shift"
-	case "win", "windows", "cmd", "super":
-		return "cmd" // robotgo uses "cmd" for Windows key
-	default:
-		return modifier
-	}
-}
-
-// normalizeKey converts key names to robotgo-compatible format
-func normalizeKey(key string) string {
-	switch key {
-	case "space", "spacebar":
-		return "space"
-	case "enter", "return":
-		return "enter"
-	case "tab":
-		return "tab"
-	case "esc", "escape":
-		return "escape"
-	case "backspace", "back":
-		return "backspace"
-	case "delete", "del":
-		return "delete"
-	case "home":
-		return "home"
-	case "end":
-		return "end"
-	case "pageup", "pgup":
-		return "pageup"
-	case "pagedown", "pgdn":
-		return "pagedown"
-	case "up", "uparrow":
-		return "up"
-	case "down", "downarrow":
-		return "down"
-	case "left", "leftarrow":
-		return "left"
-	case "right", "rightarrow":
-		return "right"
-	case "insert", "ins":
-		return "insert"
-	default:
-		// For function keys, letters, numbers, and other keys, return as-is
-		return key
-	}
 }
