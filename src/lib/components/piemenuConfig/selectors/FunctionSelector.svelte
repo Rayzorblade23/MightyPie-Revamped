@@ -40,7 +40,7 @@
         </div>
         <select
                 id="functionNameSelect"
-                class="custom-select block w-full pl-3 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                class="custom-select block w-full pl-3 py-2 border-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
                 value={selectedFunctionName}
                 onchange={handleChange}
         >

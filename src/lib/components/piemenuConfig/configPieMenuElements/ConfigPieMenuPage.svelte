@@ -4,7 +4,12 @@
     import {ButtonType} from '$lib/data/types/pieButtonTypes.ts';
     import {getDefaultButton} from "$lib/data/types/pieButtonDefaults.ts";
     import {onMount} from 'svelte';
-    import {PUBLIC_PIEBUTTON_HEIGHT, PUBLIC_PIEBUTTON_WIDTH, PUBLIC_PIEMENU_RADIUS} from "$env/static/public";
+    import {
+        PUBLIC_PIEBUTTON_HEIGHT,
+        PUBLIC_PIEBUTTON_WIDTH,
+        PUBLIC_PIEMENU_RADIUS,
+        PUBLIC_PIEMENU_SIZE_X, PUBLIC_PIEMENU_SIZE_Y
+    } from "$env/static/public";
     import {calculatePieButtonOffsets, calculatePieButtonPosition} from "$lib/components/piemenu/piemenuUtils.ts";
     import ConfigPieButton from "$lib/components/piemenuConfig/configPieMenuElements/ConfigPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/buttons/RemovePageButton.svelte";
@@ -38,14 +43,15 @@
 
     // --- Layout Constants ---
     const numLayoutSlots = 8;
-    const radiusPx = Number(PUBLIC_PIEMENU_RADIUS);
+    const configPieMenuSizeOffset = 30;
+    const radiusPx = Number(PUBLIC_PIEMENU_RADIUS) - configPieMenuSizeOffset;
 
     const buttonWidthRem = Number(PUBLIC_PIEBUTTON_WIDTH);
     const buttonHeightRem = Number(PUBLIC_PIEBUTTON_HEIGHT);
 
     // Container dimensions (in pixels) - for ConfigPieMenuPage visual boundary and position calculations
-    const containerWidthPx = 600;
-    const containerHeightPx = 400;
+    const containerWidthPx = Number(PUBLIC_PIEMENU_SIZE_X) - configPieMenuSizeOffset;
+    const containerHeightPx = Number(PUBLIC_PIEMENU_SIZE_Y) - configPieMenuSizeOffset * 2;
 
     // --- State for calculated button center positions (offsets from container center) ---
     let internalSlotXYOffsets = $state<{ x: number; y: number }[]>([]);

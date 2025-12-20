@@ -11,7 +11,7 @@ export const getVariantClass = (variant: ButtonVariant): string => {
         case 'primary':
             return "bg-purple-800 dark:bg-purple-950 text-zinc-100 hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950";
         case 'warning':
-            return "bg-rose-500 dark:bg-rose-700 text-white hover:bg-rose-600 dark:hover:bg-rose-800";
+            return "bg-rose-500 dark:bg-rose-950 text-white hover:bg-rose-600 dark:hover:bg-rose-800";
         case 'special':
             return "bg-amber-500 text-white hover:bg-amber-600";
         default:

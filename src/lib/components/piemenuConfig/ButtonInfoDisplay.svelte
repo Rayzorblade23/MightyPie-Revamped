@@ -192,7 +192,7 @@
     {@const button = currentButtonLocal}
     {@const isTrulyEmptySlot = button.button_type === ButtonType.Disabled && !getPieMenuButtons().get(menuID)?.get(pageID)?.has(buttonID)}
 
-    <div class="p-4 border border-none bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md w-full min-w-0">
+    <div class="p-4 border border-none bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md w-full min-w-0 h-full">
         <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Button Details</h2>
             <p class="text-right text-zinc-600 dark:text-zinc-400">Slot: {slotIndex + 1} <span
@@ -264,7 +264,7 @@
         </div>
     </div>
 {:else}
-    <div class="p-4 text-center">
+    <div class="p-4 text-center h-full">
         <p class="text-zinc-500 dark:text-zinc-300">
             Select a button from a pie menu preview to see its details.
         </p>

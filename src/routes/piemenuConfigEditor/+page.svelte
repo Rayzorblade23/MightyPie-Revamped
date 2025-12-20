@@ -33,10 +33,10 @@
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_CAPTURE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE
     } from "$env/static/public";
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import type {PieMenuConfig, ShortcutEntry, ShortcutsMap} from '$lib/data/types/piemenuConfigTypes.ts';
@@ -830,12 +830,12 @@
 
 <!-- Page-level overlay dialogs (avoid parent transparency) -->
 <SetShortcutDialog
+        errorMessage={buttonShortcutErrorMessage}
         isOpen={isButtonShortcutDialogOpen}
         onCancel={() => {
             isButtonShortcutDialogOpen = false;
             publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT, {});
         }}
-        errorMessage={buttonShortcutErrorMessage}
 />
 
 <div class="w-full h-screen p-1">
@@ -849,7 +849,7 @@
             <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
         <!-- --- Main Content --- -->
-        <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative"
+        <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative flex flex-col min-h-0"
              style="scrollbar-gutter: stable both-edges;">
             {#if menuIndices.length > 0}
                 <!-- --- UI: Menu Tabs --- -->
@@ -868,7 +868,7 @@
                 </section>
                 <!-- --- UI: Main Content Area --- -->
                 {#if selectedMenuID !== undefined}
-                    <div class="main-content-area flex flex-col space-y-6">
+                    <div class="main-content-area flex flex-col space-y-6 flex-1 min-h-0">
                         <!-- --- UI: Pie Menus Section --- -->
                         <section class="pie-menus-section">
                             {#if sortedPagesForSelectedMenu.length > 0}
@@ -935,44 +935,51 @@
                             {/if}
                         </section>
                         <!-- --- UI: Button Details & Actions --- -->
-                        <div class="w-full flex flex-row items-start gap-4">
-                            <div class="min-w-[396px] max-w-[480px] w-full break-words">
+                        <div class="w-full grid grid-cols-3 items-stretch gap-4 flex-1 max-[1000px]:grid-cols-2 max-[1000px]:[&>div:first-child]:col-span-2 max-[800px]:grid-cols-1 max-[800px]:[&>div:first-child]:col-span-1">
+                            <div class="w-full break-words flex flex-col min-w-0">
                                 {#if selectedButtonDetails}
-                                    <ButtonInfoDisplay
-                                            selectedButtonDetails={selectedButtonDetails}
-                                            onConfigChange={handleButtonConfigUpdate}
-                                            menuConfig={editorButtonsConfig}
-                                            bind:isButtonShortcutDialogOpen={isButtonShortcutDialogOpen}
-                                            bind:buttonShortcutErrorMessage={buttonShortcutErrorMessage}
-                                    />
+                                    <div class="flex-1">
+                                        <ButtonInfoDisplay
+                                                selectedButtonDetails={selectedButtonDetails}
+                                                onConfigChange={handleButtonConfigUpdate}
+                                                menuConfig={editorButtonsConfig}
+                                                bind:isButtonShortcutDialogOpen={isButtonShortcutDialogOpen}
+                                                bind:buttonShortcutErrorMessage={buttonShortcutErrorMessage}
+                                        />
+                                    </div>
                                 {:else}
-                                    <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
+                                    <div class="flex-1 p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
                                         Select a button from a pie menu preview to see its details, or add a page
                                         if the menu is
                                         empty.
                                     </div>
                                 {/if}
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[280px] max-w-[360px] self-start">
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
                                 <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
                                     Page Settings
                                 </h3>
-                                <ButtonTypeSelector
-                                        currentType={resetType}
-                                        buttonTypeKeys={buttonTypeKeys}
-                                        buttonTypeFriendlyNames={buttonTypeFriendlyNames}
-                                        onChange={handleResetTypeChange}
-                                />
-                                <StandardButton
-                                        label="Reset Page with Type"
-                                        onClick={handleResetPageToDefault}
-                                        disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
-                                        style="margin-top: 0.5rem; margin-bottom: 0.5rem;"
-                                        variant="primary"
-                                />
+                                <span class="text-sm font-medium mt-2 mb-1 text-zinc-700 dark:text-zinc-400">Reset every button on this page to:</span>
+                                <div class="flex flex-row justify-between items-center w-full">
+                                    <div class="flex-1 mr-[0.5rem]">
+                                        <ButtonTypeSelector
+                                                currentType={resetType}
+                                                buttonTypeKeys={buttonTypeKeys}
+                                                buttonTypeFriendlyNames={buttonTypeFriendlyNames}
+                                                onChange={handleResetTypeChange}
+                                        />
+                                    </div>
+                                    <StandardButton
+                                            label="Reset Page"
+                                            onClick={handleResetPageToDefault}
+                                            disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                                            variant="primary"
+                                    />
+                                </div>
+                                <span class="text-sm mt-3 font-medium text-zinc-700 dark:text-zinc-400">Assign this Page to Quick Menu:</span>
                                 <button
                                         aria-label="Use for Quick Menu"
-                                        class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                        class="mt-1 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                         onclick={handleUseForQuickMenu}
                                         disabled={isStarred || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                                 >
@@ -985,59 +992,34 @@
                                 </span>
                                 </button>
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[396px] max-w-[480px] self-start">
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
                                 <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
                                     Menu Settings</h3>
-                                <div class="flex flex-row justify-between items-center w-full mt-2">
-                                    <div class="flex flex-col">
-                                        <span class="text-zinc-700 dark:text-zinc-200">Set Shortcut to open Menu:</span>
-                                        {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
-                                            <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
-                                        {/if}
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium mt-2 text-zinc-700 dark:text-zinc-400">Set Shortcut to open Menu:</span>
+                                    {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
+                                        <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
+                                    {/if}
+                                </div>
+                                <div class="bg-black/15 my-1 rounded-lg">
+                                    <div class="flex flex-row justify-between items-center w-full m-0">
+                                        <StandardButton
+                                                variant="special"
+                                                onClick={handlePublishShortcutSetterUpdate}
+                                                disabled={selectedMenuID === undefined}
+                                                style="max-width: 300px; min-width: 150px;"
+                                                label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
+                                            ? shortcutLabels[selectedMenuID]
+                                            : 'Set Shortcut'}
+                                        />
+                                        <StandardButton
+                                                label="Clear"
+                                                onClick={handleClearShortcut}
+                                                disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
+                                                style="max-width: 120px;"
+                                                variant="primary"
+                                        />
                                     </div>
-                                    <StandardButton
-                                            variant="special"
-                                            onClick={handlePublishShortcutSetterUpdate}
-                                            disabled={selectedMenuID === undefined}
-                                            label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
-                                        ? shortcutLabels[selectedMenuID]
-                                        : 'Set Shortcut'}
-                                    />
-                                </div>
-                                <div class="flex flex-row justify-between items-center w-full mt-2">
-                                    <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
-                                    <StandardButton
-                                            label="Clear"
-                                            onClick={handleClearShortcut}
-                                            disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
-                                            style="max-width: 120px;"
-                                            variant="primary"
-                                    />
-                                </div>
-                            </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
-                                    Pie Menu Config
-                                </h3>
-                                <div class="flex flex-col items-start gap-2 w-full">
-                                    <StandardButton
-                                            label="Save Config"
-                                            onClick={handleSaveConfigViaDialog}
-                                            style={`width: 100%;`}
-                                            variant="primary"
-                                    />
-                                    <StandardButton
-                                            label="Load Config"
-                                            onClick={openFileDialog}
-                                            style={`width: 100%;`}
-                                            variant="primary"
-                                    />
-                                    <StandardButton
-                                            label="Reset it all!"
-                                            variant="warning"
-                                            onClick={() => showResetAllConfirmDialog = true}
-                                            style={`width: 100%;`}
-                                    />
                                 </div>
                             </div>
                         </div>
@@ -1059,10 +1041,28 @@
                     </button>
                 </div>
             {/if}
+        </div>
 
-            <!-- Compact Action Buttons -->
-            <div class="absolute bottom-4 right-4">
-                <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
+        <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-2xl border-t border-none flex-shrink-0">
+            <div class="w-full flex flex-col md:flex-row md:justify-between md:items-center gap-2 px-4 py-2">
+                <div class="w-full md:w-auto flex flex-row justify-start items-center gap-2">
+                    <StandardButton
+                            label="Save Config"
+                            onClick={handleSaveConfigViaDialog}
+                            variant="primary"
+                    />
+                    <StandardButton
+                            label="Load Config"
+                            onClick={openFileDialog}
+                            variant="primary"
+                    />
+                    <StandardButton
+                            label="Reset it all!"
+                            onClick={() => showResetAllConfirmDialog = true}
+                            variant="warning"
+                    />
+                </div>
+                <div class="w-full md:w-auto flex flex-row justify-start md:justify-end items-center gap-2">
                     <StandardButton
                             ariaLabel="Undo"
                             bold={true}
