@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"syscall"
 
 	"unsafe"
@@ -42,6 +43,8 @@ type ShortcutDetectionAdapter struct {
 	shortcuts      map[string]core.ShortcutEntry
 	pressedState   map[string]bool
 	updateHookChan chan struct{}
+	paused         bool
+	pauseMutex     sync.RWMutex
 }
 
 // Run blocks forever to keep the worker process alive.
@@ -160,7 +163,8 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 	if nCode == 0 && adapter.keyboardHook != nil && adapter.keyboardHook.shortcuts != nil {
 		keyboardHookStruct := (*core.KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		eventVKCode := int(keyboardHookStruct.VKCode)
-		eventFlags := keyboardHookStruct.Flags // Store flags for use in helpers
+		eventScanCode := int(keyboardHookStruct.ScanCode)
+		eventFlags := keyboardHookStruct.Flags
 
 		isKeyDownEvent := wParam == core.WM_KEYDOWN || wParam == core.WM_SYSKEYDOWN
 		isKeyUpEvent := wParam == core.WM_KEYUP || wParam == core.WM_SYSKEYUP
@@ -174,25 +178,56 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 			return 0
 		}
 
+		// Toggle pause mode on backtick key (scan code 0x29)
+		if isKeyDownEvent && eventScanCode == core.SC_BACKTICK {
+			adapter.pauseMutex.Lock()
+			adapter.paused = !adapter.paused
+			pauseState := adapter.paused
+			adapter.pauseMutex.Unlock()
+			if pauseState {
+				log.Info("Shortcut detection PAUSED")
+			} else {
+				log.Info("Shortcut detection RESUMED")
+			}
+			// Publish pause state change to NATS
+			subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
+			if subject != "" {
+				adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": pauseState})
+			} else {
+				log.Warn("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED not set; skipping pause state publish")
+			}
+			// Let the backtick key pass through normally
+		}
+
+		// Skip all shortcut detection when paused
+		adapter.pauseMutex.RLock()
+		isPaused := adapter.paused
+		adapter.pauseMutex.RUnlock()
+		if isPaused {
+			if core.CallNextHookEx != nil {
+				r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+				return r1
+			}
+			return 0
+		}
+
 		// Publish Escape key down so UI can close pie menu regardless of focus
 		if isKeyDownEvent && eventVKCode == 0x1B { // VK_ESCAPE
 			subject := os.Getenv("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE")
 			if subject != "" {
-				// Keep payload simple
 				adapter.natsAdapter.PublishMessage(subject, map[string]any{"pressed": true})
 				log.Debug("Published Escape keydown to %s", subject)
 			} else {
 				log.Warn("PUBLIC_NATSSUBJECT_PIEMENU_ESCAPE not set; skipping Escape publish")
 			}
-			// Do not consume the event globally; let it propagate
 		}
 
 		if isKeyDownEvent {
-			if adapter.handleKeyDown(eventVKCode) { // Pass only eventVKCode
+			if adapter.handleKeyDown(eventVKCode) {
 				return 1 // Event consumed
 			}
 		} else if isKeyUpEvent {
-			adapter.handleKeyUp(eventVKCode) // Pass only eventVKCode
+			adapter.handleKeyUp(eventVKCode)
 		}
 	}
 	if core.CallNextHookEx != nil {
@@ -224,6 +259,6 @@ func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, is
 	} else {
 		natsSubject = os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUT_RELEASED")
 	}
-    log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, xPos, yPos)
+	log.Info("Publishing %s for shortcut %d (%s) at (%d, %d)", actionString, shortcutIndexInt, shortcutLabel, xPos, yPos)
 	adapter.natsAdapter.PublishMessage(natsSubject, outgoingMessage)
 }

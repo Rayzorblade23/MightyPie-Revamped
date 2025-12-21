@@ -62,6 +62,8 @@ const (
 	VK_MENU    = 0x12 // Alt
 	VK_LWIN    = 0x5B
 	VK_RWIN    = 0x5C
+
+	SC_BACKTICK = 0x29 // Scan code for backtick/tilde key (below Escape)
 )
 
 const (

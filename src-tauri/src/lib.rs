@@ -112,6 +112,7 @@ pub fn run() {
                 {
                     let _ = aux.set_ignore_cursor_events(true);
                     let _ = aux.set_always_on_top(true);
+                    let _ = aux.hide();
 
                     // Make the window 18x18 *physical* pixels (DPI-aware)
                     let scale = aux.scale_factor().unwrap_or(1.0);

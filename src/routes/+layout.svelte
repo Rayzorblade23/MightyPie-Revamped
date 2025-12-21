@@ -27,6 +27,7 @@
         PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
         PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
+        PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED,
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
         PUBLIC_PIEMENU_SIZE_X,
         PUBLIC_PIEMENU_SIZE_Y
@@ -40,6 +41,7 @@
     import {createLogger} from "$lib/logger";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils";
     import {getCurrentWindow, UserAttentionType} from '@tauri-apps/api/window';
+    import {WebviewWindow} from '@tauri-apps/api/webviewWindow';
     import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
@@ -227,6 +229,29 @@
         );
     };
 
+    const handleShortcutsPausedMessage = async (message: string) => {
+        try {
+            const data = JSON.parse(message);
+            const isPaused = data.paused === true;
+            
+            const indicator = await WebviewWindow.getByLabel('shortcut_pause_indicator');
+            if (!indicator) {
+                logger.warn('Shortcut pause indicator window not found');
+                return;
+            }
+            
+            if (isPaused) {
+                await indicator.show();
+                logger.debug('Showing shortcut pause indicator');
+            } else {
+                await indicator.hide();
+                logger.debug('Hiding shortcut pause indicator');
+            }
+        } catch (error) {
+            logger.error('[+layout.svelte] Failed to process shortcuts paused message:', error);
+        }
+    };
+
     $effect(() => {
         if (isAuxWindow) return;
         const settings = getSettings();
@@ -315,6 +340,20 @@
             })();
         }
         return () => stopSettingsUpdate?.();
+    });
+
+    $effect(() => {
+        if (isAuxWindow) return;
+        let stopShortcutsPaused: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopShortcutsPaused = await fetchLatestFromStream(
+                    PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED,
+                    handleShortcutsPausedMessage
+                );
+            })();
+        }
+        return () => stopShortcutsPaused?.();
     });
 
     // Function to exit the application
