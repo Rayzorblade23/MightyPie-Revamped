@@ -534,7 +534,8 @@
                     {#if appVersion}
                         v{appVersion}
                         {#if logLevel && (logLevel || '').toLowerCase() !== 'info'}
-                            <span class="whitespace-nowrap">&nbsp;(Log level: {(logLevel || '').slice(0,1).toUpperCase() + (logLevel || '').slice(1).toLowerCase()})</span>
+                            <span class="whitespace-nowrap">&nbsp;(Log level: {(logLevel || '').slice(0, 1).toUpperCase() + (logLevel || '').slice(1).toLowerCase()}
+                                )</span>
                         {/if}
                     {/if}
                 </div>
@@ -543,9 +544,13 @@
                             ariaLabel="Undo"
                             bold={true}
                             disabled={undoHistory.length === 0}
-                            label="Undo"
+                            label=""
                             onClick={handleUndo}
                             variant="primary"
+                            iconSrc="/tabler_icons/player-skip-back.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Undo"
                     />
                     <StandardButton
                             ariaLabel="Discard Changes"
@@ -558,9 +563,13 @@
                     <StandardButton
                             ariaLabel="Done"
                             bold={true}
-                            label="Done"
+                            label=""
                             onClick={saveAndExit}
                             variant="primary"
+                            iconSrc="/tabler_icons/check.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Apply and Exit"
                     />
                 </div>
             </div>
