@@ -54,7 +54,7 @@ var (
 
 // extractExeFromArgs extracts the first .exe filename from command-line arguments.
 func extractExeFromArgs(args string) string {
-	for _, part := range strings.Fields(args) {
+	for part := range strings.FieldsSeq(args) {
 		if strings.HasSuffix(strings.ToLower(part), ".exe") {
 			return part
 		}
