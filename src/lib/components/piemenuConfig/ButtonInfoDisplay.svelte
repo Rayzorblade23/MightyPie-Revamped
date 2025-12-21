@@ -66,7 +66,7 @@
         [ButtonType.CallFunction]: "Executes a predefined function from the available functions list.",
         [ButtonType.LaunchProgram]: "Launches a program from the list of installed applications.",
         [ButtonType.OpenSpecificPieMenuPage]: "Opens any page in any menu.\nDisplays a custom text label.",
-        [ButtonType.OpenResource]: "Opens a file or folder specified by the resource path, using the default application.\nDisplays a custom text label.",
+        [ButtonType.OpenResource]: "Opens a file, folder or website specified by the resource path, using the default application.\nDisplays a custom text label.",
         [ButtonType.KeyboardShortcut]: "Executes a keyboard shortcut when clicked.\n\nSupports combinations like 'ctrl+c', 'alt+tab', 'win+d', etc.\nLeft-click executes the keyboard shortcut.",
         [ButtonType.Disabled]: "This button is disabled and will not perform any action when clicked.",
     };

@@ -979,7 +979,7 @@
                                 <span class="text-sm mt-3 font-medium text-zinc-700 dark:text-zinc-400">Assign this Page to Quick Menu:</span>
                                 <button
                                         aria-label="Use for Quick Menu"
-                                        class="mt-1 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                        class="mt-1 px-4 py-1 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                         onclick={handleUseForQuickMenu}
                                         disabled={isStarred || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                                 >
@@ -1001,25 +1001,24 @@
                                         <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
                                     {/if}
                                 </div>
-                                <div class="bg-black/15 my-1 rounded-lg">
-                                    <div class="flex flex-row justify-between items-center w-full m-0">
-                                        <StandardButton
-                                                variant="special"
-                                                onClick={handlePublishShortcutSetterUpdate}
-                                                disabled={selectedMenuID === undefined}
-                                                style="max-width: 300px; min-width: 150px;"
-                                                label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
+                                <div class="flex flex-row justify-between items-center w-full my-1">
+                                    <StandardButton
+                                            variant="special"
+                                            onClick={handlePublishShortcutSetterUpdate}
+                                            disabled={selectedMenuID === undefined}
+                                            style="max-width: 300px; min-width: 150px;"
+                                            label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
                                             ? shortcutLabels[selectedMenuID]
                                             : 'Set Shortcut'}
-                                        />
-                                        <StandardButton
-                                                label="Clear"
-                                                onClick={handleClearShortcut}
-                                                disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
-                                                style="max-width: 120px;"
-                                                variant="primary"
-                                        />
-                                    </div>
+                                    />
+                                    <div class="flex-1 mx-2 my-1 h-[10px] rounded-lg bg-black/10"></div>
+                                    <StandardButton
+                                            label="Clear"
+                                            onClick={handleClearShortcut}
+                                            disabled={selectedMenuID === undefined || !shortcutLabels[selectedMenuID]}
+                                            style="max-width: 120px;"
+                                            variant="primary"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -1044,32 +1043,51 @@
         </div>
 
         <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-2xl border-t border-none flex-shrink-0">
-            <div class="w-full flex flex-col md:flex-row md:justify-between md:items-center gap-2 px-4 py-2">
-                <div class="w-full md:w-auto flex flex-row justify-start items-center gap-2">
+            <div class="w-full flex flex-row justify-between items-center gap-2 px-4 py-2 max-[450px]:flex-col max-[450px]:items-start">
+                <div class="w-auto flex flex-row justify-start items-center gap-2 max-[400px]:w-full">
                     <StandardButton
-                            label="Save Config"
+                            ariaLabel="Save Config"
+                            label=""
                             onClick={handleSaveConfigViaDialog}
                             variant="primary"
+                            iconSrc="/tabler_icons/device-floppy.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Save Config"
                     />
                     <StandardButton
-                            label="Load Config"
+                            ariaLabel="Load Config"
+                            label=""
                             onClick={openFileDialog}
                             variant="primary"
+                            iconSrc="/tabler_icons/upload.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Load Config"
                     />
                     <StandardButton
-                            label="Reset it all!"
+                            ariaLabel="Reset it all!"
+                            label=""
                             onClick={() => showResetAllConfirmDialog = true}
                             variant="warning"
+                            iconSrc="/tabler_icons/trash-x.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Reset it all!"
                     />
                 </div>
-                <div class="w-full md:w-auto flex flex-row justify-start md:justify-end items-center gap-2">
+                <div class="w-auto flex flex-row justify-end items-center gap-2 max-[400px]:w-full max-[400px]:justify-start">
                     <StandardButton
                             ariaLabel="Undo"
                             bold={true}
                             disabled={undoHistory.length === 0}
-                            label="Undo"
+                            label=""
                             onClick={handleUndo}
                             variant="primary"
+                            iconSrc="/tabler_icons/player-skip-back.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Undo"
                     />
                     <StandardButton
                             ariaLabel="Discard Changes"
@@ -1078,14 +1096,20 @@
                             label="Discard Changes"
                             onClick={() => showDiscardConfirmDialog = true}
                             variant="primary"
+                            tooltipText="Discard Changes and Exit"
                     />
                     <StandardButton
                             ariaLabel="Done"
                             bold={true}
-                            label="Done"
+                            label=""
                             onClick={() => { savePieMenuConfig(); goto('/'); }}
                             variant="primary"
+                            iconSrc="/tabler_icons/check.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Apply and Exit"
                     />
+
                 </div>
             </div>
         </div>
