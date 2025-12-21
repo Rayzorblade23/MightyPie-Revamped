@@ -19,6 +19,66 @@ pub use mouse::{get_mouse_pos, set_mouse_pos};
 pub use admin::{is_running_as_admin, restart_as_admin};
 pub use task_scheduler::{create_startup_task, remove_startup_task, is_startup_task_enabled, is_startup_task_admin};
 
+#[cfg(target_os = "windows")]
+#[tauri::command]
+fn show_pause_indicator_without_focus(app: tauri::AppHandle) -> Result<(), String> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    
+    if let Some(window) = app.get_webview_window("shortcut_pause_indicator") {
+        if let Ok(handle) = window.window_handle() {
+            if let RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
+                unsafe {
+                    let hwnd = windows::Win32::Foundation::HWND(win32_handle.hwnd.get() as *mut _);
+                    let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                }
+                return Ok(());
+            }
+        }
+    }
+    Err("Failed to show pause indicator".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+fn show_pause_indicator_without_focus(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("shortcut_pause_indicator") {
+        let _ = window.show();
+        Ok(())
+    } else {
+        Err("Failed to show pause indicator".to_string())
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[tauri::command]
+fn hide_pause_indicator(app: tauri::AppHandle) -> Result<(), String> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    
+    if let Some(window) = app.get_webview_window("shortcut_pause_indicator") {
+        if let Ok(handle) = window.window_handle() {
+            if let RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
+                unsafe {
+                    let hwnd = windows::Win32::Foundation::HWND(win32_handle.hwnd.get() as *mut _);
+                    let _ = ShowWindow(hwnd, SW_HIDE);
+                }
+                return Ok(());
+            }
+        }
+    }
+    Err("Failed to hide pause indicator".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+fn hide_pause_indicator(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("shortcut_pause_indicator") {
+        let _ = window.hide();
+        Ok(())
+    } else {
+        Err("Failed to hide pause indicator".to_string())
+    }
+}
+
 use env_logger::{self, Builder, Env};
 use std::env;
 use tauri::{
@@ -26,6 +86,11 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
+};
+
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetWindowLongW, SetWindowLongW, ShowWindow, GWL_EXSTYLE, SW_HIDE, SW_SHOWNOACTIVATE, WS_EX_NOACTIVATE
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -108,10 +173,27 @@ pub fn run() {
                 .decorations(false)
                 .transparent(true)
                 .shadow(false)
+                .skip_taskbar(true)
                 .build()
                 {
                     let _ = aux.set_ignore_cursor_events(true);
                     let _ = aux.set_always_on_top(true);
+                    
+                    // Set WS_EX_NOACTIVATE on Windows to prevent focus stealing
+                    #[cfg(target_os = "windows")]
+                    {
+                        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+                        if let Ok(handle) = aux.window_handle() {
+                            if let RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
+                                unsafe {
+                                    let hwnd = windows::Win32::Foundation::HWND(win32_handle.hwnd.get() as *mut _);
+                                    let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+                                    SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_NOACTIVATE.0 as i32);
+                                }
+                            }
+                        }
+                    }
+                    
                     let _ = aux.hide();
 
                     // Make the window 18x18 *physical* pixels (DPI-aware)
@@ -213,7 +295,9 @@ pub fn run() {
             create_startup_task,
             remove_startup_task,
             is_startup_task_enabled,
-            is_startup_task_admin
+            is_startup_task_admin,
+            show_pause_indicator_without_focus,
+            hide_pause_indicator
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"unsafe"
 
@@ -37,14 +38,16 @@ var mapSpecificEventModifierToGeneric = map[int]int{
 }
 
 type ShortcutDetectionAdapter struct {
-	natsAdapter    *natsAdapter.NatsAdapter
-	keyboardHook   *KeyboardHook
-	hook           syscall.Handle
-	shortcuts      map[string]core.ShortcutEntry
-	pressedState   map[string]bool
-	updateHookChan chan struct{}
-	paused         bool
-	pauseMutex     sync.RWMutex
+	natsAdapter     *natsAdapter.NatsAdapter
+	keyboardHook    *KeyboardHook
+	hook            syscall.Handle
+	shortcuts       map[string]core.ShortcutEntry
+	pressedState    map[string]bool
+	updateHookChan  chan struct{}
+	manualPause     bool
+	edgePause       bool
+	pauseMutex      sync.RWMutex
+	edgeMonitorStop chan struct{}
 }
 
 // Run blocks forever to keep the worker process alive.
@@ -55,11 +58,15 @@ func (a *ShortcutDetectionAdapter) Run() {
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	adapter := &ShortcutDetectionAdapter{
-		natsAdapter:    natsAdapter,
-		shortcuts:      make(map[string]core.ShortcutEntry),
-		pressedState:   make(map[string]bool),
-		updateHookChan: make(chan struct{}, 1),
+		natsAdapter:     natsAdapter,
+		shortcuts:       make(map[string]core.ShortcutEntry),
+		pressedState:    make(map[string]bool),
+		updateHookChan:  make(chan struct{}, 1),
+		edgeMonitorStop: make(chan struct{}),
 	}
+
+	// Start edge monitoring goroutine
+	go adapter.monitorScreenEdges()
 
 	go func() {
 		for range adapter.updateHookChan {
@@ -181,29 +188,27 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 		// Toggle pause mode on backtick key (scan code 0x29)
 		if isKeyDownEvent && eventScanCode == core.SC_BACKTICK {
 			adapter.pauseMutex.Lock()
-			adapter.paused = !adapter.paused
-			pauseState := adapter.paused
+			adapter.manualPause = !adapter.manualPause
+			pauseState := adapter.manualPause
 			adapter.pauseMutex.Unlock()
 			if pauseState {
-				log.Info("Shortcut detection PAUSED")
+				log.Info("Shortcut detection MANUALLY PAUSED")
 			} else {
-				log.Info("Shortcut detection RESUMED")
+				log.Info("Shortcut detection MANUALLY RESUMED")
 			}
 			// Publish pause state change to NATS
 			subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
 			if subject != "" {
-				adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": pauseState})
+				adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": adapter.isPaused()})
+				log.Debug("Published pause state (%v) to %s", adapter.isPaused(), subject)
 			} else {
 				log.Warn("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED not set; skipping pause state publish")
 			}
-			// Let the backtick key pass through normally
+			return 1
 		}
 
-		// Skip all shortcut detection when paused
-		adapter.pauseMutex.RLock()
-		isPaused := adapter.paused
-		adapter.pauseMutex.RUnlock()
-		if isPaused {
+		// Skip all shortcut detection when paused (manual or edge-based)
+		if adapter.isPaused() {
 			if core.CallNextHookEx != nil {
 				r1, _, _ := core.CallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 				return r1
@@ -235,6 +240,84 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 		return r1
 	}
 	return 0
+}
+
+func (adapter *ShortcutDetectionAdapter) isPaused() bool {
+	adapter.pauseMutex.RLock()
+	defer adapter.pauseMutex.RUnlock()
+	return adapter.manualPause || adapter.edgePause
+}
+
+func (adapter *ShortcutDetectionAdapter) setEdgePause(paused bool) {
+	adapter.pauseMutex.Lock()
+	wasEdgePaused := adapter.edgePause
+	wasPausedOverall := adapter.manualPause || adapter.edgePause
+	adapter.edgePause = paused
+
+	// Only clear manual pause when transitioning OUT of edge zone (not continuously)
+	if wasEdgePaused && !paused && adapter.manualPause {
+		adapter.manualPause = false
+	}
+
+	isPausedOverall := adapter.manualPause || adapter.edgePause
+	adapter.pauseMutex.Unlock()
+
+	if wasPausedOverall != isPausedOverall {
+		subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
+		if subject != "" {
+			adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": isPausedOverall})
+		}
+	}
+}
+
+func (adapter *ShortcutDetectionAdapter) monitorScreenEdges() {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	const edgeThreshold = 5
+
+	for {
+		select {
+		case <-adapter.edgeMonitorStop:
+			return
+		case <-ticker.C:
+			x, y, err := core.GetMousePosition()
+			if err != nil {
+				continue
+			}
+
+			var pt core.POINT
+			pt.X = int32(x)
+			pt.Y = int32(y)
+
+			hMonitor, _, _ := core.MonitorFromPoint.Call(
+				uintptr(*(*int64)(unsafe.Pointer(&pt))),
+				uintptr(core.MONITOR_DEFAULTTONEAREST),
+			)
+			if hMonitor == 0 {
+				continue
+			}
+
+			var mi core.MONITORINFO
+			mi.CbSize = uint32(unsafe.Sizeof(mi))
+			ret, _, _ := core.GetMonitorInfo.Call(hMonitor, uintptr(unsafe.Pointer(&mi)))
+			if ret == 0 {
+				continue
+			}
+
+			monLeft := int(mi.RcMonitor.Left)
+			monTop := int(mi.RcMonitor.Top)
+			monRight := int(mi.RcMonitor.Right)
+			monBottom := int(mi.RcMonitor.Bottom)
+
+			atEdge := x <= monLeft+edgeThreshold ||
+				x >= monRight-edgeThreshold ||
+				y <= monTop+edgeThreshold ||
+				y >= monBottom-edgeThreshold
+
+			adapter.setEdgePause(atEdge)
+		}
+	}
 }
 
 func (adapter *ShortcutDetectionAdapter) publishMessage(shortcutIndexInt int, isPressedEvent bool) {

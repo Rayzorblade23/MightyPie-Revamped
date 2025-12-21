@@ -42,6 +42,7 @@
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils";
     import {getCurrentWindow, UserAttentionType} from '@tauri-apps/api/window';
     import {WebviewWindow} from '@tauri-apps/api/webviewWindow';
+    import {invoke} from '@tauri-apps/api/core';
     import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
@@ -233,19 +234,27 @@
         try {
             const data = JSON.parse(message);
             const isPaused = data.paused === true;
-            
+
             const indicator = await WebviewWindow.getByLabel('shortcut_pause_indicator');
             if (!indicator) {
                 logger.warn('Shortcut pause indicator window not found');
                 return;
             }
-            
+
             if (isPaused) {
-                await indicator.show();
-                logger.debug('Showing shortcut pause indicator');
+                try {
+                    await invoke('show_pause_indicator_without_focus');
+                    logger.debug('Showing shortcut pause indicator (without focus)');
+                } catch (err) {
+                    logger.error('Failed to show pause indicator:', err);
+                }
             } else {
-                await indicator.hide();
-                logger.debug('Hiding shortcut pause indicator');
+                try {
+                    await invoke('hide_pause_indicator');
+                    logger.debug('Hiding shortcut pause indicator');
+                } catch (err) {
+                    logger.error('Failed to hide pause indicator:', err);
+                }
             }
         } catch (error) {
             logger.error('[+layout.svelte] Failed to process shortcuts paused message:', error);

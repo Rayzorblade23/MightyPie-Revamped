@@ -51,6 +51,7 @@ repositories of each dependency.
 | base64                                                                                          | [MIT](./texts/MIT_license.txt) | Copyright (c) 2025 Alice Maz                                                                         | https://github.com/marshallpierce/rust-base64               |
 | OnceCell                                                                                        | [MIT](./texts/MIT_license.txt) | Copyright (c) 2018 matklad and contributors                                                          | https://github.com/matklad/once_cell                        |
 | rust-url                                                                                        | [MIT](./texts/MIT_license.txt) | Copyright (c) 2013-2025 The rust-url developers                                                      | https://github.com/servo/rust-url                           |
+| raw-window-handle                                                                               | [MIT](./texts/MIT_license.txt) | Copyright (c) 2019 Osspial                                                                           | https://github.com/rust-windowing/raw-window-handle         |
 
 ### External Icons
 

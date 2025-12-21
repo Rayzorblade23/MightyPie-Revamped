@@ -137,19 +137,41 @@ var (
 	UnhookWindowsHookEx = User32.NewProc("UnhookWindowsHookEx")
 	PostQuitMessage     = User32.NewProc("PostQuitMessage")
 
-	// Keyboard/Mouse state - ADD THESE
-	GetKeyState  = User32.NewProc("GetKeyState")
-	GetCursorPos = User32.NewProc("GetCursorPos")
+	// Keyboard/Mouse state
+	GetKeyState      = User32.NewProc("GetKeyState")
+	GetCursorPos     = User32.NewProc("GetCursorPos")
+	GetSystemMetrics = User32.NewProc("GetSystemMetrics")
+	MonitorFromPoint = User32.NewProc("MonitorFromPoint")
+	GetMonitorInfo   = User32.NewProc("GetMonitorInfoW")
 
 	// Clipboard
 	OpenClipboard  = User32.NewProc("OpenClipboard")
 	CloseClipboard = User32.NewProc("CloseClipboard")
 
-	// Message loop - ADD/MODIFY THESE
+	// Message loop
 	GetMessage       = User32.NewProc("GetMessageW")
 	TranslateMessage = User32.NewProc("TranslateMessage")
 	DispatchMessage  = User32.NewProc("DispatchMessageW")
 )
+
+const (
+	SM_XVIRTUALSCREEN        = 76
+	SM_YVIRTUALSCREEN        = 77
+	SM_CXVIRTUALSCREEN       = 78
+	SM_CYvirtualscreen       = 79
+	MONITOR_DEFAULTTONEAREST = 2
+)
+
+type RECT struct {
+	Left, Top, Right, Bottom int32
+}
+
+type MONITORINFO struct {
+	CbSize    uint32
+	RcMonitor RECT
+	RcWork    RECT
+	DwFlags   uint32
+}
 
 var KeyMap = map[string]int{
 	// Modifier keys
