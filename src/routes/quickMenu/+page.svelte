@@ -2,6 +2,7 @@
     import {goto} from "$app/navigation";
     import {onMount} from "svelte";
     import {getCurrentWindow, LogicalSize} from "@tauri-apps/api/window";
+    import {WebviewWindow} from "@tauri-apps/api/webviewWindow";
     import {
         PUBLIC_NATSSUBJECT_BUTTONMANAGER_FILL_GAPS,
         PUBLIC_PIEBUTTON_HEIGHT,
@@ -46,6 +47,16 @@
         const window = getCurrentWindow();
         window.hide();  // Hide first
         goto('/');
+    }
+
+    async function togglePauseIndicatorWindow() {
+        const indicator = await WebviewWindow.getByLabel('shortcut_pause_indicator');
+        if (!indicator) return;
+        if (await indicator.isVisible()) {
+            await indicator.hide();
+        } else {
+            await indicator.show();
+        }
     }
 
     let menuID = $state(0);
@@ -177,9 +188,15 @@
         </div>
     </div>
     <div class="fixed bottom-6 right-6 z-50">
-        <button class="px-4 py-2 bg-purple-800 border border-none rounded-lg text-zinc-200 hover:bg-violet-800 transition active:bg-violet-900  flex items-center gap-2"
-                onclick={async () => { await exitApp(); }}>
-            Exit
-        </button>
+        <div class="flex items-center gap-2">
+            <button class="px-4 py-2 bg-purple-800 border border-none rounded-lg text-zinc-200 hover:bg-violet-800 transition active:bg-violet-900  flex items-center gap-2"
+                    onclick={togglePauseIndicatorWindow}>
+                Toggle Pause Indicator
+            </button>
+            <button class="px-4 py-2 bg-purple-800 border border-none rounded-lg text-zinc-200 hover:bg-violet-800 transition active:bg-violet-900  flex items-center gap-2"
+                    onclick={async () => { await exitApp(); }}>
+                Exit
+            </button>
+        </div>
     </div>
 </div>

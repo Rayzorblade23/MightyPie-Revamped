@@ -45,6 +45,8 @@
     // Create a logger for this component
     const logger = createLogger('Layout');
 
+    let isAuxWindow = $state(false);
+
     let validationHasRun = false;
 
     // Track if we have apps info available for validation
@@ -54,7 +56,20 @@
     // Controls visibility of the crash/reconnect dialog
     let showDisconnectDialog = $state(false);
 
+    onMount(() => {
+        if (browser) {
+            isAuxWindow = window.location.pathname.startsWith('/shortcutPauseIndicator');
+        }
+        (async () => {
+            try {
+                isAuxWindow = getCurrentWindow().label === 'shortcut_pause_indicator';
+            } catch {
+            }
+        })();
+    });
+
     $effect(() => {
+        if (isAuxWindow) return;
         const pieMenuConfig = getPieMenuConfig();
         const installedAppsInfo = getInstalledAppsInfo();
 
@@ -109,6 +124,7 @@
     let connectingDelayTimer: number | null = null;
 
     $effect(() => {
+        if (isAuxWindow) return;
         const actualStatus = getConnectionStatus();
 
         // Handle connection status changes
@@ -212,6 +228,7 @@
     };
 
     $effect(() => {
+        if (isAuxWindow) return;
         const settings = getSettings();
         if (!settings) return;
         const map = {
@@ -241,6 +258,7 @@
     });
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopLiveButtons: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -255,6 +273,7 @@
 
     // Subscribe to BACKEND update (full config)
     $effect(() => {
+        if (isAuxWindow) return;
         let stopBackendFull: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -268,6 +287,7 @@
     });
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopInstalledApps: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -284,6 +304,7 @@
 
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopSettingsUpdate: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -327,6 +348,8 @@
         if (browser) {
             const initializeConnection = async () => {
                 try {
+                    if (isAuxWindow) return;
+
                     // Center the window on startup
                     await centerAndSizeWindowOnMonitor(getCurrentWindow(), Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y));
 
@@ -352,6 +375,7 @@
     let unlistenPieMenuConfig: (() => void) | undefined;
 
     onMount(() => {
+        if (isAuxWindow) return;
         // Tauri tray event listeners
         listen('show-quickMenu', () => goto('/quickMenu')).then(unlisten => {
             unlistenQuickMenu = unlisten;
@@ -383,7 +407,9 @@
     }
 </script>
 
-{#if showSuccessScreen}
+{#if isAuxWindow}
+    {@render children()}
+{:else if showSuccessScreen}
     <div class="w-full min-h-screen overflow-hidden flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
         <div class="flex flex-col items-center space-y-13">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>

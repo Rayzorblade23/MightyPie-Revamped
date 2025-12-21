@@ -22,6 +22,7 @@ pub use task_scheduler::{create_startup_task, remove_startup_task, is_startup_ta
 use env_logger::{self, Builder, Env};
 use std::env;
 use tauri::{
+    LogicalSize, PhysicalPosition,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
@@ -29,6 +30,10 @@ use tauri::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    const SHORTCUT_PAUSE_INDICATOR_SIZE_PX: f64 = 36.0;
+    const SHORTCUT_PAUSE_INDICATOR_SIZE_PX_I32: i32 = 36;
+    const SHORTCUT_PAUSE_INDICATOR_EDGE_INSET_PX_I32: i32 = 8;
+
     // Environment variables are now baked into the binary at build time
     println!("Using environment variables baked into the binary at build time");
 
@@ -87,6 +92,46 @@ pub fn run() {
 
             let window = app.get_webview_window("main").unwrap();
             window.set_always_on_top(true)?;
+
+            {
+                if let Ok(aux) = tauri::WebviewWindowBuilder::new(
+                    app,
+                    "shortcut_pause_indicator",
+                    tauri::WebviewUrl::App("/shortcutPauseIndicator".into()),
+                )
+                .title("Shortcut Paused")
+                .inner_size(
+                    SHORTCUT_PAUSE_INDICATOR_SIZE_PX,
+                    SHORTCUT_PAUSE_INDICATOR_SIZE_PX,
+                )
+                .resizable(false)
+                .decorations(false)
+                .transparent(true)
+                .shadow(false)
+                .build()
+                {
+                    let _ = aux.set_ignore_cursor_events(true);
+                    let _ = aux.set_always_on_top(true);
+
+                    // Make the window 18x18 *physical* pixels (DPI-aware)
+                    let scale = aux.scale_factor().unwrap_or(1.0);
+                    let logical = SHORTCUT_PAUSE_INDICATOR_SIZE_PX / scale;
+                    let _ = aux.set_size(tauri::Size::Logical(LogicalSize::new(logical, logical)));
+
+                    // Position on the right edge of the primary monitor, 1/3 from the top
+                    if let Ok(Some(monitor)) = aux.primary_monitor() {
+                        let pos = monitor.position();
+                        let size = monitor.size();
+
+                        let x = pos.x
+                            + (size.width as i32)
+                            - SHORTCUT_PAUSE_INDICATOR_SIZE_PX_I32
+                            - SHORTCUT_PAUSE_INDICATOR_EDGE_INSET_PX_I32;
+                        let y = pos.y + (((size.height as i32) * 7) / 8);
+                        let _ = aux.set_position(tauri::Position::Physical(PhysicalPosition::new(x, y)));
+                    }
+                }
+            }
 
             // Create menu items
             let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
