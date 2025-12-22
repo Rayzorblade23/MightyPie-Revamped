@@ -17,9 +17,10 @@ var log = logger.New("ButtonManager")
 
 var (
 	// Assumes ConfigData is map[string]MenuConfig (MenuID -> PageID -> PageConfiguration)
-	buttonConfig ConfigData
-	windowsList  core.WindowsUpdate
-	mu           sync.RWMutex
+	buttonConfig          ConfigData
+	windowsList           core.WindowsUpdate
+	separatedButtonsCache SeparatedButtonsCache
+	mu                    sync.RWMutex
 )
 
 type ButtonManagerAdapter struct {
@@ -45,8 +46,6 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	// Initialize with an empty in-memory config and wait for full-config updates from PieMenuConfigManager.
 	updateButtonConfig(make(ConfigData))
 	log.Info("Waiting for full config from PieMenuConfigManager...")
-
-	// Removed legacy base config update subscription; full-config flow is the source of truth
 
 	// Subscribe to full-config backend updates and extract buttons for this adapter
 	if backendFullConfigSubject != "" {
@@ -121,11 +120,25 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ButtonManagerAdapter {
 	return a
 }
 
-// updateButtonConfig safely updates the global buttonConfig variable.
+// updateButtonConfig safely updates the global buttonConfig variable and rebuilds the cache.
 func updateButtonConfig(config ConfigData) {
 	mu.Lock()
 	buttonConfig = config
+	separatedButtonsCache = buildSeparatedButtonsCache(config)
 	mu.Unlock()
+}
+
+// getSeparatedButtons safely retrieves separated buttons for a specific menu and page.
+func getSeparatedButtons(menuID, pageID string) *SeparatedButtons {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	if menuCache, ok := separatedButtonsCache[menuID]; ok {
+		if pageCache, ok := menuCache[pageID]; ok {
+			return pageCache
+		}
+	}
+	return nil
 }
 
 // updateWindowsList safely updates the global windowsList variable.

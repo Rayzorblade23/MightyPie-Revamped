@@ -42,3 +42,18 @@ type availableWindowInfo struct {
 	Handle int
 	Info   core.WindowInfo
 }
+
+// SeparatedButtons holds buttons separated by type for a single page
+type SeparatedButtons struct {
+	ShowProgram      map[string]*Button
+	ShowAny          map[string]*Button
+	LaunchProgram    map[string]*Button
+	FunctionCall     map[string]*Button
+	OpenPageInMenu   map[string]*Button
+	OpenResource     map[string]*Button
+	KeyboardShortcut map[string]*Button
+}
+
+// SeparatedButtonsCache holds separated buttons for all menus and pages
+// Structure: MenuID -> PageID -> SeparatedButtons
+type SeparatedButtonsCache map[string]map[string]*SeparatedButtons

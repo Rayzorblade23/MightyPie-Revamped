@@ -1,7 +1,5 @@
 package buttonManagerAdapter
 
-
-
 import (
 	"bytes"
 	"encoding/json"
@@ -43,8 +41,12 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			showProgramButtons, _, _, _, _, _, _ := a.separateButtonsByType(pageConfig)
-			a.processExistingShowProgramHandles(menuID, pageID, showProgramButtons, availableWindows, processedButtons, pageConfig)
+			// Use cached separated buttons instead of re-separating
+			separated := getSeparatedButtons(menuID, pageID)
+			if separated == nil {
+				continue
+			}
+			a.processExistingShowProgramHandles(menuID, pageID, separated.ShowProgram, availableWindows, processedButtons, pageConfig)
 		}
 	}
 	// Then: run assignMatchingProgramWindows and processExistingShowAnyHandles for all pages
@@ -56,9 +58,13 @@ func (a *ButtonManagerAdapter) processWindowUpdate(currentConfig ConfigData, win
 			if pageConfig == nil {
 				continue
 			}
-			_, showAnyButtons, _, _, _, _, _ := a.separateButtonsByType(pageConfig)
+			// Use cached separated buttons instead of re-separating
+			separated := getSeparatedButtons(menuID, pageID)
+			if separated == nil {
+				continue
+			}
 			a.assignMatchingProgramWindows(availableWindows, processedButtons, updatedConfig)
-			a.processExistingShowAnyHandles(menuID, pageID, showAnyButtons, availableWindows, processedButtons, pageConfig)
+			a.processExistingShowAnyHandles(menuID, pageID, separated.ShowAny, availableWindows, processedButtons, pageConfig)
 		}
 	}
 
@@ -100,46 +106,60 @@ func (a *ButtonManagerAdapter) handleEmptyWindowListAndCompare(currentConfig, up
 	return updatedConfig, nil
 }
 
-// separateButtonsByType (Assuming no DEBUG logs were present)
-func (a *ButtonManagerAdapter) separateButtonsByType(pageConfig PageConfig) (
-	showProgram map[string]*Button,
-	showAny map[string]*Button,
-	launchProgram map[string]*Button,
-	functionCall map[string]*Button,
-	openPageInMenu map[string]*Button,
-	openResource map[string]*Button,
-	keyboardShortcut map[string]*Button) {
+// buildSeparatedButtonsCache creates a cache of buttons separated by type for the entire config
+func buildSeparatedButtonsCache(config ConfigData) SeparatedButtonsCache {
+	cache := make(SeparatedButtonsCache)
 
-	showProgram = make(map[string]*Button)
-	showAny = make(map[string]*Button)
-	launchProgram = make(map[string]*Button)
-	functionCall = make(map[string]*Button)
-	openPageInMenu = make(map[string]*Button)
-	openResource = make(map[string]*Button)
-	keyboardShortcut = make(map[string]*Button)
+	for menuID, menuConfig := range config {
+		if menuConfig == nil {
+			continue
+		}
+		cache[menuID] = make(map[string]*SeparatedButtons)
 
-	for btnID := range pageConfig {
-		// Create a pointer to the button *in the map* to allow modification by callers
-		buttonPtr := pageConfig[btnID] // Get pointer to map value directly
-
-		switch core.ButtonType(buttonPtr.ButtonType) { // Check type via pointer
-		case core.ButtonTypeShowProgramWindow:
-			showProgram[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeShowAnyWindow:
-			showAny[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeLaunchProgram:
-			launchProgram[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeCallFunction:
-			functionCall[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeOpenPageInMenu:
-			openPageInMenu[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeOpenResource:
-			openResource[btnID] = &buttonPtr // Store pointer
-		case core.ButtonTypeKeyboardShortcut:
-			keyboardShortcut[btnID] = &buttonPtr // Store pointer
+		for pageID, pageConfig := range menuConfig {
+			if pageConfig == nil {
+				continue
+			}
+			cache[menuID][pageID] = separateButtonsByType(pageConfig)
 		}
 	}
-	return
+
+	return cache
+}
+
+// separateButtonsByType separates buttons by type for a single page
+func separateButtonsByType(pageConfig PageConfig) *SeparatedButtons {
+	separated := &SeparatedButtons{
+		ShowProgram:      make(map[string]*Button),
+		ShowAny:          make(map[string]*Button),
+		LaunchProgram:    make(map[string]*Button),
+		FunctionCall:     make(map[string]*Button),
+		OpenPageInMenu:   make(map[string]*Button),
+		OpenResource:     make(map[string]*Button),
+		KeyboardShortcut: make(map[string]*Button),
+	}
+
+	for btnID := range pageConfig {
+		buttonPtr := pageConfig[btnID]
+
+		switch core.ButtonType(buttonPtr.ButtonType) {
+		case core.ButtonTypeShowProgramWindow:
+			separated.ShowProgram[btnID] = &buttonPtr
+		case core.ButtonTypeShowAnyWindow:
+			separated.ShowAny[btnID] = &buttonPtr
+		case core.ButtonTypeLaunchProgram:
+			separated.LaunchProgram[btnID] = &buttonPtr
+		case core.ButtonTypeCallFunction:
+			separated.FunctionCall[btnID] = &buttonPtr
+		case core.ButtonTypeOpenPageInMenu:
+			separated.OpenPageInMenu[btnID] = &buttonPtr
+		case core.ButtonTypeOpenResource:
+			separated.OpenResource[btnID] = &buttonPtr
+		case core.ButtonTypeKeyboardShortcut:
+			separated.KeyboardShortcut[btnID] = &buttonPtr
+		}
+	}
+	return separated
 }
 
 // handleEmptyWindowList (Cleaned)
