@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -38,16 +39,20 @@ var mapSpecificEventModifierToGeneric = map[int]int{
 }
 
 type ShortcutDetectionAdapter struct {
-	natsAdapter     *natsAdapter.NatsAdapter
-	keyboardHook    *KeyboardHook
-	hook            syscall.Handle
-	shortcuts       map[string]core.ShortcutEntry
-	pressedState    map[string]bool
-	updateHookChan  chan struct{}
-	manualPause     bool
-	edgePause       bool
-	pauseMutex      sync.RWMutex
-	edgeMonitorStop chan struct{}
+	natsAdapter          *natsAdapter.NatsAdapter
+	keyboardHook         *KeyboardHook
+	hook                 syscall.Handle
+	shortcuts            map[string]core.ShortcutEntry
+	pressedState         map[string]bool
+	updateHookChan       chan struct{}
+	manualPause          bool
+	edgePause            bool
+	pauseMutex           sync.RWMutex
+	edgeMonitorStop      chan struct{}
+	pauseOnEdgeProximity bool
+	pauseToggleKeys      string
+	pauseToggleLabel     string
+	settingsMutex        sync.RWMutex
 }
 
 // Run blocks forever to keep the worker process alive.
@@ -58,11 +63,14 @@ func (a *ShortcutDetectionAdapter) Run() {
 
 func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 	adapter := &ShortcutDetectionAdapter{
-		natsAdapter:     natsAdapter,
-		shortcuts:       make(map[string]core.ShortcutEntry),
-		pressedState:    make(map[string]bool),
-		updateHookChan:  make(chan struct{}, 1),
-		edgeMonitorStop: make(chan struct{}),
+		natsAdapter:          natsAdapter,
+		shortcuts:            make(map[string]core.ShortcutEntry),
+		pressedState:         make(map[string]bool),
+		updateHookChan:       make(chan struct{}, 1),
+		edgeMonitorStop:      make(chan struct{}),
+		pauseOnEdgeProximity: false, // Default to enabled
+		pauseToggleKeys:      "",   // Default to no shortcut
+		pauseToggleLabel:     "",
 	}
 
 	// Start edge monitoring goroutine
@@ -109,6 +117,41 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 		// Optional: log.Debug("NATS Listener: Shortcut pressed event observed: %+v", eventData)
 	})
+
+	// Listen to settings updates for pause configuration
+	settingsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
+	adapter.natsAdapter.SubscribeToSubject(settingsSubject, func(natsMessage *nats.Msg) {
+		var settings map[string]any
+		if err := json.Unmarshal(natsMessage.Data, &settings); err != nil {
+			log.Error("Failed to decode settings update: %v", err)
+			return
+		}
+
+		adapter.settingsMutex.Lock()
+		defer adapter.settingsMutex.Unlock()
+
+		// Update pauseOnEdgeProximity setting
+		if pauseEdgeSetting, ok := settings["pauseOnEdgeProximity"].(map[string]any); ok {
+			if value, ok := pauseEdgeSetting["value"].(bool); ok {
+				adapter.pauseOnEdgeProximity = value
+				log.Info("Updated pauseOnEdgeProximity setting: %v", value)
+			}
+		}
+
+		// Update pauseToggleShortcut setting
+		if pauseShortcutSetting, ok := settings["pauseToggleShortcut"].(map[string]any); ok {
+			if valueMap, ok := pauseShortcutSetting["value"].(map[string]any); ok {
+				if keys, ok := valueMap["keys"].(string); ok {
+					adapter.pauseToggleKeys = keys
+				}
+				if label, ok := valueMap["label"].(string); ok {
+					adapter.pauseToggleLabel = label
+				}
+				log.Info("Updated pauseToggleShortcut: keys=%s, label=%s", adapter.pauseToggleKeys, adapter.pauseToggleLabel)
+			}
+		}
+	})
+
 	return adapter
 }
 
@@ -170,7 +213,6 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 	if nCode == 0 && adapter.keyboardHook != nil && adapter.keyboardHook.shortcuts != nil {
 		keyboardHookStruct := (*core.KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		eventVKCode := int(keyboardHookStruct.VKCode)
-		eventScanCode := int(keyboardHookStruct.ScanCode)
 		eventFlags := keyboardHookStruct.Flags
 
 		isKeyDownEvent := wParam == core.WM_KEYDOWN || wParam == core.WM_SYSKEYDOWN
@@ -185,26 +227,33 @@ func (adapter *ShortcutDetectionAdapter) hookProc(nCode int, wParam uintptr, lPa
 			return 0
 		}
 
-		// Toggle pause mode on backtick key (scan code 0x29)
-		if isKeyDownEvent && eventScanCode == core.SC_BACKTICK {
-			adapter.pauseMutex.Lock()
-			adapter.manualPause = !adapter.manualPause
-			pauseState := adapter.manualPause
-			adapter.pauseMutex.Unlock()
-			if pauseState {
-				log.Info("Shortcut detection MANUALLY PAUSED")
-			} else {
-				log.Info("Shortcut detection MANUALLY RESUMED")
+		// Check if pause toggle shortcut is pressed (if configured)
+		adapter.settingsMutex.RLock()
+		pauseToggleKeys := adapter.pauseToggleKeys
+		adapter.settingsMutex.RUnlock()
+
+		if isKeyDownEvent && pauseToggleKeys != "" {
+			// Check if current key combination matches pause toggle shortcut
+			if adapter.matchesPauseToggle(eventVKCode) {
+				adapter.pauseMutex.Lock()
+				adapter.manualPause = !adapter.manualPause
+				pauseState := adapter.manualPause
+				adapter.pauseMutex.Unlock()
+				if pauseState {
+					log.Info("Shortcut detection MANUALLY PAUSED")
+				} else {
+					log.Info("Shortcut detection MANUALLY RESUMED")
+				}
+				// Publish pause state change to NATS
+				subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
+				if subject != "" {
+					adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": adapter.isPaused()})
+					log.Debug("Published pause state (%v) to %s", adapter.isPaused(), subject)
+				} else {
+					log.Warn("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED not set; skipping pause state publish")
+				}
+				return 1
 			}
-			// Publish pause state change to NATS
-			subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
-			if subject != "" {
-				adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": adapter.isPaused()})
-				log.Debug("Published pause state (%v) to %s", adapter.isPaused(), subject)
-			} else {
-				log.Warn("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED not set; skipping pause state publish")
-			}
-			return 1
 		}
 
 		// Skip all shortcut detection when paused (manual or edge-based)
@@ -270,6 +319,70 @@ func (adapter *ShortcutDetectionAdapter) setEdgePause(paused bool) {
 	}
 }
 
+// matchesPauseToggle checks if the current key press matches the configured pause toggle shortcut
+func (adapter *ShortcutDetectionAdapter) matchesPauseToggle(vkCode int) bool {
+	adapter.settingsMutex.RLock()
+	pauseKeys := adapter.pauseToggleKeys
+	adapter.settingsMutex.RUnlock()
+
+	if pauseKeys == "" {
+		return false
+	}
+
+	// Parse the RobotGo format shortcut (e.g., "ctrl+shift+p")
+	parts := strings.Split(strings.ToLower(pauseKeys), "+")
+	if len(parts) == 0 {
+		return false
+	}
+
+	// Get current modifier states
+	ctrlState, _, _ := core.GetAsyncKeyState.Call(uintptr(core.VK_CONTROL))
+	ctrlPressed := (ctrlState & uintptr(keyPressedMask)) != 0
+	altState, _, _ := core.GetAsyncKeyState.Call(uintptr(core.VK_MENU))
+	altPressed := (altState & uintptr(keyPressedMask)) != 0
+	shiftState, _, _ := core.GetAsyncKeyState.Call(uintptr(core.VK_SHIFT))
+	shiftPressed := (shiftState & uintptr(keyPressedMask)) != 0
+	winState, _, _ := core.GetAsyncKeyState.Call(uintptr(core.VK_LWIN))
+	winPressed := (winState & uintptr(keyPressedMask)) != 0
+
+	// Check if modifiers match
+	expectedCtrl := false
+	expectedAlt := false
+	expectedShift := false
+	expectedWin := false
+	var expectedMainKey string
+
+	for _, part := range parts {
+		switch part {
+		case "ctrl":
+			expectedCtrl = true
+		case "alt":
+			expectedAlt = true
+		case "shift":
+			expectedShift = true
+		case "cmd":
+			expectedWin = true
+		default:
+			expectedMainKey = part
+		}
+	}
+
+	// Modifiers must match exactly
+	if ctrlPressed != expectedCtrl || altPressed != expectedAlt || shiftPressed != expectedShift || winPressed != expectedWin {
+		return false
+	}
+
+	// Check if the main key matches
+	if expectedMainKey != "" {
+		// Convert the RobotGo key name to VK code
+		if expectedVK, ok := core.RobotGoKeyNameToVK(expectedMainKey); ok {
+			return vkCode == expectedVK
+		}
+	}
+
+	return false
+}
+
 func (adapter *ShortcutDetectionAdapter) monitorScreenEdges() {
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
@@ -281,6 +394,16 @@ func (adapter *ShortcutDetectionAdapter) monitorScreenEdges() {
 		case <-adapter.edgeMonitorStop:
 			return
 		case <-ticker.C:
+			// Check if edge proximity pause is enabled
+			adapter.settingsMutex.RLock()
+			enabled := adapter.pauseOnEdgeProximity
+			adapter.settingsMutex.RUnlock()
+
+			if !enabled {
+				// If disabled, ensure edge pause is cleared
+				adapter.setEdgePause(false)
+				continue
+			}
 			x, y, err := core.GetMousePosition()
 			if err != nil {
 				continue

@@ -139,6 +139,7 @@ var (
 
 	// Keyboard/Mouse state
 	GetKeyState      = User32.NewProc("GetKeyState")
+	GetAsyncKeyState = User32.NewProc("GetAsyncKeyState")
 	GetCursorPos     = User32.NewProc("GetCursorPos")
 	GetSystemMetrics = User32.NewProc("GetSystemMetrics")
 	MonitorFromPoint = User32.NewProc("MonitorFromPoint")
@@ -328,4 +329,18 @@ var RobotGoKeyName = map[string]string{
 	"Backslash":    "\\",
 	"BracketClose": "]",
 	"Quote":        "'",
+}
+
+// RobotGoKeyNameToVK converts a RobotGo key name to a Windows VK code
+func RobotGoKeyNameToVK(robotGoKey string) (int, bool) {
+	// Search through RobotGoKeyName map to find the canonical name
+	for canonicalName, robotGoName := range RobotGoKeyName {
+		if robotGoName == robotGoKey {
+			// Found the canonical name, now get the VK code from KeyMap
+			if vkCode, ok := KeyMap[canonicalName]; ok {
+				return vkCode, true
+			}
+		}
+	}
+	return 0, false
 }

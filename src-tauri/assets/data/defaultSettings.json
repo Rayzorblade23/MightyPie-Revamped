@@ -201,5 +201,31 @@
     "type": "int",
     "value": 0,
     "defaultValue": 0
+  },
+  "pauseOnEdgeProximity": {
+    "index": 0,
+    "category": "Shortcut Detection",
+    "label": "Pause on Edge Proximity",
+    "description": "Pause shortcut detection when cursor is near screen edges",
+    "isExposed": true,
+    "type": "bool",
+    "value": true,
+    "defaultValue": false
+  },
+  "pauseToggleShortcut": {
+    "index": 1,
+    "category": "Shortcut Detection",
+    "label": "Pause Toggle Shortcut",
+    "description": "Keyboard shortcut to manually toggle pause mode",
+    "isExposed": true,
+    "type": "shortcut",
+    "value": {
+      "label": "",
+      "keys": ""
+    },
+    "defaultValue": {
+      "label": "",
+      "keys": ""
+    }
   }
 }
