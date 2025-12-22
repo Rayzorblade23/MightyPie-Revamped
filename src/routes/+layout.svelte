@@ -20,7 +20,8 @@
         connectToNats,
         disconnectFromNats,
         fetchLatestFromStream,
-        getConnectionStatus
+        getConnectionStatus,
+        publishMessage
     } from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_APPNAME,
@@ -99,7 +100,7 @@
             event.stopImmediatePropagation();
         };
 
-        const opts: AddEventListenerOptions = { capture: true, passive: false };
+        const opts: AddEventListenerOptions = {capture: true, passive: false};
         window.addEventListener('pointerdown', block, opts);
         window.addEventListener('pointerup', block, opts);
         window.addEventListener('mousedown', block, opts);
@@ -255,6 +256,14 @@
                 } catch (err) {
                     logger.error('Failed to hide pause indicator:', err);
                 }
+            }
+
+            // Update tray menu item text
+            try {
+                await invoke('update_tray_pause_menu_item', {isPaused});
+                logger.debug('Updated tray pause menu item:', isPaused ? 'Resume Detection' : 'Pause Detection');
+            } catch (err) {
+                logger.error('Failed to update tray pause menu item:', err);
             }
         } catch (error) {
             logger.error('[+layout.svelte] Failed to process shortcuts paused message:', error);
@@ -433,6 +442,13 @@
         });
         listen('show-piemenuconfig', () => goto('/piemenuConfigEditor')).then(unlisten => {
             unlistenPieMenuConfig = unlisten;
+        });
+        listen('toggle-pause', () => {
+            const toggleSubject = 'mightyPie.events.shortcuts.togglePause';
+            publishMessage(toggleSubject, {});
+            logger.info('Toggle pause requested from tray icon');
+        }).then(unlisten => {
+            // Store unlisten function if needed for cleanup
         });
         return () => {
             if (unlistenQuickMenu) unlistenQuickMenu();

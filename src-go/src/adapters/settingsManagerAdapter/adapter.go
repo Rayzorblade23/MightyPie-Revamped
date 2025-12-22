@@ -126,9 +126,11 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 		// Check if the key exists in user settings
 		userEntry, exists := settings[key]
 		if !exists {
-			// Key doesn't exist, add it with default values
+			// Key doesn't exist, add it with defaultValue (not value)
 			log.Warn("Missing setting '%s' in settings.json, adding with default value", key)
-			settings[key] = defaultEntry
+			newEntry := defaultEntry
+			newEntry.Value = defaultEntry.DefaultValue
+			settings[key] = newEntry
 			settingsChanged = true
 			continue
 		}

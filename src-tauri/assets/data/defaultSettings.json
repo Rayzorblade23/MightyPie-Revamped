@@ -209,7 +209,7 @@
     "description": "Pause shortcut detection when cursor is near screen edges",
     "isExposed": true,
     "type": "bool",
-    "value": true,
+    "value": false,
     "defaultValue": false
   },
   "pauseToggleShortcut": {

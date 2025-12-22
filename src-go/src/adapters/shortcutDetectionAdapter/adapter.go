@@ -152,6 +152,28 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 	})
 
+	// Listen for toggle pause requests (from button functions or tray icon)
+	togglePauseSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_TOGGLE_PAUSE")
+	adapter.natsAdapter.SubscribeToSubject(togglePauseSubject, func(natsMessage *nats.Msg) {
+		adapter.pauseMutex.Lock()
+		adapter.manualPause = !adapter.manualPause
+		pauseState := adapter.manualPause
+		adapter.pauseMutex.Unlock()
+		
+		if pauseState {
+			log.Info("Shortcut detection MANUALLY PAUSED (via NATS toggle)")
+		} else {
+			log.Info("Shortcut detection MANUALLY RESUMED (via NATS toggle)")
+		}
+		
+		// Publish pause state change
+		subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
+		if subject != "" {
+			adapter.natsAdapter.PublishMessage(subject, map[string]any{"paused": adapter.isPaused()})
+			log.Debug("Published pause state (%v) to %s", adapter.isPaused(), subject)
+		}
+	})
+
 	return adapter
 }
 
