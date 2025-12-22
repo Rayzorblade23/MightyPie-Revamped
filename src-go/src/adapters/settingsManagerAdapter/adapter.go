@@ -71,8 +71,9 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 // SettingsEntry represents a single settings entry with type info, value, and metadata.
 type SettingsEntry struct {
 	Index        int      `json:"index"`
-	Category     string   `json:"category,omitempty"` // For grouping settings in UI
+	Category     string   `json:"category,omitempty"`     // For grouping settings in UI
 	Label        string   `json:"label"`
+	Description  string   `json:"description,omitempty"`  // Optional description shown below the label
 	IsExposed    bool     `json:"isExposed"`
 	Type         string   `json:"type"` // "int", "float", "string", "bool", "enum", "color"
 	Value        any      `json:"value"`
@@ -136,6 +137,28 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 		if userEntry.Category == "" && defaultEntry.Category != "" {
 			log.Info("Migrating setting '%s' to add category '%s'", key, defaultEntry.Category)
 			userEntry.Category = defaultEntry.Category
+			settings[key] = userEntry
+			settingsChanged = true
+		}
+
+		// Migrate description field if missing
+		if userEntry.Description == "" && defaultEntry.Description != "" {
+			log.Info("Migrating setting '%s' to add description", key)
+			userEntry.Description = defaultEntry.Description
+			settings[key] = userEntry
+			settingsChanged = true
+		}
+
+		// Always update label and description from defaults to ensure they stay in sync
+		if userEntry.Label != defaultEntry.Label {
+			log.Info("Updating label for setting '%s'", key)
+			userEntry.Label = defaultEntry.Label
+			settings[key] = userEntry
+			settingsChanged = true
+		}
+		if userEntry.Description != defaultEntry.Description {
+			log.Info("Updating description for setting '%s'", key)
+			userEntry.Description = defaultEntry.Description
 			settings[key] = userEntry
 			settingsChanged = true
 		}

@@ -2,7 +2,12 @@
 
 <script lang="ts">
     import {onMount} from 'svelte';
-    import {getSettings, publishSettings, type SettingsMap, type SettingsEntry} from '$lib/data/settingsManager.svelte.ts';
+    import {
+        getSettings,
+        publishSettings,
+        type SettingsEntry,
+        type SettingsMap
+    } from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {getVersion} from "@tauri-apps/api/app";
@@ -449,9 +454,14 @@
 
                         <!-- Settings in this Category -->
                         {#each categoryEntries.sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0)) as [key, entry]}
-                            <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
-                                <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
-                                       for={key}>{entry.label}</label>
+                            <div class="flex flex-row items-center min-h-12 py-2 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
+                                <div class="w-1/2 md:w-1/3 pr-4 pl-4 flex flex-col">
+                                    <label class="text-zinc-900 dark:text-zinc-200 text-base font-medium"
+                                           for={key}>{entry.label}</label>
+                                    {#if entry.description}
+                                        <span class="text-xs text-zinc-600 dark:text-zinc-400 ">{entry.description}</span>
+                                    {/if}
+                                </div>
                                 <div class="flex-1 flex items-center gap-2 min-w-0">
                                     {#if entry.type === 'boolean' || entry.type === 'bool'}
                                         <Toggle

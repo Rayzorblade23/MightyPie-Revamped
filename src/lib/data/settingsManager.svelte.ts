@@ -8,6 +8,7 @@ const logger = createLogger('SettingsManager');
 // --- Type Definitions ---
 export interface SettingsEntry {
     label: string;
+    description?: string; // Optional description shown below the label
     isExposed: boolean;
     value: any;
     defaultValue: any;
