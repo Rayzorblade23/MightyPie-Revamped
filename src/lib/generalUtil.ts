@@ -78,11 +78,9 @@ export async function getPrivateEnvVar(key: string): Promise<string> {
 export async function exitApp(): Promise<void> {
     try {
         logger.info("Exiting app.");
-        setTimeout(() => {
-            getCurrentWindow().close();
-        }, 100);
+        await invoke('exit_app');
     } catch (e) {
-        console.error("Error during app close:", e);
+        console.error("Error during app exit:", e);
         await exit(1);
     }
 }

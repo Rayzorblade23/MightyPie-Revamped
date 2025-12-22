@@ -80,6 +80,11 @@ fn hide_pause_indicator(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn update_tray_pause_menu_item(app: tauri::AppHandle, is_paused: bool) -> Result<(), String> {
     use tauri::menu::{Menu, MenuItem};
     
@@ -332,6 +337,7 @@ pub fn run() {
             restart_as_admin,
             create_startup_task,
             remove_startup_task,
+            exit_app,
             is_startup_task_enabled,
             is_startup_task_admin,
             show_pause_indicator_without_focus,
