@@ -71,6 +71,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 // SettingsEntry represents a single settings entry with type info, value, and metadata.
 type SettingsEntry struct {
 	Index        int      `json:"index"`
+	Category     string   `json:"category,omitempty"` // For grouping settings in UI
 	Label        string   `json:"label"`
 	IsExposed    bool     `json:"isExposed"`
 	Type         string   `json:"type"` // "int", "float", "string", "bool", "enum", "color"
@@ -129,6 +130,14 @@ func ReadSettings() (map[string]SettingsEntry, error) {
 			settings[key] = defaultEntry
 			settingsChanged = true
 			continue
+		}
+
+		// Migrate category field if missing
+		if userEntry.Category == "" && defaultEntry.Category != "" {
+			log.Info("Migrating setting '%s' to add category '%s'", key, defaultEntry.Category)
+			userEntry.Category = defaultEntry.Category
+			settings[key] = userEntry
+			settingsChanged = true
 		}
 
 		// Validate the entry has the correct structure

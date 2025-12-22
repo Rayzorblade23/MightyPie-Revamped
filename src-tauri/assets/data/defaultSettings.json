@@ -1,102 +1,7 @@
 {
-  "colorAccentAnyWin": {
-    "index": 10,
-    "label": "Button Accent: Show-Any-Window",
-    "isExposed": true,
-    "type": "color",
-    "value": "#5a14b7",
-    "defaultValue": "#5a14b7"
-  },
-  "colorAccentFunction": {
-    "index": 11,
-    "label": "Button Accent: Function",
-    "isExposed": true,
-    "type": "color",
-    "value": "#71b8ed",
-    "defaultValue": "#71b8ed"
-  },
-  "colorAccentLaunch": {
-    "index": 12,
-    "label": "Button Accent: Launch-Program",
-    "isExposed": true,
-    "type": "color",
-    "value": "#f37fc0",
-    "defaultValue": "#f37fc0"
-  },
-  "colorAccentProgramWin": {
-    "index": 13,
-    "label": "Button Accent: Show-Program-Window",
-    "isExposed": true,
-    "type": "color",
-    "value": "#fa9fa4",
-    "defaultValue": "#fa9fa4"
-  },
-  "colorAccentOpenPage": {
-    "index": 14,
-    "label": "Button Accent: Open-Page",
-    "isExposed": true,
-    "type": "color",
-    "value": "#abf7ab",
-    "defaultValue": "#abf7ab"
-  },
-  "colorAccentResource": {
-    "index": 15,
-    "label": "Button Accent: Open-Resource",
-    "isExposed": true,
-    "type": "color",
-    "value": "#54c9c7",
-    "defaultValue": "#54c9c7"
-  },
-  "colorAccentShortcut": {
-    "index": 16,
-    "label": "Button Accent: Open-Resource",
-    "isExposed": true,
-    "type": "color",
-    "value": "#bf8cf2",
-    "defaultValue": "#bf8cf2"
-  },
-  "pieMenuDeadzoneFunction": {
-    "index": 2,
-    "label": "Pie Menu Center function (left-click)",
-    "isExposed": true,
-    "type": "enum",
-    "value": "Forwards",
-    "defaultValue": "Forwards"
-  },
-  "colorPieButtonHighlight": {
-    "index": 6,
-    "label": "Pie Menu Button Highlight color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#7d34b2",
-    "defaultValue": "#7d34b2"
-  },
-  "colorIndicator": {
-    "index": 7,
-    "label": "Pie Menu Indicator color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#5f3c8e",
-    "defaultValue": "#5f3c8e"
-  },
-  "colorRingFill": {
-    "index": 8,
-    "label": "Center Ring Fill color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#202020",
-    "defaultValue": "#202020"
-  },
-  "colorRingStroke": {
-    "index": 9,
-    "label": "Center Ring Outline color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#303030",
-    "defaultValue": "#303030"
-  },
   "startInPieMenuConfig": {
     "index": 0,
+    "category": "General",
     "label": "On program start show Pie Menu Config",
     "isExposed": true,
     "type": "bool",
@@ -104,31 +9,39 @@
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 1,
+    "index": 0,
+    "category": "Pie Menu Behavior",
     "label": "Keep Pie Menu in place when cycling through Pages",
     "isExposed": true,
     "type": "bool",
     "value": false,
     "defaultValue": false
   },
-  "exampleFloat": {
-    "index": 17,
-    "label": "Example Float",
-    "isExposed": false,
-    "type": "float",
-    "value": 0,
-    "defaultValue": 0
+  "pieMenuDeadzoneFunction": {
+    "index": 1,
+    "category": "Pie Menu Behavior",
+    "label": "Pie Menu Center function (left-click)",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Forwards",
+    "defaultValue": "Forwards"
   },
-  "exampleInt": {
-    "index": 18,
-    "label": "Example Integer",
-    "isExposed": false,
-    "type": "int",
-    "value": 0,
-    "defaultValue": 0
+  "mouseWheelWhileOpen": {
+    "index": 2,
+    "category": "Pie Menu Behavior",
+    "label": "Mouse wheel while Pie Menu is open",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Control Volume",
+    "defaultValue": "Control Volume",
+    "options": [
+      "Do nothing",
+      "Control Volume"
+    ]
   },
   "autoScrollOverflow": {
-    "index": 4,
+    "index": 0,
+    "category": "Button Appearance",
     "label": "When text is too long for button",
     "isExposed": true,
     "type": "enum",
@@ -141,7 +54,8 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 5,
+    "index": 1,
+    "category": "Button Appearance",
     "label": "Thickness of Pie Button Border",
     "isExposed": true,
     "type": "enum",
@@ -154,16 +68,121 @@
       "Thick"
     ]
   },
-  "mouseWheelWhileOpen": {
-    "index": 3,
-    "label": "Mouse wheel while Pie Menu is open",
+  "colorAccentAnyWin": {
+    "index": 2,
+    "category": "Button Appearance",
+    "label": "Button Accent: Show-Any-Window",
     "isExposed": true,
-    "type": "enum",
-    "value": "Control Volume",
-    "defaultValue": "Control Volume",
-    "options": [
-      "Do nothing",
-      "Control Volume"
-    ]
+    "type": "color",
+    "value": "#5a14b7",
+    "defaultValue": "#5a14b7"
+  },
+  "colorAccentFunction": {
+    "index": 3,
+    "category": "Button Appearance",
+    "label": "Button Accent: Function",
+    "isExposed": true,
+    "type": "color",
+    "value": "#71b8ed",
+    "defaultValue": "#71b8ed"
+  },
+  "colorAccentLaunch": {
+    "index": 4,
+    "category": "Button Appearance",
+    "label": "Button Accent: Launch-Program",
+    "isExposed": true,
+    "type": "color",
+    "value": "#f37fc0",
+    "defaultValue": "#f37fc0"
+  },
+  "colorAccentProgramWin": {
+    "index": 5,
+    "category": "Button Appearance",
+    "label": "Button Accent: Show-Program-Window",
+    "isExposed": true,
+    "type": "color",
+    "value": "#fa9fa4",
+    "defaultValue": "#fa9fa4"
+  },
+  "colorAccentOpenPage": {
+    "index": 6,
+    "category": "Button Appearance",
+    "label": "Button Accent: Open-Page",
+    "isExposed": true,
+    "type": "color",
+    "value": "#abf7ab",
+    "defaultValue": "#abf7ab"
+  },
+  "colorAccentResource": {
+    "index": 7,
+    "category": "Button Appearance",
+    "label": "Button Accent: Open-Resource",
+    "isExposed": true,
+    "type": "color",
+    "value": "#54c9c7",
+    "defaultValue": "#54c9c7"
+  },
+  "colorAccentShortcut": {
+    "index": 8,
+    "category": "Button Appearance",
+    "label": "Button Accent: Keyboard-Shortcut",
+    "isExposed": true,
+    "type": "color",
+    "value": "#bf8cf2",
+    "defaultValue": "#bf8cf2"
+  },
+  "colorPieButtonHighlight": {
+    "index": 0,
+    "category": "Menu Appearance",
+    "label": "Pie Menu Button Highlight color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#7d34b2",
+    "defaultValue": "#7d34b2"
+  },
+  "colorIndicator": {
+    "index": 1,
+    "category": "Menu Appearance",
+    "label": "Pie Menu Indicator color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#5f3c8e",
+    "defaultValue": "#5f3c8e"
+  },
+  "colorRingFill": {
+    "index": 2,
+    "category": "Menu Appearance",
+    "label": "Center Ring Fill color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#202020",
+    "defaultValue": "#202020"
+  },
+  "colorRingStroke": {
+    "index": 3,
+    "category": "Menu Appearance",
+    "label": "Center Ring Outline color",
+    "isExposed": true,
+    "type": "color",
+    "value": "#303030",
+    "defaultValue": "#303030"
+  },
+  "exampleFloat": {
+    "index": 0,
+    "category": "Debug",
+    "label": "Example Float",
+    "isExposed": false,
+    "type": "float",
+    "value": 0,
+    "defaultValue": 0
+  },
+  "exampleInt": {
+    "index": 1,
+    "category": "Debug",
+    "label": "Example Integer",
+    "isExposed": false,
+    "type": "int",
+    "value": 0,
+    "defaultValue": 0
   }
 }

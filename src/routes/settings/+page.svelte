@@ -2,7 +2,7 @@
 
 <script lang="ts">
     import {onMount} from 'svelte';
-    import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsManager.svelte.ts';
+    import {getSettings, publishSettings, type SettingsMap, type SettingsEntry} from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {getVersion} from "@tauri-apps/api/app";
@@ -60,6 +60,25 @@
 
     // --- Deadzone Function Options State ---
     let deadzoneFunctionOptions = $state<string[]>([]);
+
+    // --- Derived state for categorized settings ---
+    let categorizedSettings = $derived(
+        Object.entries(settings)
+            .filter(([_, entry]) => entry.isExposed)
+            .reduce((acc, [key, entry]) => {
+                const category = entry.category ?? 'General';
+                if (!acc[category]) acc[category] = [];
+                acc[category].push([key, entry]);
+                return acc;
+            }, {} as Record<string, Array<[string, SettingsEntry]>>)
+    );
+
+    let sortedCategories = $derived(
+        Object.entries(categorizedSettings).sort(([catA], [catB]) => {
+            const order = ['General', 'Pie Menu Behavior', 'Button Appearance', 'Menu Appearance', 'Debug'];
+            return order.indexOf(catA) - order.indexOf(catB);
+        })
+    );
 
     onMount(() => {
         logger.info('Settings Mounted');
@@ -421,11 +440,15 @@
                         </div>
                     </div>
 
-                    <!-- Regular Settings -->
-                    {#each Object.entries(settings)
-                        .sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0))
-                            as [key, entry]}
-                        {#if entry.isExposed}
+                    <!-- Regular Settings Grouped by Category -->
+                    {#each sortedCategories as [category, categoryEntries]}
+                        <!-- Category Header -->
+                        <div class="mt-4 mb-2 px-2">
+                            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{category}</h2>
+                        </div>
+
+                        <!-- Settings in this Category -->
+                        {#each categoryEntries.sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0)) as [key, entry]}
                             <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
                                 <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
                                        for={key}>{entry.label}</label>
@@ -503,7 +526,7 @@
                                     </button>
                                 </div>
                             </div>
-                        {/if}
+                        {/each}
                     {/each}
 
                     <!-- Folder Navigation Buttons -->
