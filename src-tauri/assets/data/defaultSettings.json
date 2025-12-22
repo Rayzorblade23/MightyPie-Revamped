@@ -164,8 +164,18 @@
     "value": "#5f3c8e",
     "defaultValue": "#5f3c8e"
   },
-  "colorRingFill": {
+  "pieMenuAnimationDelayIncrement": {
     "index": 2,
+    "category": "Menu Appearance",
+    "label": "Opening Stagger Amount",
+    "description": "Delay in milliseconds between each button when menu opens. Set to 0 for no stagger",
+    "isExposed": true,
+    "type": "int",
+    "value": 5,
+    "defaultValue": 5
+  },
+  "colorRingFill": {
+    "index": 3,
     "category": "Menu Appearance",
     "label": "Center Ring Fill",
     "description": "Fill color of the center ring",
@@ -175,7 +185,7 @@
     "defaultValue": "#202020"
   },
   "colorRingStroke": {
-    "index": 3,
+    "index": 4,
     "category": "Menu Appearance",
     "label": "Center Ring Outline",
     "description": "Outline color of the center ring",

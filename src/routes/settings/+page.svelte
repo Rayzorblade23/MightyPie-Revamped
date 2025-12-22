@@ -614,14 +614,19 @@
                                                value={entry.value}
                                                onchange={e => handleNumberChange(e, key)}/>
                                     {:else if entry.type === 'int' || entry.type === 'integer'}
-                                        <input type="number" id={key}
-                                               step="1"
-                                               inputmode="numeric"
-                                               pattern="^-?\\d+$"
-                                               class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
-                                               value={entry.value}
-                                               onchange={e => handleNumberChange(e, key)}
-                                               onkeydown={handleIntKeydown}/>
+                                        <div class="flex flex-row items-center gap-2 min-w-0">
+                                            <div class="w-10 flex-shrink-0"></div>
+                                            <div class="w-28 flex-shrink min-w-0">
+                                                <input type="number" id={key}
+                                                       step="1"
+                                                       inputmode="numeric"
+                                                       pattern="^-?\\d+$"
+                                                       class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm text-zinc-900 dark:text-zinc-100 w-full"
+                                                       value={entry.value}
+                                                       onchange={e => handleNumberChange(e, key)}
+                                                       onkeydown={handleIntKeydown}/>
+                                            </div>
+                                        </div>
                                     {:else if entry.type === 'string'}
                                         <input type="text" id={key}
                                                class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
