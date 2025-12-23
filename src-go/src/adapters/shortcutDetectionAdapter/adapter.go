@@ -120,9 +120,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		// Optional: log.Debug("NATS Listener: Shortcut pressed event observed: %+v", eventData)
 	})
 
-	// Listen to settings updates for pause configuration
+	// Listen to settings updates for pause configuration using JetStream pull subscription
+	// This ensures we receive the initial settings even if we subscribe after they're published
 	settingsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
-	adapter.natsAdapter.SubscribeToSubject(settingsSubject, func(natsMessage *nats.Msg) {
+	adapter.natsAdapter.SubscribeJetStreamPull(settingsSubject, "shortcutDetector_reader", func(natsMessage *nats.Msg) {
 		var settings map[string]any
 		if err := json.Unmarshal(natsMessage.Data, &settings); err != nil {
 			log.Error("Failed to decode settings update: %v", err)

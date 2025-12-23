@@ -41,7 +41,8 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 	a.natsAdapter.PublishMessage(subject, settings)
 	log.Info("Initial settings published.")
 
-	natsAdapter.SubscribeJetStreamPull(subject, "", func(msg *nats.Msg) {
+	// Use a unique durable consumer name for settingsManager to avoid sharing with other subscribers
+	natsAdapter.SubscribeJetStreamPull(subject, "settingsManager_writer", func(msg *nats.Msg) {
 		var newSettings map[string]SettingsEntry
 		if err := json.Unmarshal(msg.Data, &newSettings); err != nil {
 			log.Error("Failed to unmarshal settings update: %v", err)
@@ -52,8 +53,15 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 			log.Error("Rejected incoming settings update: settings map is empty!")
 			return
 		}
+		
+		log.Info("[SettingsManager] Received settings update with %d entries", len(newSettings))
+		
 		// Only write if settings have changed
-		if !settingsEqual(currentSettings, newSettings) {
+		equal := settingsEqual(currentSettings, newSettings)
+		log.Info("[SettingsManager] settingsEqual returned: %v", equal)
+		
+		if !equal {
+			log.Info("[SettingsManager] Settings have changed, writing to disk...")
 			if err := WriteSettings(newSettings); err != nil {
 				log.Error("Failed to write settings.json: %v", err)
 				return
@@ -61,7 +69,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *SettingsManagerAdapter {
 			currentSettings = newSettings
 			log.Info("settings.json updated from NATS message.")
 		} else {
-			log.Info("Received settings update, but no changes detected.")
+			log.Warn("[SettingsManager] Received settings update, but no changes detected. This might be a bug if you just changed settings in the UI.")
 		}
 	})
 
@@ -220,19 +228,25 @@ func WriteSettings(settings map[string]SettingsEntry) error {
 // settingsEqual compares two settings maps for equality.
 func settingsEqual(a, b map[string]SettingsEntry) bool {
 	if len(a) != len(b) {
+		log.Debug("[settingsEqual] Length mismatch: a=%d, b=%d", len(a), len(b))
 		return false
 	}
 	for key, aEntry := range a {
 		bEntry, ok := b[key]
 		if !ok {
+			log.Debug("[settingsEqual] Key '%s' not found in b", key)
 			return false
 		}
 		aBytes, _ := json.Marshal(aEntry)
 		bBytes, _ := json.Marshal(bEntry)
 		if string(aBytes) != string(bBytes) {
+			log.Debug("[settingsEqual] Key '%s' differs:", key)
+			log.Debug("  Current (a): %s", string(aBytes))
+			log.Debug("  Incoming (b): %s", string(bBytes))
 			return false
 		}
 	}
+	log.Debug("[settingsEqual] All %d entries are identical", len(a))
 	return true
 }
 
