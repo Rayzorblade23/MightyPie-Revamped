@@ -52,6 +52,7 @@
     import ConfirmationDialog from "$lib/components/ui/ConfirmationDialog.svelte";
     import SetShortcutDialog from "$lib/components/ui/SetShortcutDialog.svelte";
     import ButtonTypeSelector from "$lib/components/piemenuConfig/selectors/ButtonTypeSelector.svelte";
+    import ApplicationSelector from "$lib/components/piemenuConfig/selectors/ApplicationSelector.svelte";
     import {goto} from "$app/navigation";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
@@ -211,6 +212,56 @@
             usage[shortcut].push(Number(menuID));
         });
         return usage;
+    });
+
+    // Detect conflict type for the selected menu's shortcut
+    let shortcutConflictType = $derived.by(() => {
+        if (selectedMenuID === undefined) return null;
+        const currentShortcut = shortcutLabels[selectedMenuID];
+        if (!currentShortcut) return null;
+
+        const menusWithSameShortcut = shortcutUsage[currentShortcut];
+        if (!menusWithSameShortcut || menusWithSameShortcut.length <= 1) return null;
+
+        // Get current menu's target app
+        const currentEntry = editorPieMenuConfig.shortcuts?.[String(selectedMenuID)];
+        const currentTargetApp = currentEntry?.targetApp;
+
+        // Check conflict types with other menus
+        let hasTrueConflict = false;
+        let hasAppSpecificOnly = false;
+
+        for (const menuID of menusWithSameShortcut) {
+            if (menuID === selectedMenuID) continue;
+
+            const otherEntry = editorPieMenuConfig.shortcuts?.[String(menuID)];
+            const otherTargetApp = otherEntry?.targetApp;
+
+            // Both have target apps
+            if (currentTargetApp && otherTargetApp) {
+                // Same app = true conflict
+                if (currentTargetApp === otherTargetApp) {
+                    hasTrueConflict = true;
+                }
+                // Different apps = safe, app-specific
+                else {
+                    hasAppSpecificOnly = true;
+                }
+            }
+            // One or both have no target app - only a conflict if they're both global
+            else if (!currentTargetApp && !otherTargetApp) {
+                hasTrueConflict = true;
+            }
+            // One is global, one is app-specific = safe (they won't conflict)
+            else {
+                hasAppSpecificOnly = true;
+            }
+        }
+
+        // True conflicts take precedence
+        if (hasTrueConflict) return 'global';
+        if (hasAppSpecificOnly) return 'app-specific';
+        return null;
     });
 
     function cloneMenuConfig(config: ButtonsConfig): ButtonsConfig {
@@ -494,6 +545,7 @@
     });
 
     onMount(() => {
+        window.addEventListener('click', handleClickOutsideTargetAppTooltip);
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 if (event.defaultPrevented) return;
@@ -515,6 +567,7 @@
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener('click', handleClickOutsideTargetAppTooltip);
         };
     });
 
@@ -723,6 +776,59 @@
         editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
     }
 
+    function handleTargetAppSelect(appName: string) {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const key = String(selectedMenuID);
+        const currentShortcuts = editorPieMenuConfig.shortcuts || {};
+        const currentEntry = currentShortcuts[key];
+
+        if (currentEntry) {
+            const updatedEntry: ShortcutEntry = {
+                codes: currentEntry.codes,
+                label: currentEntry.label
+            };
+            if (appName) {
+                updatedEntry.targetApp = appName;
+            }
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: updatedEntry
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        } else if (appName) {
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: {
+                    codes: [],
+                    label: '',
+                    targetApp: appName
+                }
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        }
+    }
+
+    function handleClearTargetApp() {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const key = String(selectedMenuID);
+        const currentShortcuts = editorPieMenuConfig.shortcuts || {};
+        const currentEntry = currentShortcuts[key];
+
+        if (currentEntry) {
+            const updatedEntry: ShortcutEntry = {
+                codes: currentEntry.codes,
+                label: currentEntry.label
+            };
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: updatedEntry
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        }
+    }
+
     const buttonTypeFriendlyNames: Record<ButtonType, string> = {
         [ButtonType.ShowProgramWindow]: "Show Program Window",
         [ButtonType.ShowAnyWindow]: "Show Any Window",
@@ -736,6 +842,31 @@
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
 
     let resetType = $state<ButtonType>(ButtonType.ShowAnyWindow);
+
+    const installedAppsMap = $derived(getInstalledAppsInfo());
+    const selectedMenuTargetApp = $derived.by(() => {
+        if (selectedMenuID === undefined) return '';
+        const shortcut = editorPieMenuConfig.shortcuts?.[String(selectedMenuID)];
+        return shortcut?.targetApp || '';
+    });
+
+    // State for target app tooltip
+    let showTargetAppTooltip = $state(false);
+    let targetAppQuestionMarkButton = $state<HTMLElement | null>(null);
+
+    function toggleTargetAppTooltip(event: MouseEvent) {
+        event.stopPropagation();
+        showTargetAppTooltip = !showTargetAppTooltip;
+    }
+
+    function handleClickOutsideTargetAppTooltip(event: MouseEvent) {
+        if (showTargetAppTooltip && 
+            targetAppQuestionMarkButton && 
+            event.target instanceof Node && 
+            !targetAppQuestionMarkButton.contains(event.target)) {
+            showTargetAppTooltip = false;
+        }
+    }
 
     function handleResetTypeChange(newType: ButtonType) {
         resetType = newType;
@@ -997,8 +1128,10 @@
                                     Menu Settings</h3>
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium mt-2 text-zinc-700 dark:text-zinc-400">Set Shortcut to open Menu:</span>
-                                    {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
-                                        <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
+                                    {#if shortcutConflictType === 'global'}
+                                        <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut conflicts with another menu!</span>
+                                    {:else if shortcutConflictType === 'app-specific'}
+                                        <span class="mt-1 text-xs text-blue-500 dark:text-blue-400 font-semibold">Note: Same shortcut used in different apps (safe)</span>
                                     {/if}
                                 </div>
                                 <div class="flex flex-row justify-between items-center w-full my-1">
@@ -1019,6 +1152,40 @@
                                             style="max-width: 120px;"
                                             variant="primary"
                                     />
+                                </div>
+                                <div class="mt-1.5">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Show Menu only in:</span>
+                                        <div class="flex">
+                                            <button
+                                                class="flex items-center justify-center w-4 h-4 mr-1 rounded-full bg-purple-800 dark:bg-purple-950 text-zinc-100 hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 transition-colors text-xs font-medium"
+                                                onclick={toggleTargetAppTooltip}
+                                                aria-label="Show target app explanation"
+                                                bind:this={targetAppQuestionMarkButton}
+                                            >
+                                                ?
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-row items-start gap-2 -mt-3">
+                                        <div class="flex-1">
+                                            <ApplicationSelector
+                                                    selectedAppName={selectedMenuTargetApp}
+                                                    installedAppsMap={installedAppsMap}
+                                                    onSelect={handleTargetAppSelect}
+                                                    labelText=""
+                                            />
+                                        </div>
+                                        <div class="flex flex-col" style="margin-top: 0.75rem;">
+                                            <StandardButton
+                                                    label="Clear"
+                                                    onClick={handleClearTargetApp}
+                                                    disabled={selectedMenuID === undefined || !selectedMenuTargetApp}
+                                                    style="max-width: 120px;"
+                                                    variant="primary"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1041,6 +1208,19 @@
                 </div>
             {/if}
         </div>
+
+        {#if showTargetAppTooltip && targetAppQuestionMarkButton}
+            {@const buttonRect = targetAppQuestionMarkButton.getBoundingClientRect()}
+            <div class="fixed inset-0 z-[100] pointer-events-none">
+                <div 
+                    class="absolute bg-white dark:bg-zinc-800 p-3 rounded-md shadow-lg w-80 text-sm text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 whitespace-pre-line pointer-events-auto"
+                    style="left: {Math.max(10, buttonRect.right - 320)}px; top: {Math.max(10, buttonRect.top - 10)}px; transform: translateY(-100%);"
+                >
+                    The shortcut will only work within the application selected here.
+                    Leave it empty for the shortcut to work globally (in all applications).
+                </div>
+            </div>
+        {/if}
 
         <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-2xl border-t border-none flex-shrink-0">
             <div class="w-full flex flex-row justify-between items-center gap-2 px-4 py-2 max-[450px]:flex-col max-[450px]:items-start">

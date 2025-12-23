@@ -96,7 +96,7 @@
     {/if}
 
     {#if tooltipText && tooltipVisible}
-        <span class="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-xs text-white shadow-lg">
+        <span class="pointer-events-none absolute right-0 bottom-full mb-2 max-w-[200px] text-center rounded-md bg-black/80 px-2 py-1 text-xs text-white shadow-lg">
             {tooltipText}
         </span>
     {/if}

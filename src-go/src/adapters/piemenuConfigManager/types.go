@@ -21,8 +21,9 @@ type MenuConfig map[string]PageConfig
 type ConfigData map[string]MenuConfig
 
 type ShortcutEntry struct {
-    Codes []int  `json:"codes"`
-    Label string `json:"label"`
+    Codes     []int   `json:"codes"`
+    Label     string  `json:"label"`
+    TargetApp *string `json:"targetApp,omitempty"`
 }
 
 type StarredFavorite struct {

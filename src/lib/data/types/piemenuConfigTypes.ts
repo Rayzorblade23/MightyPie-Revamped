@@ -5,6 +5,7 @@ import type {MenuConfigData} from "$lib/data/types/pieButtonTypes.ts";
 export interface ShortcutEntry {
     codes: number[];
     label: string;
+    targetApp?: string;
 }
 
 export type ShortcutsMap = Record<string, ShortcutEntry>;
