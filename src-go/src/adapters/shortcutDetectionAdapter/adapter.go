@@ -53,6 +53,8 @@ type ShortcutDetectionAdapter struct {
 	pauseToggleKeys      string
 	pauseToggleLabel     string
 	settingsMutex        sync.RWMutex
+	focusedApp           string
+	focusedAppMutex      sync.RWMutex
 }
 
 // Run blocks forever to keep the worker process alive.
@@ -69,7 +71,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		updateHookChan:       make(chan struct{}, 1),
 		edgeMonitorStop:      make(chan struct{}),
 		pauseOnEdgeProximity: false, // Default to enabled
-		pauseToggleKeys:      "",   // Default to no shortcut
+		pauseToggleKeys:      "",    // Default to no shortcut
 		pauseToggleLabel:     "",
 	}
 
@@ -152,6 +154,26 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		}
 	})
 
+	// Subscribe to focused app updates
+	focusedAppSubject := os.Getenv("PUBLIC_NATSSUBJECT_FOCUSEDAPP_UPDATE")
+	if focusedAppSubject != "" {
+		adapter.natsAdapter.SubscribeToSubject(focusedAppSubject, func(natsMessage *nats.Msg) {
+			var payload struct {
+				AppName string `json:"appName"`
+			}
+			if err := json.Unmarshal(natsMessage.Data, &payload); err != nil {
+				log.Error("Failed to decode focused app update: %v", err)
+				return
+			}
+			adapter.focusedAppMutex.Lock()
+			adapter.focusedApp = payload.AppName
+			adapter.focusedAppMutex.Unlock()
+			log.Debug("Focused app updated: %s", payload.AppName)
+		})
+	} else {
+		log.Warn("PUBLIC_NATSSUBJECT_FOCUSEDAPP_UPDATE not set; targetApp filtering will not work")
+	}
+
 	// Listen for toggle pause requests (from button functions or tray icon)
 	togglePauseSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_TOGGLE_PAUSE")
 	adapter.natsAdapter.SubscribeToSubject(togglePauseSubject, func(natsMessage *nats.Msg) {
@@ -159,13 +181,13 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutDetectionAdapter {
 		adapter.manualPause = !adapter.manualPause
 		pauseState := adapter.manualPause
 		adapter.pauseMutex.Unlock()
-		
+
 		if pauseState {
 			log.Info("Shortcut detection MANUALLY PAUSED (via NATS toggle)")
 		} else {
 			log.Info("Shortcut detection MANUALLY RESUMED (via NATS toggle)")
 		}
-		
+
 		// Publish pause state change
 		subject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED")
 		if subject != "" {

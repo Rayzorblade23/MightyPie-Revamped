@@ -62,20 +62,72 @@ func isEventKeyInShortcutCodes(eventVKCode int, shortcutDefinedCodes []int) bool
 	return false
 }
 
-
 // handleKeyDown processes key down events for shortcut detection.
 // Returns true if the event was consumed by a shortcut.
 func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
+	// Get current focused app
+	adapter.focusedAppMutex.RLock()
+	currentFocusedApp := adapter.focusedApp
+	adapter.focusedAppMutex.RUnlock()
+
+	// Find all shortcuts that match the pressed keys
+	var matchingWithTargetApp []struct {
+		index      string
+		definition core.ShortcutEntry
+	}
+	var matchingWithoutTargetApp []struct {
+		index      string
+		definition core.ShortcutEntry
+	}
+
 	for shortcutKeyIndex, shortcutDefinition := range adapter.keyboardHook.shortcuts {
 		mainShortcutKey := shortcutDefinition.Codes[len(shortcutDefinition.Codes)-1]
 		modifierKeys := shortcutDefinition.Codes[:len(shortcutDefinition.Codes)-1]
+
 		if eventVKCode == mainShortcutKey && checkShortcutModifiers(modifierKeys) {
+			if shortcutDefinition.TargetApp != "" {
+				matchingWithTargetApp = append(matchingWithTargetApp, struct {
+					index      string
+					definition core.ShortcutEntry
+				}{shortcutKeyIndex, shortcutDefinition})
+			} else {
+				matchingWithoutTargetApp = append(matchingWithoutTargetApp, struct {
+					index      string
+					definition core.ShortcutEntry
+				}{shortcutKeyIndex, shortcutDefinition})
+			}
+		}
+	}
+
+	// Priority 1: Check if any targetApp matches the focused app
+	for _, match := range matchingWithTargetApp {
+		if match.definition.TargetApp == currentFocusedApp {
+			log.Debug("Shortcut %s triggered for targetApp '%s' (focused)", match.index, match.definition.TargetApp)
 			if adapter.keyboardHook.multiCallback != nil {
-				adapter.keyboardHook.multiCallback(shortcutKeyIndex, shortcutDefinition.Codes, true)
+				adapter.keyboardHook.multiCallback(match.index, match.definition.Codes, true)
 			}
 			return true
 		}
 	}
+
+	// Priority 2: If no targetApp matched, use shortcuts without targetApp
+	if len(matchingWithoutTargetApp) > 0 {
+		// Only trigger if there are no targetApp shortcuts (already checked above)
+		match := matchingWithoutTargetApp[0]
+		log.Debug("Shortcut %s triggered (no targetApp restriction)", match.index)
+		if adapter.keyboardHook.multiCallback != nil {
+			adapter.keyboardHook.multiCallback(match.index, match.definition.Codes, true)
+		}
+		return true
+	}
+
+	// If we have targetApp shortcuts but none matched the focused app, let the key pass through
+	if len(matchingWithTargetApp) > 0 {
+		log.Debug("Shortcut matched but targetApp '%s' doesn't match focused app '%s', passing through",
+			matchingWithTargetApp[0].definition.TargetApp, currentFocusedApp)
+		return false
+	}
+
 	return false
 }
 

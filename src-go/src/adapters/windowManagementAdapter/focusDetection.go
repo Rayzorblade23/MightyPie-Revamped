@@ -112,6 +112,13 @@ func (a *WindowManagementAdapter) detectFocusedApp(hwnd windows.HWND) {
 	exePath := syscall.UTF16ToString(buf[:size])
 	exeName := strings.ToLower(filepath.Base(exePath))
 
+	// Check if this is MightyPie itself by executable name
+	// MightyPie executables: MightyPie.exe, MightyPieRevamped.exe, etc.
+	if strings.Contains(strings.ToLower(exeName), "mightypie") {
+		log.Debug("MightyPie itself focused, ignoring")
+		return
+	}
+
 	// Get window title for exclusion checks
 	windowTitle := GetWindowText(winHwnd)
 
