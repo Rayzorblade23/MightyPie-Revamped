@@ -13,7 +13,6 @@
     import {calculatePieButtonOffsets, calculatePieButtonPosition} from "$lib/components/piemenu/piemenuUtils.ts";
     import ConfigPieButton from "$lib/components/piemenuConfig/configPieMenuElements/ConfigPieButton.svelte";
     import RemovePageButton from "$lib/components/piemenuConfig/buttons/RemovePageButton.svelte";
-    import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
     import { getIndicatorSVG, getIndicatorRingSVG } from "$lib/components/piemenu/indicatorSVGLoader.svelte.ts";
 
     // --- Component Props (using $props) ---
@@ -23,6 +22,7 @@
         buttonsOnPage,
         onButtonClick,
         onRemovePage,
+        onContextMenu,
         activeSlotIndex = -1,
         isStarred = false,
     } = $props<{
@@ -37,6 +37,7 @@
             button: Button
         }) => void;
         onRemovePage: (pageID: number) => void;
+        onContextMenu?: (event: MouseEvent, menuID: number, pageID: number) => void;
         activeSlotIndex?: number;
         isStarred?: boolean;
     }>();
@@ -157,7 +158,7 @@
         };
     }
 
-    function handleSlotClick(slotIndex: number) {
+    function handleSlotClick(slotIndex: number, event?: MouseEvent) {
         const buttonFromConfig = buttonsOnPage.get(slotIndex);
         const buttonForDispatch: Button = buttonFromConfig
             ? buttonFromConfig
@@ -190,32 +191,17 @@
         return false;
     }
 
-    let showConfirmDialog = $state(false);
-    let pendingPageID: number | null = null;
-
     function handleRemoveThisPage(event: MouseEvent) {
         event.stopPropagation();
-
-        if (hasNonSimpleButtons(buttonsOnPage)) {
-            pendingPageID = pageID;
-            showConfirmDialog = true;
-            return;
-        }
-
         onRemovePage(pageID);
     }
 
-    function handleConfirm() {
-        if (pendingPageID !== null) {
-            onRemovePage(pendingPageID);
-            pendingPageID = null;
+    function handleContextMenu(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (onContextMenu) {
+            onContextMenu(event, menuID, pageID);
         }
-        showConfirmDialog = false;
-    }
-
-    function handleCancel() {
-        pendingPageID = null;
-        showConfirmDialog = false;
     }
 </script>
 
@@ -237,6 +223,9 @@
 <div
         class="pie-menu-settings-view relative bg-purple-100 dark:bg-zinc-900/90"
         style="width: {containerWidthPx}px; height: {containerHeightPx}px"
+        oncontextmenu={handleContextMenu}
+        role="group"
+        aria-label="Pie menu page {pageID + 1}"
 >
     <RemovePageButton onClick={handleRemoveThisPage} title="Remove this page"/>
 
@@ -275,7 +264,11 @@
                     properties={displayInfo.properties ?? getDefaultButton(ButtonType.ShowAnyWindow).properties}
                     buttonTextUpper={displayInfo.buttonTextUpper}
                     buttonTextLower={displayInfo.buttonTextLower}
-                    onclick={() => handleSlotClick(slotIndex)}
+                    onclick={(event) => handleSlotClick(slotIndex, event)}
+                    oncontextmenu={(event) => {
+                        event.preventDefault();
+                        handleSlotClick(slotIndex, event);
+                    }}
                     active={slotIndex === activeSlotIndex}
             />
         {/if}
@@ -296,15 +289,3 @@
         </div>
     </div>
 </div>
-
-{#if showConfirmDialog}
-<ConfirmationDialog
-        bind:isOpen={showConfirmDialog}
-        cancelText="Cancel"
-        confirmText="Remove Page"
-        message="This page contains buttons that are not simple buttons. Are you sure you want to remove it?"
-        onCancel={handleCancel}
-        onConfirm={handleConfirm}
-        title="Remove Page"
-/>
-{/if}

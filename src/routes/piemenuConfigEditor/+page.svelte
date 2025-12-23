@@ -202,6 +202,19 @@
     // Load Config error notification state
     let showLoadFailedDialog = $state(false);
     let loadFailedMessage = $state<string>("Failed to load config.");
+    // Context menu state
+    let contextMenuVisible = $state(false);
+    let contextMenuX = $state(0);
+    let contextMenuY = $state(0);
+    let contextMenuTargetMenuID = $state<number | undefined>(undefined);
+    let contextMenuTargetPageID = $state<number | undefined>(undefined);
+    // Page removal confirmation dialog state
+    let showRemovePageDialog = $state(false);
+    let pendingRemovePageMenuID = $state<number | undefined>(undefined);
+    let pendingRemovePageID = $state<number | undefined>(undefined);
+    // Clipboard state for copy/paste
+    let copiedButton = $state<Button | null>(null);
+    let copiedPageButtons = $state<Map<number, Button> | null>(null);
 
     // --- Duplicate Shortcut Detection ---
     let shortcutUsage = $derived.by(() => {
@@ -546,6 +559,7 @@
 
     onMount(() => {
         window.addEventListener('click', handleClickOutsideTargetAppTooltip);
+        window.addEventListener('click', closeContextMenu);
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 if (event.defaultPrevented) return;
@@ -553,6 +567,10 @@
                 // If an input, textarea, select, or contenteditable is focused, first Escape should blur it, second Escape should trigger the normal logic
                 if (active && (["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) || active.getAttribute("contenteditable") === "true")) {
                     (active as HTMLElement).blur();
+                    return;
+                }
+                if (contextMenuVisible) {
+                    closeContextMenu();
                     return;
                 }
                 if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen || isButtonShortcutDialogOpen || showBackupCreatedDialog) return;
@@ -568,6 +586,7 @@
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener('click', handleClickOutsideTargetAppTooltip);
+            window.removeEventListener('click', closeContextMenu);
         };
     });
 
@@ -654,6 +673,20 @@
             editorButtonsConfig = result.newConfig;
             // local-only
             logger.log(`Locally added new page ${result.newPageID} to menu ${selectedMenuID}.`);
+            
+            // Select the newly created page
+            const newPageButtons = editorButtonsConfig.get(selectedMenuID)?.get(result.newPageID);
+            if (newPageButtons) {
+                const firstButton = newPageButtons.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow);
+                selectedButtonDetails = {
+                    menuID: selectedMenuID,
+                    pageID: result.newPageID,
+                    buttonID: 0,
+                    slotIndex: 0,
+                    button: firstButton
+                };
+            }
+            
             setTimeout(() => {
                 if (pagesContainer && (pagesContainer as any).lockMomentum) {
                     (pagesContainer as any).lockMomentum();
@@ -678,8 +711,35 @@
         }
     }
 
+    /** Check if a page has non-simple buttons */
+    function hasNonSimpleButtons(buttonsOnPage: ButtonsOnPageMap): boolean {
+        for (const button of buttonsOnPage.values()) {
+            if (button &&
+                button.button_type !== ButtonType.ShowAnyWindow &&
+                button.button_type !== ButtonType.Disabled) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Remove a page from the selected menu and update selection if needed. */
     function handleRemovePage(menuIDToRemoveFrom: number, pageIDToRemove: number) {
+        // Check if page has non-simple buttons and show confirmation if needed
+        const buttonsOnPage = editorButtonsConfig.get(menuIDToRemoveFrom)?.get(pageIDToRemove);
+        if (buttonsOnPage && hasNonSimpleButtons(buttonsOnPage)) {
+            pendingRemovePageMenuID = menuIDToRemoveFrom;
+            pendingRemovePageID = pageIDToRemove;
+            showRemovePageDialog = true;
+            return;
+        }
+        
+        // Proceed with removal
+        executeRemovePage(menuIDToRemoveFrom, pageIDToRemove);
+    }
+
+    /** Actually execute the page removal */
+    function executeRemovePage(menuIDToRemoveFrom: number, pageIDToRemove: number) {
         pushUndoState();
         if (selectedMenuID === undefined || selectedMenuID !== menuIDToRemoveFrom) {
             logger.warn("Attempting to remove page from a menu that is not currently selected or invalid state.");
@@ -703,6 +763,21 @@
         } else {
             logger.error(`Failed to remove page ${pageIDToRemove} from menu ${menuIDToRemoveFrom}.`);
         }
+    }
+
+    function confirmRemovePage() {
+        if (pendingRemovePageMenuID !== undefined && pendingRemovePageID !== undefined) {
+            executeRemovePage(pendingRemovePageMenuID, pendingRemovePageID);
+        }
+        showRemovePageDialog = false;
+        pendingRemovePageMenuID = undefined;
+        pendingRemovePageID = undefined;
+    }
+
+    function cancelRemovePage() {
+        showRemovePageDialog = false;
+        pendingRemovePageMenuID = undefined;
+        pendingRemovePageID = undefined;
     }
 
     /** Add a new menu and select it. */
@@ -866,6 +941,122 @@
             !targetAppQuestionMarkButton.contains(event.target)) {
             showTargetAppTooltip = false;
         }
+    }
+
+    function handlePageContextMenu(event: MouseEvent, menuID: number, pageID: number) {
+        // Estimate context menu dimensions (adjust if needed)
+        const menuWidth = 180;
+        const menuHeight = 280; // Approximate height based on number of items
+        
+        // Get window dimensions
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Calculate position, adjusting if too close to edges
+        let x = event.clientX;
+        let y = event.clientY;
+        
+        // Adjust horizontal position if menu would overflow right edge
+        if (x + menuWidth > windowWidth) {
+            x = Math.max(10, windowWidth - menuWidth - 10);
+        }
+        
+        // Adjust vertical position if menu would overflow bottom edge
+        if (y + menuHeight > windowHeight) {
+            y = Math.max(10, windowHeight - menuHeight - 10);
+        }
+        
+        contextMenuX = x;
+        contextMenuY = y;
+        contextMenuTargetMenuID = menuID;
+        contextMenuTargetPageID = pageID;
+        contextMenuVisible = true;
+    }
+
+    function closeContextMenu() {
+        contextMenuVisible = false;
+    }
+
+    function handleContextMenuCopyButton() {
+        if (selectedButtonDetails) {
+            const button = editorButtonsConfig.get(selectedButtonDetails.menuID)?.get(selectedButtonDetails.pageID)?.get(selectedButtonDetails.slotIndex);
+            if (button) {
+                copiedButton = JSON.parse(JSON.stringify(button));
+                logger.log(`Copied button from slot ${selectedButtonDetails.slotIndex}`);
+            }
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuCopyPage() {
+        if (contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            const pageButtons = editorButtonsConfig.get(contextMenuTargetMenuID)?.get(contextMenuTargetPageID);
+            if (pageButtons) {
+                copiedPageButtons = new Map(JSON.parse(JSON.stringify(Array.from(pageButtons.entries()))));
+                logger.log(`Copied page ${contextMenuTargetPageID} from menu ${contextMenuTargetMenuID}`);
+            }
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuPasteButton() {
+        if (copiedButton && selectedButtonDetails) {
+            pushUndoState();
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(selectedButtonDetails.menuID));
+            const pageButtons = new Map(menuPages.get(selectedButtonDetails.pageID));
+            pageButtons.set(selectedButtonDetails.slotIndex, JSON.parse(JSON.stringify(copiedButton)));
+            menuPages.set(selectedButtonDetails.pageID, pageButtons);
+            newConfig.set(selectedButtonDetails.menuID, menuPages);
+            editorButtonsConfig = newConfig;
+            logger.log(`Pasted button to slot ${selectedButtonDetails.slotIndex}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuPastePage() {
+        if (copiedPageButtons && contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            pushUndoState();
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(contextMenuTargetMenuID));
+            menuPages.set(contextMenuTargetPageID, new Map(JSON.parse(JSON.stringify(Array.from(copiedPageButtons.entries())))));
+            newConfig.set(contextMenuTargetMenuID, menuPages);
+            editorButtonsConfig = newConfig;
+            logger.log(`Pasted page to page ${contextMenuTargetPageID} in menu ${contextMenuTargetMenuID}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuResetButton() {
+        if (selectedButtonDetails) {
+            pushUndoState();
+            const defaultButton = getDefaultButton(ButtonType.ShowAnyWindow);
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(selectedButtonDetails.menuID));
+            const pageButtons = new Map(menuPages.get(selectedButtonDetails.pageID));
+            pageButtons.set(selectedButtonDetails.slotIndex, defaultButton);
+            menuPages.set(selectedButtonDetails.pageID, pageButtons);
+            newConfig.set(selectedButtonDetails.menuID, menuPages);
+            editorButtonsConfig = newConfig;
+            // Update selected button details
+            selectedButtonDetails = {
+                ...selectedButtonDetails,
+                button: defaultButton
+            };
+            logger.log(`Reset button at slot ${selectedButtonDetails.slotIndex}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuSetQuickMenu() {
+        if (contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            pushUndoState();
+            editorPieMenuConfig = {
+                ...editorPieMenuConfig,
+                starred: {menuID: contextMenuTargetMenuID, pageID: contextMenuTargetPageID}
+            };
+        }
+        closeContextMenu();
     }
 
     function handleResetTypeChange(newType: ButtonType) {
@@ -1041,6 +1232,7 @@
                                                             buttonsOnPage={buttonsOnPage}
                                                             onButtonClick={handlePieButtonClick}
                                                             onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
+                                                            onContextMenu={handlePageContextMenu}
                                                             activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
                                                             ? selectedButtonDetails.slotIndex
                                                             : -1
@@ -1222,6 +1414,72 @@
             </div>
         {/if}
 
+        {#if contextMenuVisible}
+            <div 
+                class="fixed z-[200] bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-300 dark:border-zinc-600 py-1 min-w-[180px]"
+                style="left: {contextMenuX}px; top: {contextMenuY}px;"
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => { if (e.key === 'Escape') closeContextMenu(); }}
+                role="menu"
+                aria-label="Context menu"
+                tabindex="-1"
+            >
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuCopyButton}
+                    type="button"
+                    disabled={!selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/copy.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Copy Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuCopyPage}
+                    type="button"
+                >
+                    <img src="/tabler_icons/copy.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Copy Page
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuPasteButton}
+                    type="button"
+                    disabled={!copiedButton || !selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/clipboard.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Paste into Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuPastePage}
+                    type="button"
+                    disabled={!copiedPageButtons}
+                >
+                    <img src="/tabler_icons/clipboard.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Paste into Page
+                </button>
+                <div class="h-px bg-zinc-300 dark:bg-zinc-600 my-1"></div>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuResetButton}
+                    type="button"
+                    disabled={!selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/restore.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Reset Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuSetQuickMenu}
+                    type="button"
+                >
+                    <img src="/tabler_icons/star.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Use for Quick Menu
+                </button>
+            </div>
+        {/if}
+
         <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-2xl border-t border-none flex-shrink-0">
             <div class="w-full flex flex-row justify-between items-center gap-2 px-4 py-2 max-[450px]:flex-col max-[450px]:items-start">
                 <div class="w-auto flex flex-row justify-start items-center gap-2 max-[400px]:w-full">
@@ -1318,6 +1576,15 @@
                 onCancel={cancelResetAllMenus}
                 onConfirm={confirmResetConfig}
                 title="Reset All Menus?"
+        />
+        <ConfirmationDialog
+                cancelText="Cancel"
+                confirmText="Remove Page"
+                isOpen={showRemovePageDialog}
+                message="This page contains buttons that are not simple buttons. Are you sure you want to remove it?"
+                onCancel={cancelRemovePage}
+                onConfirm={confirmRemovePage}
+                title="Remove Page"
         />
         <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
         <NotificationDialog

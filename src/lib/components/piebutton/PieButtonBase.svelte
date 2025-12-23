@@ -22,6 +22,7 @@
         forcePressedRight,
         forcePressedMiddle,
         onclick = undefined,
+        oncontextmenu = undefined,
         buttonContent = undefined,
         allowSelectWhenDisabled = false,
     } = $props<PieButtonBaseProps & {
@@ -33,6 +34,7 @@
         forcePressedRight?: boolean;
         forcePressedMiddle?: boolean;
         onclick?: (event: MouseEvent) => void;
+        oncontextmenu?: (event: MouseEvent) => void;
         buttonContent?: any;
         allowSelectWhenDisabled?: boolean;
     }>();
@@ -203,6 +205,7 @@
                 class:select-none={false}
                 style="width: {width}rem; height: {height}rem; border-width: {borderWidth}px;"
                 onclick={onclick}
+                oncontextmenu={oncontextmenu}
                 onmouseenter={isDefined(forceHovered) ? undefined : handleMouseEnter}
                 onmouseleave={isDefined(forceHovered) ? undefined : handleMouseLeave}
                 onmousedown={isDefined(forceHovered) ? undefined : handleMouseDown}

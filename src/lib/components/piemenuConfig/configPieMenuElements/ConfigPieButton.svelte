@@ -13,6 +13,7 @@
         buttonTextUpper = '',
         buttonTextLower = '',
         onclick = undefined,
+        oncontextmenu = undefined,
         allowSelectWhenDisabled = true,
         active = false,
     } = $props<{
@@ -25,6 +26,7 @@
         buttonTextUpper?: string,
         buttonTextLower?: string,
         onclick?: (event: MouseEvent) => void,
+        oncontextmenu?: (event: MouseEvent) => void,
         allowSelectWhenDisabled?: boolean,
         active?: boolean
     }>();
@@ -42,6 +44,7 @@
         {buttonTextUpper}
         {buttonTextLower}
         {onclick}
+        {oncontextmenu}
         {allowSelectWhenDisabled}
         {active}
 />
