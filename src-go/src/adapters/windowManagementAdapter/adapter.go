@@ -102,6 +102,9 @@ func (a *WindowManagementAdapter) Run() error {
 
 	go a.monitorWindows()
 
+	// Start focus monitoring
+	go a.startFocusMonitoring()
+
 	// Wait for stop signal
 	<-a.stopChan
 	log.Info("Received stop signal")
