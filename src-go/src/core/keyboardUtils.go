@@ -118,9 +118,9 @@ const (
 )
 
 type ShortcutEntry struct {
-	Codes     []int  `json:"codes"`
-	Label     string `json:"label"`
-	TargetApp string `json:"targetApp,omitempty"`
+	Codes     []int   `json:"codes"`
+	Label     string  `json:"label"`
+	TargetApp *string `json:"targetApp,omitempty"`
 }
 
 type KBDLLHOOKSTRUCT struct {

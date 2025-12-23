@@ -85,7 +85,7 @@ func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 		modifierKeys := shortcutDefinition.Codes[:len(shortcutDefinition.Codes)-1]
 
 		if eventVKCode == mainShortcutKey && checkShortcutModifiers(modifierKeys) {
-			if shortcutDefinition.TargetApp != "" {
+			if shortcutDefinition.TargetApp != nil && *shortcutDefinition.TargetApp != "" {
 				matchingWithTargetApp = append(matchingWithTargetApp, struct {
 					index      string
 					definition core.ShortcutEntry
@@ -101,8 +101,8 @@ func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 
 	// Priority 1: Check if any targetApp matches the focused app
 	for _, match := range matchingWithTargetApp {
-		if match.definition.TargetApp == currentFocusedApp {
-			log.Debug("Shortcut %s triggered for targetApp '%s' (focused)", match.index, match.definition.TargetApp)
+		if match.definition.TargetApp != nil && *match.definition.TargetApp == currentFocusedApp {
+			log.Debug("Shortcut %s triggered for targetApp '%s' (focused)", match.index, *match.definition.TargetApp)
 			if adapter.keyboardHook.multiCallback != nil {
 				adapter.keyboardHook.multiCallback(match.index, match.definition.Codes, true)
 			}
@@ -123,8 +123,12 @@ func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 
 	// If we have targetApp shortcuts but none matched the focused app, let the key pass through
 	if len(matchingWithTargetApp) > 0 {
+		targetApp := ""
+		if matchingWithTargetApp[0].definition.TargetApp != nil {
+			targetApp = *matchingWithTargetApp[0].definition.TargetApp
+		}
 		log.Debug("Shortcut matched but targetApp '%s' doesn't match focused app '%s', passing through",
-			matchingWithTargetApp[0].definition.TargetApp, currentFocusedApp)
+			targetApp, currentFocusedApp)
 		return false
 	}
 
