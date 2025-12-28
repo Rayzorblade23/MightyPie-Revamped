@@ -534,7 +534,7 @@
     });
 
     // --- Derived State ---
-    const menuIndices = $derived(Array.from(editorButtonsConfig.keys()));
+    const menuIndices = $derived(Array.from(editorButtonsConfig.keys()).sort((a, b) => a - b));
     const pagesForSelectedMenu = $derived<PagesInMenuMap | undefined>(
         selectedMenuID !== undefined ? editorButtonsConfig.get(selectedMenuID) : undefined
     );
