@@ -799,14 +799,16 @@
     function confirmRemoveMenu() {
         pushUndoState();
         if (selectedMenuID === undefined) return;
-        // Clear local shortcut and starred if they reference this menu
+        // Clear local shortcut, alias, and starred if they reference this menu
         const key = String(selectedMenuID);
         const newShortcuts = {...(editorPieMenuConfig.shortcuts || {})};
         if (newShortcuts[key]) delete newShortcuts[key];
+        const newAliases = {...(editorPieMenuConfig.menuAliases || {})};
+        if (newAliases[key]) delete newAliases[key];
         const newStarred = editorPieMenuConfig.starred && editorPieMenuConfig.starred.menuID === selectedMenuID
             ? null
             : editorPieMenuConfig.starred;
-        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts, starred: newStarred};
+        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts, menuAliases: newAliases, starred: newStarred};
 
         const newConfig = removeMenuFromMenuConfiguration(editorButtonsConfig, selectedMenuID);
         if (newConfig) {
