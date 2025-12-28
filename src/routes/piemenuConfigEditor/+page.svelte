@@ -1201,7 +1201,7 @@
             <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
         <!-- --- Main Content --- -->
-        <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative flex flex-col min-h-0"
+        <div class="flex-1 w-full overflow-y-auto horizontal-scrollbar relative flex flex-col min-h-0 px-4 pt-4 pb-0"
              style="scrollbar-gutter: stable both-edges;">
             {#if menuIndices.length > 0}
                 <!-- --- UI: Menu Tabs --- -->
@@ -1289,8 +1289,8 @@
                             {/if}
                         </section>
                         <!-- --- UI: Button Details & Actions --- -->
-                        <div class="w-full grid grid-cols-3 items-stretch gap-4 flex-1 max-[1000px]:grid-cols-2 max-[1000px]:[&>div:first-child]:col-span-2 max-[800px]:grid-cols-1 max-[800px]:[&>div:first-child]:col-span-1">
-                            <div class="w-full break-words flex flex-col min-w-0">
+                        <div class="w-full flex flex-wrap items-stretch gap-4 flex-1">
+                            <div class="break-words flex flex-col min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-[calc((100%-1rem)/2)] max-[800px]:w-full transition-all duration-300">
                                 {#if selectedButtonDetails}
                                     <div class="flex-1">
                                         <ButtonInfoDisplay
@@ -1309,7 +1309,7 @@
                                     </div>
                                 {/if}
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-[calc((100%-1rem)/2)] max-[800px]:w-full transition-all duration-300">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
                                         Page Settings
@@ -1351,7 +1351,7 @@
                                 </span>
                                 </button>
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-full max-[800px]:w-full transition-all duration-300">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
                                         Menu Settings
@@ -1443,6 +1443,8 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Spacer to create gap at bottom when scrolling (flex-shrink-0 prevents it from being compressed) -->
+                        <div class="h-px bg-black/0 flex-shrink-0"></div>
                     </div>
                 {:else if selectedMenuID !== undefined}
                     <p class="text-zinc-900 dark:text-zinc-200">Loading pages for Menu {selectedMenuID + 1} or menu is
@@ -1542,7 +1544,7 @@
             </div>
         {/if}
 
-        <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-2xl border-t border-none flex-shrink-0">
+        <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-[0.875rem] border-t border-none flex-shrink-0">
             <div class="w-full flex flex-row justify-between items-center gap-2 px-4 py-2 max-[450px]:flex-col max-[450px]:items-start">
                 <div class="w-auto flex flex-row justify-start items-center gap-2 max-[400px]:w-full">
                     <StandardButton
