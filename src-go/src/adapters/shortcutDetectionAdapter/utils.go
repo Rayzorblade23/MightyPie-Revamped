@@ -81,6 +81,11 @@ func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 	}
 
 	for shortcutKeyIndex, shortcutDefinition := range adapter.keyboardHook.shortcuts {
+		// Skip shortcuts with no key codes defined
+		if len(shortcutDefinition.Codes) == 0 {
+			continue
+		}
+		
 		mainShortcutKey := shortcutDefinition.Codes[len(shortcutDefinition.Codes)-1]
 		modifierKeys := shortcutDefinition.Codes[:len(shortcutDefinition.Codes)-1]
 
@@ -138,6 +143,11 @@ func (adapter *ShortcutDetectionAdapter) handleKeyDown(eventVKCode int) bool {
 // handleKeyUp processes key up events for shortcut release detection.
 func (adapter *ShortcutDetectionAdapter) handleKeyUp(eventVKCode int) {
 	for shortcutKeyIndex, shortcutDefinition := range adapter.keyboardHook.shortcuts {
+		// Skip shortcuts with no key codes defined
+		if len(shortcutDefinition.Codes) == 0 {
+			continue
+		}
+		
 		if adapter.pressedState[shortcutKeyIndex] { // If this shortcut was active
 			if isEventKeyInShortcutCodes(eventVKCode, shortcutDefinition.Codes) { // And released key is part of it
 				mainShortcutKey := shortcutDefinition.Codes[len(shortcutDefinition.Codes)-1]
