@@ -195,8 +195,7 @@
     <div class="p-4 border border-none bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md w-full min-w-0 h-full">
         <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Button Details</h2>
-            <p class="text-right text-zinc-600 dark:text-zinc-400">Slot: {slotIndex + 1} <span
-                    class="text-zinc-600 dark:text-zinc-400">(Page: {pageID + 1})</span></p>
+            <p class="text-right text-zinc-600 dark:text-zinc-400">Button: {slotIndex + 1}</p>
         </div>
         <div class="text-sm space-y-2">
             {#if isTrulyEmptySlot && button.button_type === ButtonType.Disabled}

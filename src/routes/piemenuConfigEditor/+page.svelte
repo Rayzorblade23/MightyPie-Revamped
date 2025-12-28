@@ -925,6 +925,35 @@
         return shortcut?.targetApp || '';
     });
 
+    const selectedMenuAlias = $derived.by(() => {
+        if (selectedMenuID === undefined) return '';
+        return editorPieMenuConfig.menuAliases?.[String(selectedMenuID)] || '';
+    });
+
+    function handleMenuAliasChange(event: Event) {
+        if (selectedMenuID === undefined) return;
+        const input = event.target as HTMLInputElement;
+        const newAlias = input.value.trim();
+        pushUndoState();
+        const currentAliases = editorPieMenuConfig.menuAliases || {};
+        const newAliases = {...currentAliases};
+        if (newAlias) {
+            newAliases[String(selectedMenuID)] = newAlias;
+        } else {
+            delete newAliases[String(selectedMenuID)];
+        }
+        editorPieMenuConfig = {...editorPieMenuConfig, menuAliases: newAliases};
+    }
+
+    function handleResetMenuAlias() {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const currentAliases = editorPieMenuConfig.menuAliases || {};
+        const newAliases = {...currentAliases};
+        delete newAliases[String(selectedMenuID)];
+        editorPieMenuConfig = {...editorPieMenuConfig, menuAliases: newAliases};
+    }
+
     // State for target app tooltip
     let showTargetAppTooltip = $state(false);
     let targetAppQuestionMarkButton = $state<HTMLElement | null>(null);
@@ -1134,7 +1163,7 @@
         }
     }
 
-    // Compose and publish the full editorPieMenuConfig (buttons + shortcuts + starred)
+    // Compose and publish the full editorPieMenuConfig (buttons + shortcuts + starred + menuAliases)
     function savePieMenuConfig() {
         // Unparse buttons from staged editorButtonsConfig
         const buttons = unparseMenuConfiguration(editorButtonsConfig);
@@ -1142,6 +1171,7 @@
             buttons,
             shortcuts: {...(editorPieMenuConfig.shortcuts || {})},
             starred: editorPieMenuConfig.starred ?? null,
+            menuAliases: editorPieMenuConfig.menuAliases ? {...editorPieMenuConfig.menuAliases} : undefined,
         };
         // Publish to backend and update global authoritative store
         publishPieMenuConfig(newFull);
@@ -1186,6 +1216,7 @@
                         }}
                             disableRemove={menuIndices.length <= 1}
                             onAddMenu={handleAddMenu}
+                            menuAliases={editorPieMenuConfig.menuAliases}
                     />
                 </section>
                 <!-- --- UI: Main Content Area --- -->
@@ -1279,9 +1310,14 @@
                                 {/if}
                             </div>
                             <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                    Page Settings
-                                </h3>
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
+                                        Page Settings
+                                    </h3>
+                                    {#if selectedButtonDetails}
+                                        <p class="text-right text-zinc-600 dark:text-zinc-400 whitespace-nowrap">Page: {selectedButtonDetails.pageID + 1}</p>
+                                    {/if}
+                                </div>
                                 <span class="text-sm font-medium mt-2 mb-1 text-zinc-700 dark:text-zinc-400">Reset every button on this page to:</span>
                                 <div class="flex flex-row justify-between items-center w-full">
                                     <div class="flex-1 mr-[0.5rem]">
@@ -1316,8 +1352,34 @@
                                 </button>
                             </div>
                             <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                    Menu Settings</h3>
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
+                                        Menu Settings
+                                    </h3>
+                                    {#if selectedMenuID !== undefined}
+                                        <p class="text-right text-zinc-600 dark:text-zinc-400 whitespace-nowrap">Menu: {selectedMenuID + 1}</p>
+                                    {/if}
+                                </div>
+                                <div class="flex flex-col mt-2">
+                                    <span class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Custom Name:</span>
+                                    <div class="flex flex-row items-center gap-2 mt-1">
+                                        <input
+                                            type="text"
+                                            value={selectedMenuAlias}
+                                            oninput={handleMenuAliasChange}
+                                            placeholder={selectedMenuID !== undefined ? `Menu ${selectedMenuID + 1}` : ''}
+                                            disabled={selectedMenuID === undefined}
+                                            class="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        <StandardButton
+                                            label="Reset"
+                                            onClick={handleResetMenuAlias}
+                                            disabled={selectedMenuID === undefined || !selectedMenuAlias}
+                                            style="max-width: 100px;"
+                                            variant="primary"
+                                        />
+                                    </div>
+                                </div>
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium mt-2 text-zinc-700 dark:text-zinc-400">Set Shortcut to open Menu:</span>
                                     {#if shortcutConflictType === 'global'}

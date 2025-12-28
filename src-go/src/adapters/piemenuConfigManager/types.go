@@ -32,7 +32,8 @@ type StarredFavorite struct {
 }
 
 type PieMenuConfig struct {
-    Buttons   ConfigData                `json:"buttons"`
-    Shortcuts map[string]ShortcutEntry `json:"shortcuts"`
-    Starred   *StarredFavorite          `json:"starred"`
+    Buttons     ConfigData                `json:"buttons"`
+    Shortcuts   map[string]ShortcutEntry `json:"shortcuts"`
+    Starred     *StarredFavorite          `json:"starred"`
+    MenuAliases map[string]string         `json:"menuAliases,omitempty"`
 }

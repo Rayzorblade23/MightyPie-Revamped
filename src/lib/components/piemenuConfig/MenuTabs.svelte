@@ -11,6 +11,7 @@
         onRemoveMenu: (menuIndex: number) => void;
         disableRemove?: boolean;
         onAddMenu: () => void;
+        menuAliases?: Record<string, string>;
     }
 
     // Use the prop types
@@ -20,7 +21,8 @@
         currentSelectedMenuID,
         onRemoveMenu,
         disableRemove = false,
-        onAddMenu
+        onAddMenu,
+        menuAliases = {}
     }: MenuTabsProps = $props();
 
     let scrollDiv = $state(null) as HTMLDivElement | null;
@@ -57,7 +59,7 @@
                     : 'rounded-t-lg  border-t-1 border-r-1 border-zinc-300 dark:border-zinc-700  bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 hover:text-amber-400 hover:bg-white hover:border-zinc-300  dark:hover:bg-zinc-800 dark:hover:border-zinc-600 '}"
                     onclick={() => onSelectMenu(menuIndex)}
             >
-                <span>Menu {menuIndex + 1}</span>
+                <span>{menuAliases?.[menuIndex.toString()] || `Menu ${menuIndex + 1}`}</span>
                 <RemovePageButton
                         title="Remove Menu"
                         onClick={(e) => {
