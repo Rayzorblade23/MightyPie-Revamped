@@ -30,20 +30,32 @@
 
     function checkOverflow() {
         if (!scrollDiv) return;
-        isOverflowing = scrollDiv.scrollWidth > scrollDiv.clientWidth + 1;
+        // Check if content actually overflows (with small tolerance for rounding)
+        isOverflowing = scrollDiv.scrollWidth > scrollDiv.clientWidth;
     }
 
     $effect(() => {
-        queueMicrotask(() => {
+        if (!scrollDiv) return;
+        
+        // Check overflow immediately
+        checkOverflow();
+        
+        // Set up observer for future changes
+        const mutationObs = new MutationObserver(() => {
             checkOverflow();
-            if (!scrollDiv) return;
-            const mutationObs = new MutationObserver(checkOverflow);
-            mutationObs.observe(scrollDiv, {childList: true, subtree: true});
-
-            return () => {
-                mutationObs.disconnect();
-            };
         });
+        mutationObs.observe(scrollDiv, {childList: true, subtree: true});
+        
+        // Also listen for resize events
+        const resizeObs = new ResizeObserver(() => {
+            checkOverflow();
+        });
+        resizeObs.observe(scrollDiv);
+
+        return () => {
+            mutationObs.disconnect();
+            resizeObs.disconnect();
+        };
     });
 </script>
 
