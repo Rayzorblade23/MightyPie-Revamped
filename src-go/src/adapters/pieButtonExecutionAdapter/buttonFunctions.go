@@ -2,6 +2,7 @@ package pieButtonExecutionAdapter
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -393,6 +394,17 @@ func (a *PieButtonExecutionAdapter) OpenConfig() error {
 func (a *PieButtonExecutionAdapter) FuzzySearch() error {
 	log.Info("Publishing navigation message for Fuzzy Search")
 	a.natsAdapter.PublishMessage(natsSubjectPieMenuNavigate, "fuzzySearch")
+	return nil
+}
+
+// TogglePause toggles the pause state for shortcut detection.
+func (a *PieButtonExecutionAdapter) TogglePause() error {
+	log.Info("Toggling pause state for shortcut detection")
+	toggleSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTS_TOGGLE_PAUSE")
+	if toggleSubject == "" {
+		return fmt.Errorf("PUBLIC_NATSSUBJECT_SHORTCUTS_TOGGLE_PAUSE not set")
+	}
+	a.natsAdapter.PublishMessage(toggleSubject, struct{}{})
 	return nil
 }
 

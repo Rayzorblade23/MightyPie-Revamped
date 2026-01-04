@@ -299,7 +299,8 @@
         const start = 0.1;
         const duration = 150;
         const baseDelay = 0;
-        const delayIncrement = 5;
+        const settings = getSettings();
+        const delayIncrement = settings.pieMenuAnimationDelayIncrement?.value ?? 5;
         const delay = baseDelay + (buttonIndex * delayIncrement);
 
         return {

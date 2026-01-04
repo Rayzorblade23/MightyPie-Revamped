@@ -47,6 +47,15 @@ clunky selection, but it also often lead to broken file paths after programs upd
 sophisticated (at least I'd like to think so) system to find and filter all installed
 programs that someone would likely want to launch.
 
+> [!NOTE]
+> If for some reason the heuristic doesn’t pick up a program you want to use in _MightyPie Revamped_ (i.e. portable
+> programs), you can add a
+> shortcut to that program's executable to this folder: _C:\ProgramData\Microsoft\Windows\Start Menu\Programs_
+>
+>You will need to have admin rights to create a shortcut (_.lnk_ file) there.
+>
+>Also keep in mind that shortcuts can break when programs are updated.
+
 Beyond that, we have more and improved features, better and more intuitive UI, better organization and an
 overall more snappy experience.
 
@@ -126,8 +135,19 @@ Pages with eight configurable buttons each.
 ### Tray Icon _(new!)_
 
 - Left-click to open Quick Menu.
-- Context menu gives direct access to the Settings, Pie Menu Configuration without
+- Context menu gives direct access to the Settings, Pie Menu Configuration (and Pause Toggle) without
   opening a Pie Menu. Helpful if you haven't set a keyboard shortcut (or forgot it).
+
+### Pause functionality _(very new!)_
+
+- **Pause** the Pie Menu shortcut detection, so you can use the shortcuts for other purposes. For example, you could use
+  the `Q` key to
+  open a Pie Menu and then **Pause** the shortcut detection when you want to type text.
+- You can toggle **Pause** via the tray icon menu, a Pie Menu Function button, setting a key for it in the settings or
+  toggling
+  **Pause** via simply moving the cursor to a screen edge. (The last two are disabled by default.)
+- A **Pause** indicator will be displayed on the lower right edge of the screen to let you know when **Pause** is
+  enabled.
 
 ## Installation
 

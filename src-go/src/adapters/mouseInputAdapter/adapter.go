@@ -121,7 +121,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *MouseInputAdapter {
 	settingsSubject := os.Getenv("PUBLIC_NATSSUBJECT_SETTINGS_UPDATE")
 	if settingsSubject != "" {
 		// 1) Receive ongoing updates via JetStream durable consumer
-		err := natsAdapter.SubscribeJetStreamPull(settingsSubject, "", func(msg *nats.Msg) {
+		err := natsAdapter.SubscribeJetStreamPull(settingsSubject, "mouseInput_reader", func(msg *nats.Msg) {
 			var newSettings map[string]settingsEntry
 			if err := json.Unmarshal(msg.Data, &newSettings); err != nil {
 				log.Error("Failed to unmarshal settings in mouse adapter: %v", err)

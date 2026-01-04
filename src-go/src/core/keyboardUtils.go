@@ -62,6 +62,8 @@ const (
 	VK_MENU    = 0x12 // Alt
 	VK_LWIN    = 0x5B
 	VK_RWIN    = 0x5C
+
+	SC_BACKTICK = 0x29 // Scan code for backtick/tilde key (below Escape)
 )
 
 const (
@@ -116,8 +118,9 @@ const (
 )
 
 type ShortcutEntry struct {
-	Codes []int  `json:"codes"`
-	Label string `json:"label"`
+	Codes     []int   `json:"codes"`
+	Label     string  `json:"label"`
+	TargetApp *string `json:"targetApp,omitempty"`
 }
 
 type KBDLLHOOKSTRUCT struct {
@@ -135,19 +138,42 @@ var (
 	UnhookWindowsHookEx = User32.NewProc("UnhookWindowsHookEx")
 	PostQuitMessage     = User32.NewProc("PostQuitMessage")
 
-	// Keyboard/Mouse state - ADD THESE
-	GetKeyState  = User32.NewProc("GetKeyState")
-	GetCursorPos = User32.NewProc("GetCursorPos")
+	// Keyboard/Mouse state
+	GetKeyState      = User32.NewProc("GetKeyState")
+	GetAsyncKeyState = User32.NewProc("GetAsyncKeyState")
+	GetCursorPos     = User32.NewProc("GetCursorPos")
+	GetSystemMetrics = User32.NewProc("GetSystemMetrics")
+	MonitorFromPoint = User32.NewProc("MonitorFromPoint")
+	GetMonitorInfo   = User32.NewProc("GetMonitorInfoW")
 
 	// Clipboard
 	OpenClipboard  = User32.NewProc("OpenClipboard")
 	CloseClipboard = User32.NewProc("CloseClipboard")
 
-	// Message loop - ADD/MODIFY THESE
+	// Message loop
 	GetMessage       = User32.NewProc("GetMessageW")
 	TranslateMessage = User32.NewProc("TranslateMessage")
 	DispatchMessage  = User32.NewProc("DispatchMessageW")
 )
+
+const (
+	SM_XVIRTUALSCREEN        = 76
+	SM_YVIRTUALSCREEN        = 77
+	SM_CXVIRTUALSCREEN       = 78
+	SM_CYvirtualscreen       = 79
+	MONITOR_DEFAULTTONEAREST = 2
+)
+
+type RECT struct {
+	Left, Top, Right, Bottom int32
+}
+
+type MONITORINFO struct {
+	CbSize    uint32
+	RcMonitor RECT
+	RcWork    RECT
+	DwFlags   uint32
+}
 
 var KeyMap = map[string]int{
 	// Modifier keys
@@ -304,4 +330,18 @@ var RobotGoKeyName = map[string]string{
 	"Backslash":    "\\",
 	"BracketClose": "]",
 	"Quote":        "'",
+}
+
+// RobotGoKeyNameToVK converts a RobotGo key name to a Windows VK code
+func RobotGoKeyNameToVK(robotGoKey string) (int, bool) {
+	// Search through RobotGoKeyName map to find the canonical name
+	for canonicalName, robotGoName := range RobotGoKeyName {
+		if robotGoName == robotGoKey {
+			// Found the canonical name, now get the VK code from KeyMap
+			if vkCode, ok := KeyMap[canonicalName]; ok {
+				return vkCode, true
+			}
+		}
+	}
+	return 0, false
 }

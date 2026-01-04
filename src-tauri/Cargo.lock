@@ -13,6 +13,7 @@ dependencies = [
  "log",
  "once_cell",
  "rand 0.8.5",
+ "raw-window-handle",
  "regex",
  "serde",
  "serde_json",

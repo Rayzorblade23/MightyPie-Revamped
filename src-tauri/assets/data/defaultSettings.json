@@ -1,135 +1,53 @@
 {
-  "colorAccentAnyWin": {
-    "index": 10,
-    "label": "Button Accent: Show-Any-Window",
-    "isExposed": true,
-    "type": "color",
-    "value": "#5a14b7",
-    "defaultValue": "#5a14b7"
-  },
-  "colorAccentFunction": {
-    "index": 11,
-    "label": "Button Accent: Function",
-    "isExposed": true,
-    "type": "color",
-    "value": "#71b8ed",
-    "defaultValue": "#71b8ed"
-  },
-  "colorAccentLaunch": {
-    "index": 12,
-    "label": "Button Accent: Launch-Program",
-    "isExposed": true,
-    "type": "color",
-    "value": "#f37fc0",
-    "defaultValue": "#f37fc0"
-  },
-  "colorAccentProgramWin": {
-    "index": 13,
-    "label": "Button Accent: Show-Program-Window",
-    "isExposed": true,
-    "type": "color",
-    "value": "#fa9fa4",
-    "defaultValue": "#fa9fa4"
-  },
-  "colorAccentOpenPage": {
-    "index": 14,
-    "label": "Button Accent: Open-Page",
-    "isExposed": true,
-    "type": "color",
-    "value": "#abf7ab",
-    "defaultValue": "#abf7ab"
-  },
-  "colorAccentResource": {
-    "index": 15,
-    "label": "Button Accent: Open-Resource",
-    "isExposed": true,
-    "type": "color",
-    "value": "#54c9c7",
-    "defaultValue": "#54c9c7"
-  },
-  "colorAccentShortcut": {
-    "index": 16,
-    "label": "Button Accent: Open-Resource",
-    "isExposed": true,
-    "type": "color",
-    "value": "#bf8cf2",
-    "defaultValue": "#bf8cf2"
-  },
-  "pieMenuDeadzoneFunction": {
-    "index": 2,
-    "label": "Pie Menu Center function (left-click)",
-    "isExposed": true,
-    "type": "enum",
-    "value": "Forwards",
-    "defaultValue": "Forwards"
-  },
-  "colorPieButtonHighlight": {
-    "index": 6,
-    "label": "Pie Menu Button Highlight color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#7d34b2",
-    "defaultValue": "#7d34b2"
-  },
-  "colorIndicator": {
-    "index": 7,
-    "label": "Pie Menu Indicator color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#5f3c8e",
-    "defaultValue": "#5f3c8e"
-  },
-  "colorRingFill": {
-    "index": 8,
-    "label": "Center Ring Fill color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#202020",
-    "defaultValue": "#202020"
-  },
-  "colorRingStroke": {
-    "index": 9,
-    "label": "Center Ring Outline color",
-    "isExposed": true,
-    "type": "color",
-    "value": "#303030",
-    "defaultValue": "#303030"
-  },
   "startInPieMenuConfig": {
     "index": 0,
-    "label": "On program start show Pie Menu Config",
+    "category": "General",
+    "label": "Start in Config Editor",
+    "description": "Open the Pie Menu Config Editor when the app starts",
     "isExposed": true,
     "type": "bool",
     "value": true,
     "defaultValue": true
   },
   "keepPieMenuAnchored": {
-    "index": 1,
-    "label": "Keep Pie Menu in place when cycling through Pages",
+    "index": 0,
+    "category": "Pie Menu Behavior",
+    "label": "Keep Menu Anchored",
+    "description": "Menu stays in place when cycling through pages",
     "isExposed": true,
     "type": "bool",
     "value": false,
     "defaultValue": false
   },
-  "exampleFloat": {
-    "index": 17,
-    "label": "Example Float",
-    "isExposed": false,
-    "type": "float",
-    "value": 0,
-    "defaultValue": 0
+  "pieMenuDeadzoneFunction": {
+    "index": 1,
+    "category": "Pie Menu Behavior",
+    "label": "Center Click Action",
+    "description": "When you left-click the center of a menu",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Forwards",
+    "defaultValue": "Forwards"
   },
-  "exampleInt": {
-    "index": 18,
-    "label": "Example Integer",
-    "isExposed": false,
-    "type": "int",
-    "value": 0,
-    "defaultValue": 0
+  "mouseWheelWhileOpen": {
+    "index": 2,
+    "category": "Pie Menu Behavior",
+    "label": "Mouse Wheel Action",
+    "description": "What the mouse wheel does while the menu is open",
+    "isExposed": true,
+    "type": "enum",
+    "value": "Control Volume",
+    "defaultValue": "Control Volume",
+    "options": [
+      "Do nothing",
+      "Control Volume"
+    ]
   },
   "autoScrollOverflow": {
-    "index": 4,
-    "label": "When text is too long for button",
+    "index": 0,
+    "category": "Button Appearance",
+    "label": "Text Overflow",
+    "description": "How to handle button text that's too long",
     "isExposed": true,
     "type": "enum",
     "value": "Auto-scroll on hover",
@@ -141,8 +59,10 @@
     ]
   },
   "pieButtonBorderThickness": {
-    "index": 5,
-    "label": "Thickness of Pie Button Border",
+    "index": 1,
+    "category": "Button Appearance",
+    "label": "Border Thickness",
+    "description": "Thickness of the border around pie buttons",
     "isExposed": true,
     "type": "enum",
     "value": "Medium",
@@ -154,16 +74,168 @@
       "Thick"
     ]
   },
-  "mouseWheelWhileOpen": {
-    "index": 3,
-    "label": "Mouse wheel while Pie Menu is open",
+  "colorAccentAnyWin": {
+    "index": 2,
+    "category": "Button Appearance",
+    "label": "Accent: Show-Any-Window",
+    "description": "Border color for Show-Any-Window buttons",
     "isExposed": true,
-    "type": "enum",
-    "value": "Control Volume",
-    "defaultValue": "Control Volume",
-    "options": [
-      "Do nothing",
-      "Control Volume"
-    ]
+    "type": "color",
+    "value": "#5a14b7",
+    "defaultValue": "#5a14b7"
+  },
+  "colorAccentFunction": {
+    "index": 3,
+    "category": "Button Appearance",
+    "label": "Accent: Function",
+    "description": "Border color for Function buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#71b8ed",
+    "defaultValue": "#71b8ed"
+  },
+  "colorAccentLaunch": {
+    "index": 4,
+    "category": "Button Appearance",
+    "label": "Accent: Launch-Program",
+    "description": "Border color for Launch-Program buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#f37fc0",
+    "defaultValue": "#f37fc0"
+  },
+  "colorAccentProgramWin": {
+    "index": 5,
+    "category": "Button Appearance",
+    "label": "Accent: Show-Program-Window",
+    "description": "Border color for Show-Program-Window buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#fa9fa4",
+    "defaultValue": "#fa9fa4"
+  },
+  "colorAccentOpenPage": {
+    "index": 6,
+    "category": "Button Appearance",
+    "label": "Accent: Open-Page",
+    "description": "Border color for Open-Page buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#abf7ab",
+    "defaultValue": "#abf7ab"
+  },
+  "colorAccentResource": {
+    "index": 7,
+    "category": "Button Appearance",
+    "label": "Accent: Open-Resource",
+    "description": "Border color for Open-Resource buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#54c9c7",
+    "defaultValue": "#54c9c7"
+  },
+  "colorAccentShortcut": {
+    "index": 8,
+    "category": "Button Appearance",
+    "label": "Accent: Keyboard-Shortcut",
+    "description": "Border color for Keyboard-Shortcut buttons",
+    "isExposed": true,
+    "type": "color",
+    "value": "#bf8cf2",
+    "defaultValue": "#bf8cf2"
+  },
+  "colorPieButtonHighlight": {
+    "index": 0,
+    "category": "Menu Appearance",
+    "label": "Button Highlight",
+    "description": "Color when hovering over a button",
+    "isExposed": true,
+    "type": "color",
+    "value": "#7d34b2",
+    "defaultValue": "#7d34b2"
+  },
+  "colorIndicator": {
+    "index": 1,
+    "category": "Menu Appearance",
+    "label": "Indicator",
+    "description": "Color of the selection indicator",
+    "isExposed": true,
+    "type": "color",
+    "value": "#5f3c8e",
+    "defaultValue": "#5f3c8e"
+  },
+  "pieMenuAnimationDelayIncrement": {
+    "index": 2,
+    "category": "Menu Appearance",
+    "label": "Opening Stagger Amount",
+    "description": "Delay in milliseconds between each button when menu opens. Set to 0 for no stagger",
+    "isExposed": true,
+    "type": "int",
+    "value": 5,
+    "defaultValue": 5
+  },
+  "colorRingFill": {
+    "index": 3,
+    "category": "Menu Appearance",
+    "label": "Center Ring Fill",
+    "description": "Fill color of the center ring",
+    "isExposed": true,
+    "type": "color",
+    "value": "#202020",
+    "defaultValue": "#202020"
+  },
+  "colorRingStroke": {
+    "index": 4,
+    "category": "Menu Appearance",
+    "label": "Center Ring Outline",
+    "description": "Outline color of the center ring",
+    "isExposed": true,
+    "type": "color",
+    "value": "#303030",
+    "defaultValue": "#303030"
+  },
+  "exampleFloat": {
+    "index": 0,
+    "category": "Debug",
+    "label": "Example Float",
+    "isExposed": false,
+    "type": "float",
+    "value": 0,
+    "defaultValue": 0
+  },
+  "exampleInt": {
+    "index": 1,
+    "category": "Debug",
+    "label": "Example Integer",
+    "isExposed": false,
+    "type": "int",
+    "value": 0,
+    "defaultValue": 0
+  },
+  "pauseOnEdgeProximity": {
+    "index": 0,
+    "category": "Shortcut Detection",
+    "label": "Pause on Edge Proximity",
+    "description": "Pause shortcut detection when cursor is near screen edges",
+    "isExposed": true,
+    "type": "bool",
+    "value": false,
+    "defaultValue": false
+  },
+  "pauseToggleShortcut": {
+    "index": 1,
+    "category": "Shortcut Detection",
+    "label": "Pause Toggle Shortcut",
+    "description": "Keyboard shortcut to manually toggle pause mode",
+    "isExposed": true,
+    "type": "shortcut",
+    "value": {
+      "label": "",
+      "keys": ""
+    },
+    "defaultValue": {
+      "label": "",
+      "keys": ""
+    }
   }
 }

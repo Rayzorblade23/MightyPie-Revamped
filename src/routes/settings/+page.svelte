@@ -2,18 +2,27 @@
 
 <script lang="ts">
     import {onMount} from 'svelte';
-    import {getSettings, publishSettings, type SettingsMap} from '$lib/data/settingsManager.svelte.ts';
+    import {
+        getSettings,
+        publishSettings,
+        type SettingsEntry,
+        type SettingsMap
+    } from '$lib/data/settingsManager.svelte.ts';
     import {goto} from "$app/navigation";
     import {getCurrentWindow, type Window} from "@tauri-apps/api/window";
     import {getVersion} from "@tauri-apps/api/app";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
+    import {getPieMenuConfig} from '$lib/data/configManager.svelte.ts';
     import {
         PUBLIC_NATSSUBJECT_PIEBUTTON_OPENFOLDER,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_CAPTURE,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_UPDATE,
         PUBLIC_SETTINGS_SIZE_X,
         PUBLIC_SETTINGS_SIZE_Y
     } from "$env/static/public";
     import ConfirmationDialog from '$lib/components/ui/ConfirmationDialog.svelte';
-    import {publishMessage} from '$lib/natsAdapter.svelte.ts';
+    import SetShortcutDialog from '$lib/components/ui/SetShortcutDialog.svelte';
+    import {publishMessage, useNatsSubscription} from '$lib/natsAdapter.svelte.ts';
     import {createLogger} from "$lib/logger";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
     import {
@@ -53,6 +62,12 @@
     let showElevationDialog = $state<boolean>(false);
     let pendingElevationAction = $state<(() => Promise<void>) | null>(null);
 
+    // State for shortcut capture dialog
+    let isShortcutDialogOpen = $state<boolean>(false);
+    let shortcutErrorMessage = $state<string | null>(null);
+    let captureTargetKey = $state<string | null>(null);
+    let allowAutoRestart = $state<boolean>(false);
+
     // --- Undo/Discard State ---
     let undoHistory = $state<SettingsMap[]>([]);
     let showDiscardConfirmDialog = $state(false);
@@ -60,6 +75,119 @@
 
     // --- Deadzone Function Options State ---
     let deadzoneFunctionOptions = $state<string[]>([]);
+
+    // --- Pause Toggle Shortcut Conflict Detection ---
+    let pauseToggleConflict = $derived.by(() => {
+        const pauseShortcut = settings['pauseToggleShortcut']?.value;
+        if (!pauseShortcut || !pauseShortcut.keys) {
+            return null;
+        }
+
+        const pieMenuConfig = getPieMenuConfig();
+        const shortcuts = pieMenuConfig.shortcuts || {};
+
+        // Normalize the pause toggle shortcut for comparison (lowercase, consistent format)
+        const normalizedPauseKeys = pauseShortcut.keys.toLowerCase().trim();
+        const normalizedPauseLabel = pauseShortcut.label.toLowerCase().trim();
+
+        // Check if pause toggle shortcut matches any pie menu shortcut
+        for (const [shortcutKey, shortcutEntry] of Object.entries(shortcuts)) {
+            // Compare both the display label (case-insensitive) since both store human-readable labels
+            const normalizedMenuLabel = shortcutEntry.label.toLowerCase().trim();
+
+            if (normalizedPauseLabel === normalizedMenuLabel || normalizedPauseKeys === normalizedMenuLabel) {
+                return {
+                    conflictsWith: `Menu ${parseInt(shortcutKey) + 1}`,
+                    label: shortcutEntry.label
+                };
+            }
+        }
+
+        return null;
+    });
+
+    // Listen for shortcut capture updates from the backend
+    const subscription_shortcut_update = useNatsSubscription(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_UPDATE, (msg: string) => {
+        logger.debug('Settings Shortcut UPDATE raw message:', msg);
+        try {
+            const obj = JSON.parse(msg);
+            if (!obj || typeof obj !== 'object') {
+                logger.warn('Settings Shortcut UPDATE ignored: payload not an object');
+                return;
+            }
+
+            // If backend signals an error (e.g., unmappable key), keep dialog open and restart capture
+            if (obj.error) {
+                const label = typeof obj.label === 'string' ? obj.label : '';
+                logger.warn('Settings Shortcut UPDATE error:', obj.error, label ? `(${label})` : '');
+                shortcutErrorMessage = label ? `This shortcut can't be used: ${label}` : `This shortcut can't be used.`;
+                // auto-clear after 3s (but dialog stays open)
+                setTimeout(() => {
+                    if (shortcutErrorMessage) shortcutErrorMessage = null;
+                }, 3000);
+                // Backend stops hook after first event; restart capture so user can try again immediately
+                setTimeout(() => {
+                    if (isShortcutDialogOpen && allowAutoRestart && captureTargetKey) {
+                        publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_CAPTURE, {key: captureTargetKey});
+                        logger.debug('Restarted settings shortcut capture after error');
+                    }
+                }, 100);
+                return;
+            }
+
+            // Expect both execution keys and display label from backend
+            if (obj.keys && typeof obj.keys === 'string' && obj.label && typeof obj.label === 'string') {
+                if (captureTargetKey && settings[captureTargetKey]) {
+                    handleValueChange(captureTargetKey, {
+                        label: obj.label,
+                        keys: obj.keys
+                    });
+                    isShortcutDialogOpen = false;
+                    shortcutErrorMessage = null;
+                    allowAutoRestart = false;
+                    captureTargetKey = null;
+                    logger.log('Settings shortcut captured:', obj.keys, `(${obj.label})`);
+                }
+            } else {
+                logger.warn('Settings Shortcut UPDATE ignored: no valid keys/label found');
+            }
+        } catch (error) {
+            logger.error('Failed to parse Settings Shortcut UPDATE message:', error);
+            isShortcutDialogOpen = false;
+        }
+    });
+
+    // Track subscription status
+    $effect(() => {
+        if (subscription_shortcut_update.status === "subscribed") {
+            logger.debug("NATS subscription_shortcut_update ready.");
+        }
+        if (subscription_shortcut_update.error) {
+            logger.error("NATS subscription_shortcut_update error:", subscription_shortcut_update.error);
+            if (isShortcutDialogOpen) {
+                isShortcutDialogOpen = false;
+            }
+        }
+    });
+
+    // --- Derived state for categorized settings ---
+    let categorizedSettings = $derived(
+        Object.entries(settings)
+            .filter(([_, entry]) => entry.isExposed)
+            .reduce((acc, [key, entry]) => {
+                const category = entry.category ?? 'General';
+                if (!acc[category]) acc[category] = [];
+                acc[category].push([key, entry]);
+                return acc;
+            }, {} as Record<string, Array<[string, SettingsEntry]>>)
+    );
+
+    let sortedCategories = $derived(
+        Object.entries(categorizedSettings).sort(([catA], [catB]) => {
+            const order = ['General', 'Pie Menu Behavior', 'Button Appearance', 'Menu Appearance', 'Debug'];
+            return order.indexOf(catA) - order.indexOf(catB);
+        })
+    );
 
     onMount(() => {
         logger.info('Settings Mounted');
@@ -231,6 +359,25 @@
     function handleEnumChange(e: Event, key: string) {
         const target = e.target as HTMLSelectElement;
         handleValueChange(key, target?.value ?? settings[key].value);
+    }
+
+    function handleStartShortcutCapture(key: string) {
+        captureTargetKey = key;
+        isShortcutDialogOpen = true;
+        allowAutoRestart = true;
+        publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_CAPTURE, {key});
+        logger.info("Started settings shortcut capture for key:", key);
+    }
+
+    function handleClearShortcut(key: string) {
+        pushUndoState();
+        settings = {
+            ...settings,
+            [key]: {
+                ...settings[key],
+                value: {label: '', keys: ''}
+            }
+        };
     }
 
     function handleResetToDefault(key: string) {
@@ -421,14 +568,23 @@
                         </div>
                     </div>
 
-                    <!-- Regular Settings -->
-                    {#each Object.entries(settings)
-                        .sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0))
-                            as [key, entry]}
-                        {#if entry.isExposed}
-                            <div class="flex flex-row items-center h-12 py-0 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
-                                <label class="w-1/2 md:w-1/3 text-zinc-900 dark:text-zinc-200 pr-4 pl-4 text-base"
-                                       for={key}>{entry.label}</label>
+                    <!-- Regular Settings Grouped by Category -->
+                    {#each sortedCategories as [category, categoryEntries]}
+                        <!-- Category Header -->
+                        <div class="mt-4 mb-2 px-2">
+                            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{category}</h2>
+                        </div>
+
+                        <!-- Settings in this Category -->
+                        {#each categoryEntries.sort((a, b) => (a[1].index ?? 0) - (b[1].index ?? 0)) as [key, entry]}
+                            <div class="flex flex-row items-center min-h-12 py-2 px-1 md:px-4 bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl mb-2 shadow-md border border-none">
+                                <div class="w-1/2 md:w-1/3 pr-4 pl-4 flex flex-col">
+                                    <label class="text-zinc-900 dark:text-zinc-200 text-base font-medium"
+                                           for={key}>{entry.label}</label>
+                                    {#if entry.description}
+                                        <span class="text-xs text-zinc-600 dark:text-zinc-400 ">{entry.description}</span>
+                                    {/if}
+                                </div>
                                 <div class="flex-1 flex items-center gap-2 min-w-0">
                                     {#if entry.type === 'boolean' || entry.type === 'bool'}
                                         <Toggle
@@ -458,19 +614,47 @@
                                                value={entry.value}
                                                onchange={e => handleNumberChange(e, key)}/>
                                     {:else if entry.type === 'int' || entry.type === 'integer'}
-                                        <input type="number" id={key}
-                                               step="1"
-                                               inputmode="numeric"
-                                               pattern="^-?\\d+$"
-                                               class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
-                                               value={entry.value}
-                                               onchange={e => handleNumberChange(e, key)}
-                                               onkeydown={handleIntKeydown}/>
+                                        <div class="flex flex-row items-center gap-2 min-w-0">
+                                            <div class="w-10 flex-shrink-0"></div>
+                                            <div class="w-28 flex-shrink min-w-0">
+                                                <input type="number" id={key}
+                                                       step="1"
+                                                       inputmode="numeric"
+                                                       pattern="^-?\\d+$"
+                                                       class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm text-zinc-900 dark:text-zinc-100 w-full"
+                                                       value={entry.value}
+                                                       onchange={e => handleNumberChange(e, key)}
+                                                       onkeydown={handleIntKeydown}/>
+                                            </div>
+                                        </div>
                                     {:else if entry.type === 'string'}
                                         <input type="text" id={key}
                                                class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
                                                value={entry.value}
                                                onchange={e => handleStringInput(key, e)}/>
+                                    {:else if entry.type === 'shortcut'}
+                                        <div class="flex flex-col gap-2 min-w-0 w-full">
+                                            {#if key === 'pauseToggleShortcut' && pauseToggleConflict}
+                                                <span class="text-xs text-red-500 font-semibold">Warning: Shortcut conflicts with {pauseToggleConflict.conflictsWith}
+                                                    !</span>
+                                            {/if}
+                                            <div class="flex flex-row items-center gap-2 min-w-0 w-full">
+                                                <StandardButton
+                                                        label={entry.value?.label || entry.value?.keys || 'Set Shortcut'}
+                                                        onClick={() => handleStartShortcutCapture(key)}
+                                                        variant="special"
+                                                        style="max-width: 300px; min-width: 150px;"
+                                                />
+                                                <div class="flex-1 mx-2 my-1 h-[10px] rounded-lg bg-black/10"></div>
+                                                <StandardButton
+                                                        label="Clear"
+                                                        onClick={() => handleClearShortcut(key)}
+                                                        disabled={!entry.value?.keys}
+                                                        style="max-width: 120px;"
+                                                        variant="primary"
+                                                />
+                                            </div>
+                                        </div>
                                     {:else if entry.type === 'enum'}
                                         <select id={key}
                                                 class="custom-select pl-3 py-1 bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
@@ -503,7 +687,7 @@
                                     </button>
                                 </div>
                             </div>
-                        {/if}
+                        {/each}
                     {/each}
 
                     <!-- Folder Navigation Buttons -->
@@ -534,7 +718,8 @@
                     {#if appVersion}
                         v{appVersion}
                         {#if logLevel && (logLevel || '').toLowerCase() !== 'info'}
-                            <span class="whitespace-nowrap">&nbsp;(Log level: {(logLevel || '').slice(0,1).toUpperCase() + (logLevel || '').slice(1).toLowerCase()})</span>
+                            <span class="whitespace-nowrap">&nbsp;(Log level: {(logLevel || '').slice(0, 1).toUpperCase() + (logLevel || '').slice(1).toLowerCase()}
+                                )</span>
                         {/if}
                     {/if}
                 </div>
@@ -543,9 +728,13 @@
                             ariaLabel="Undo"
                             bold={true}
                             disabled={undoHistory.length === 0}
-                            label="Undo"
+                            label=""
                             onClick={handleUndo}
                             variant="primary"
+                            iconSrc="/tabler_icons/player-skip-back.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Undo"
                     />
                     <StandardButton
                             ariaLabel="Discard Changes"
@@ -558,9 +747,13 @@
                     <StandardButton
                             ariaLabel="Done"
                             bold={true}
-                            label="Done"
+                            label=""
                             onClick={saveAndExit}
                             variant="primary"
+                            iconSrc="/tabler_icons/check.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Apply and Exit"
                     />
                 </div>
             </div>
@@ -585,4 +778,16 @@
         message="This operation requires administrator privileges to modify the Windows Task Scheduler. Do you want to restart the application with elevated privileges?"
         onCancel={handleElevationCancel}
         onConfirm={handleElevationConfirm}
+/>
+
+<!-- Shortcut Capture Dialog -->
+<SetShortcutDialog
+        isOpen={isShortcutDialogOpen}
+        errorMessage={shortcutErrorMessage}
+        onCancel={() => {
+            isShortcutDialogOpen = false;
+            shortcutErrorMessage = null;
+            allowAutoRestart = false;
+            captureTargetKey = null;
+        }}
 />

@@ -21,8 +21,9 @@ type MenuConfig map[string]PageConfig
 type ConfigData map[string]MenuConfig
 
 type ShortcutEntry struct {
-    Codes []int  `json:"codes"`
-    Label string `json:"label"`
+    Codes     []int   `json:"codes"`
+    Label     string  `json:"label"`
+    TargetApp *string `json:"targetApp,omitempty"`
 }
 
 type StarredFavorite struct {
@@ -31,7 +32,8 @@ type StarredFavorite struct {
 }
 
 type PieMenuConfig struct {
-    Buttons   ConfigData                `json:"buttons"`
-    Shortcuts map[string]ShortcutEntry `json:"shortcuts"`
-    Starred   *StarredFavorite          `json:"starred"`
+    Buttons     ConfigData                `json:"buttons"`
+    Shortcuts   map[string]ShortcutEntry `json:"shortcuts"`
+    Starred     *StarredFavorite          `json:"starred"`
+    MenuAliases map[string]string         `json:"menuAliases,omitempty"`
 }

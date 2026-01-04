@@ -33,14 +33,14 @@
         Select Function:
     </label>
     <div class="flex items-stretch space-x-2">
-        <div class="flex-shrink-0 h-[40px] w-[40px] flex items-center justify-center border border-none rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800">
+        <div class="flex-shrink-0 w-[40px] flex items-center justify-center border border-none rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800">
             <IconRenderer iconPath={currentFunctionDef?.icon_path}
                           svgClasses="h-6 w-6 text-zinc-700 dark:text-zinc-200"
                           titleText={currentFunctionDef?.icon_path || 'No icon'}/>
         </div>
         <select
                 id="functionNameSelect"
-                class="custom-select block w-full pl-3 py-2 text-base border-none focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                class="custom-select block w-full pl-3 py-2 border-none focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm rounded-lg shadow-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
                 value={selectedFunctionName}
                 onchange={handleChange}
         >

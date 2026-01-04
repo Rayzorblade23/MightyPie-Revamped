@@ -33,10 +33,10 @@
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_BACKUP,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_LOAD_ERROR,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_SAVE_BACKUP,
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_ABORT,
         PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_CAPTURE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE,
-        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT
+        PUBLIC_NATSSUBJECT_SHORTCUTSETTER_MENU_UPDATE
     } from "$env/static/public";
     import {getDefaultButton} from '$lib/data/types/pieButtonDefaults.ts';
     import type {PieMenuConfig, ShortcutEntry, ShortcutsMap} from '$lib/data/types/piemenuConfigTypes.ts';
@@ -52,6 +52,7 @@
     import ConfirmationDialog from "$lib/components/ui/ConfirmationDialog.svelte";
     import SetShortcutDialog from "$lib/components/ui/SetShortcutDialog.svelte";
     import ButtonTypeSelector from "$lib/components/piemenuConfig/selectors/ButtonTypeSelector.svelte";
+    import ApplicationSelector from "$lib/components/piemenuConfig/selectors/ApplicationSelector.svelte";
     import {goto} from "$app/navigation";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils.ts";
     import {getButtonFunctions} from "$lib/fileAccessUtils.ts";
@@ -201,6 +202,19 @@
     // Load Config error notification state
     let showLoadFailedDialog = $state(false);
     let loadFailedMessage = $state<string>("Failed to load config.");
+    // Context menu state
+    let contextMenuVisible = $state(false);
+    let contextMenuX = $state(0);
+    let contextMenuY = $state(0);
+    let contextMenuTargetMenuID = $state<number | undefined>(undefined);
+    let contextMenuTargetPageID = $state<number | undefined>(undefined);
+    // Page removal confirmation dialog state
+    let showRemovePageDialog = $state(false);
+    let pendingRemovePageMenuID = $state<number | undefined>(undefined);
+    let pendingRemovePageID = $state<number | undefined>(undefined);
+    // Clipboard state for copy/paste
+    let copiedButton = $state<Button | null>(null);
+    let copiedPageButtons = $state<Map<number, Button> | null>(null);
 
     // --- Duplicate Shortcut Detection ---
     let shortcutUsage = $derived.by(() => {
@@ -211,6 +225,56 @@
             usage[shortcut].push(Number(menuID));
         });
         return usage;
+    });
+
+    // Detect conflict type for the selected menu's shortcut
+    let shortcutConflictType = $derived.by(() => {
+        if (selectedMenuID === undefined) return null;
+        const currentShortcut = shortcutLabels[selectedMenuID];
+        if (!currentShortcut) return null;
+
+        const menusWithSameShortcut = shortcutUsage[currentShortcut];
+        if (!menusWithSameShortcut || menusWithSameShortcut.length <= 1) return null;
+
+        // Get current menu's target app
+        const currentEntry = editorPieMenuConfig.shortcuts?.[String(selectedMenuID)];
+        const currentTargetApp = currentEntry?.targetApp;
+
+        // Check conflict types with other menus
+        let hasTrueConflict = false;
+        let hasAppSpecificOnly = false;
+
+        for (const menuID of menusWithSameShortcut) {
+            if (menuID === selectedMenuID) continue;
+
+            const otherEntry = editorPieMenuConfig.shortcuts?.[String(menuID)];
+            const otherTargetApp = otherEntry?.targetApp;
+
+            // Both have target apps
+            if (currentTargetApp && otherTargetApp) {
+                // Same app = true conflict
+                if (currentTargetApp === otherTargetApp) {
+                    hasTrueConflict = true;
+                }
+                // Different apps = safe, app-specific
+                else {
+                    hasAppSpecificOnly = true;
+                }
+            }
+            // One or both have no target app - only a conflict if they're both global
+            else if (!currentTargetApp && !otherTargetApp) {
+                hasTrueConflict = true;
+            }
+            // One is global, one is app-specific = safe (they won't conflict)
+            else {
+                hasAppSpecificOnly = true;
+            }
+        }
+
+        // True conflicts take precedence
+        if (hasTrueConflict) return 'global';
+        if (hasAppSpecificOnly) return 'app-specific';
+        return null;
     });
 
     function cloneMenuConfig(config: ButtonsConfig): ButtonsConfig {
@@ -470,7 +534,7 @@
     });
 
     // --- Derived State ---
-    const menuIndices = $derived(Array.from(editorButtonsConfig.keys()));
+    const menuIndices = $derived(Array.from(editorButtonsConfig.keys()).sort((a, b) => a - b));
     const pagesForSelectedMenu = $derived<PagesInMenuMap | undefined>(
         selectedMenuID !== undefined ? editorButtonsConfig.get(selectedMenuID) : undefined
     );
@@ -494,6 +558,8 @@
     });
 
     onMount(() => {
+        window.addEventListener('click', handleClickOutsideTargetAppTooltip);
+        window.addEventListener('click', closeContextMenu);
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 if (event.defaultPrevented) return;
@@ -501,6 +567,10 @@
                 // If an input, textarea, select, or contenteditable is focused, first Escape should blur it, second Escape should trigger the normal logic
                 if (active && (["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) || active.getAttribute("contenteditable") === "true")) {
                     (active as HTMLElement).blur();
+                    return;
+                }
+                if (contextMenuVisible) {
+                    closeContextMenu();
                     return;
                 }
                 if (showRemoveMenuDialog || showDiscardConfirmDialog || showResetAllConfirmDialog || isShortcutDialogOpen || isButtonShortcutDialogOpen || showBackupCreatedDialog) return;
@@ -515,6 +585,8 @@
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener('click', handleClickOutsideTargetAppTooltip);
+            window.removeEventListener('click', closeContextMenu);
         };
     });
 
@@ -601,6 +673,20 @@
             editorButtonsConfig = result.newConfig;
             // local-only
             logger.log(`Locally added new page ${result.newPageID} to menu ${selectedMenuID}.`);
+            
+            // Select the newly created page
+            const newPageButtons = editorButtonsConfig.get(selectedMenuID)?.get(result.newPageID);
+            if (newPageButtons) {
+                const firstButton = newPageButtons.get(0) ?? getDefaultButton(ButtonType.ShowAnyWindow);
+                selectedButtonDetails = {
+                    menuID: selectedMenuID,
+                    pageID: result.newPageID,
+                    buttonID: 0,
+                    slotIndex: 0,
+                    button: firstButton
+                };
+            }
+            
             setTimeout(() => {
                 if (pagesContainer && (pagesContainer as any).lockMomentum) {
                     (pagesContainer as any).lockMomentum();
@@ -625,8 +711,35 @@
         }
     }
 
+    /** Check if a page has non-simple buttons */
+    function hasNonSimpleButtons(buttonsOnPage: ButtonsOnPageMap): boolean {
+        for (const button of buttonsOnPage.values()) {
+            if (button &&
+                button.button_type !== ButtonType.ShowAnyWindow &&
+                button.button_type !== ButtonType.Disabled) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Remove a page from the selected menu and update selection if needed. */
     function handleRemovePage(menuIDToRemoveFrom: number, pageIDToRemove: number) {
+        // Check if page has non-simple buttons and show confirmation if needed
+        const buttonsOnPage = editorButtonsConfig.get(menuIDToRemoveFrom)?.get(pageIDToRemove);
+        if (buttonsOnPage && hasNonSimpleButtons(buttonsOnPage)) {
+            pendingRemovePageMenuID = menuIDToRemoveFrom;
+            pendingRemovePageID = pageIDToRemove;
+            showRemovePageDialog = true;
+            return;
+        }
+        
+        // Proceed with removal
+        executeRemovePage(menuIDToRemoveFrom, pageIDToRemove);
+    }
+
+    /** Actually execute the page removal */
+    function executeRemovePage(menuIDToRemoveFrom: number, pageIDToRemove: number) {
         pushUndoState();
         if (selectedMenuID === undefined || selectedMenuID !== menuIDToRemoveFrom) {
             logger.warn("Attempting to remove page from a menu that is not currently selected or invalid state.");
@@ -652,6 +765,21 @@
         }
     }
 
+    function confirmRemovePage() {
+        if (pendingRemovePageMenuID !== undefined && pendingRemovePageID !== undefined) {
+            executeRemovePage(pendingRemovePageMenuID, pendingRemovePageID);
+        }
+        showRemovePageDialog = false;
+        pendingRemovePageMenuID = undefined;
+        pendingRemovePageID = undefined;
+    }
+
+    function cancelRemovePage() {
+        showRemovePageDialog = false;
+        pendingRemovePageMenuID = undefined;
+        pendingRemovePageID = undefined;
+    }
+
     /** Add a new menu and select it. */
     function handleAddMenu() {
         pushUndoState();
@@ -671,14 +799,16 @@
     function confirmRemoveMenu() {
         pushUndoState();
         if (selectedMenuID === undefined) return;
-        // Clear local shortcut and starred if they reference this menu
+        // Clear local shortcut, alias, and starred if they reference this menu
         const key = String(selectedMenuID);
         const newShortcuts = {...(editorPieMenuConfig.shortcuts || {})};
         if (newShortcuts[key]) delete newShortcuts[key];
+        const newAliases = {...(editorPieMenuConfig.menuAliases || {})};
+        if (newAliases[key]) delete newAliases[key];
         const newStarred = editorPieMenuConfig.starred && editorPieMenuConfig.starred.menuID === selectedMenuID
             ? null
             : editorPieMenuConfig.starred;
-        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts, starred: newStarred};
+        editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts, menuAliases: newAliases, starred: newStarred};
 
         const newConfig = removeMenuFromMenuConfiguration(editorButtonsConfig, selectedMenuID);
         if (newConfig) {
@@ -723,6 +853,59 @@
         editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
     }
 
+    function handleTargetAppSelect(appName: string) {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const key = String(selectedMenuID);
+        const currentShortcuts = editorPieMenuConfig.shortcuts || {};
+        const currentEntry = currentShortcuts[key];
+
+        if (currentEntry) {
+            const updatedEntry: ShortcutEntry = {
+                codes: currentEntry.codes,
+                label: currentEntry.label
+            };
+            if (appName) {
+                updatedEntry.targetApp = appName;
+            }
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: updatedEntry
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        } else if (appName) {
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: {
+                    codes: [],
+                    label: '',
+                    targetApp: appName
+                }
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        }
+    }
+
+    function handleClearTargetApp() {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const key = String(selectedMenuID);
+        const currentShortcuts = editorPieMenuConfig.shortcuts || {};
+        const currentEntry = currentShortcuts[key];
+
+        if (currentEntry) {
+            const updatedEntry: ShortcutEntry = {
+                codes: currentEntry.codes,
+                label: currentEntry.label
+            };
+            const newShortcuts = {
+                ...currentShortcuts,
+                [key]: updatedEntry
+            };
+            editorPieMenuConfig = {...editorPieMenuConfig, shortcuts: newShortcuts};
+        }
+    }
+
     const buttonTypeFriendlyNames: Record<ButtonType, string> = {
         [ButtonType.ShowProgramWindow]: "Show Program Window",
         [ButtonType.ShowAnyWindow]: "Show Any Window",
@@ -736,6 +919,176 @@
     const buttonTypeKeys = Object.keys(buttonTypeFriendlyNames) as ButtonType[];
 
     let resetType = $state<ButtonType>(ButtonType.ShowAnyWindow);
+
+    const installedAppsMap = $derived(getInstalledAppsInfo());
+    const selectedMenuTargetApp = $derived.by(() => {
+        if (selectedMenuID === undefined) return '';
+        const shortcut = editorPieMenuConfig.shortcuts?.[String(selectedMenuID)];
+        return shortcut?.targetApp || '';
+    });
+
+    const selectedMenuAlias = $derived.by(() => {
+        if (selectedMenuID === undefined) return '';
+        return editorPieMenuConfig.menuAliases?.[String(selectedMenuID)] || '';
+    });
+
+    function handleMenuAliasChange(event: Event) {
+        if (selectedMenuID === undefined) return;
+        const input = event.target as HTMLInputElement;
+        const newAlias = input.value.trim();
+        pushUndoState();
+        const currentAliases = editorPieMenuConfig.menuAliases || {};
+        const newAliases = {...currentAliases};
+        if (newAlias) {
+            newAliases[String(selectedMenuID)] = newAlias;
+        } else {
+            delete newAliases[String(selectedMenuID)];
+        }
+        editorPieMenuConfig = {...editorPieMenuConfig, menuAliases: newAliases};
+    }
+
+    function handleResetMenuAlias() {
+        if (selectedMenuID === undefined) return;
+        pushUndoState();
+        const currentAliases = editorPieMenuConfig.menuAliases || {};
+        const newAliases = {...currentAliases};
+        delete newAliases[String(selectedMenuID)];
+        editorPieMenuConfig = {...editorPieMenuConfig, menuAliases: newAliases};
+    }
+
+    // State for target app tooltip
+    let showTargetAppTooltip = $state(false);
+    let targetAppQuestionMarkButton = $state<HTMLElement | null>(null);
+
+    function toggleTargetAppTooltip(event: MouseEvent) {
+        event.stopPropagation();
+        showTargetAppTooltip = !showTargetAppTooltip;
+    }
+
+    function handleClickOutsideTargetAppTooltip(event: MouseEvent) {
+        if (showTargetAppTooltip && 
+            targetAppQuestionMarkButton && 
+            event.target instanceof Node && 
+            !targetAppQuestionMarkButton.contains(event.target)) {
+            showTargetAppTooltip = false;
+        }
+    }
+
+    function handlePageContextMenu(event: MouseEvent, menuID: number, pageID: number) {
+        // Estimate context menu dimensions (adjust if needed)
+        const menuWidth = 180;
+        const menuHeight = 280; // Approximate height based on number of items
+        
+        // Get window dimensions
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Calculate position, adjusting if too close to edges
+        let x = event.clientX;
+        let y = event.clientY;
+        
+        // Adjust horizontal position if menu would overflow right edge
+        if (x + menuWidth > windowWidth) {
+            x = Math.max(10, windowWidth - menuWidth - 10);
+        }
+        
+        // Adjust vertical position if menu would overflow bottom edge
+        if (y + menuHeight > windowHeight) {
+            y = Math.max(10, windowHeight - menuHeight - 10);
+        }
+        
+        contextMenuX = x;
+        contextMenuY = y;
+        contextMenuTargetMenuID = menuID;
+        contextMenuTargetPageID = pageID;
+        contextMenuVisible = true;
+    }
+
+    function closeContextMenu() {
+        contextMenuVisible = false;
+    }
+
+    function handleContextMenuCopyButton() {
+        if (selectedButtonDetails) {
+            const button = editorButtonsConfig.get(selectedButtonDetails.menuID)?.get(selectedButtonDetails.pageID)?.get(selectedButtonDetails.slotIndex);
+            if (button) {
+                copiedButton = JSON.parse(JSON.stringify(button));
+                logger.log(`Copied button from slot ${selectedButtonDetails.slotIndex}`);
+            }
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuCopyPage() {
+        if (contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            const pageButtons = editorButtonsConfig.get(contextMenuTargetMenuID)?.get(contextMenuTargetPageID);
+            if (pageButtons) {
+                copiedPageButtons = new Map(JSON.parse(JSON.stringify(Array.from(pageButtons.entries()))));
+                logger.log(`Copied page ${contextMenuTargetPageID} from menu ${contextMenuTargetMenuID}`);
+            }
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuPasteButton() {
+        if (copiedButton && selectedButtonDetails) {
+            pushUndoState();
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(selectedButtonDetails.menuID));
+            const pageButtons = new Map(menuPages.get(selectedButtonDetails.pageID));
+            pageButtons.set(selectedButtonDetails.slotIndex, JSON.parse(JSON.stringify(copiedButton)));
+            menuPages.set(selectedButtonDetails.pageID, pageButtons);
+            newConfig.set(selectedButtonDetails.menuID, menuPages);
+            editorButtonsConfig = newConfig;
+            logger.log(`Pasted button to slot ${selectedButtonDetails.slotIndex}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuPastePage() {
+        if (copiedPageButtons && contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            pushUndoState();
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(contextMenuTargetMenuID));
+            menuPages.set(contextMenuTargetPageID, new Map(JSON.parse(JSON.stringify(Array.from(copiedPageButtons.entries())))));
+            newConfig.set(contextMenuTargetMenuID, menuPages);
+            editorButtonsConfig = newConfig;
+            logger.log(`Pasted page to page ${contextMenuTargetPageID} in menu ${contextMenuTargetMenuID}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuResetButton() {
+        if (selectedButtonDetails) {
+            pushUndoState();
+            const defaultButton = getDefaultButton(ButtonType.ShowAnyWindow);
+            const newConfig = new Map(editorButtonsConfig);
+            const menuPages = new Map(newConfig.get(selectedButtonDetails.menuID));
+            const pageButtons = new Map(menuPages.get(selectedButtonDetails.pageID));
+            pageButtons.set(selectedButtonDetails.slotIndex, defaultButton);
+            menuPages.set(selectedButtonDetails.pageID, pageButtons);
+            newConfig.set(selectedButtonDetails.menuID, menuPages);
+            editorButtonsConfig = newConfig;
+            // Update selected button details
+            selectedButtonDetails = {
+                ...selectedButtonDetails,
+                button: defaultButton
+            };
+            logger.log(`Reset button at slot ${selectedButtonDetails.slotIndex}`);
+        }
+        closeContextMenu();
+    }
+
+    function handleContextMenuSetQuickMenu() {
+        if (contextMenuTargetMenuID !== undefined && contextMenuTargetPageID !== undefined) {
+            pushUndoState();
+            editorPieMenuConfig = {
+                ...editorPieMenuConfig,
+                starred: {menuID: contextMenuTargetMenuID, pageID: contextMenuTargetPageID}
+            };
+        }
+        closeContextMenu();
+    }
 
     function handleResetTypeChange(newType: ButtonType) {
         resetType = newType;
@@ -812,7 +1165,7 @@
         }
     }
 
-    // Compose and publish the full editorPieMenuConfig (buttons + shortcuts + starred)
+    // Compose and publish the full editorPieMenuConfig (buttons + shortcuts + starred + menuAliases)
     function savePieMenuConfig() {
         // Unparse buttons from staged editorButtonsConfig
         const buttons = unparseMenuConfiguration(editorButtonsConfig);
@@ -820,6 +1173,7 @@
             buttons,
             shortcuts: {...(editorPieMenuConfig.shortcuts || {})},
             starred: editorPieMenuConfig.starred ?? null,
+            menuAliases: editorPieMenuConfig.menuAliases ? {...editorPieMenuConfig.menuAliases} : undefined,
         };
         // Publish to backend and update global authoritative store
         publishPieMenuConfig(newFull);
@@ -830,12 +1184,12 @@
 
 <!-- Page-level overlay dialogs (avoid parent transparency) -->
 <SetShortcutDialog
+        errorMessage={buttonShortcutErrorMessage}
         isOpen={isButtonShortcutDialogOpen}
         onCancel={() => {
             isButtonShortcutDialogOpen = false;
             publishMessage(PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT, {});
         }}
-        errorMessage={buttonShortcutErrorMessage}
 />
 
 <div class="w-full h-screen p-1">
@@ -849,7 +1203,7 @@
             <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
         <!-- --- Main Content --- -->
-        <div class="flex-1 w-full p-4 overflow-y-auto horizontal-scrollbar relative"
+        <div class="flex-1 w-full overflow-y-auto horizontal-scrollbar relative flex flex-col min-h-0 px-4 pt-4 pb-0"
              style="scrollbar-gutter: stable both-edges;">
             {#if menuIndices.length > 0}
                 <!-- --- UI: Menu Tabs --- -->
@@ -864,11 +1218,12 @@
                         }}
                             disableRemove={menuIndices.length <= 1}
                             onAddMenu={handleAddMenu}
+                            menuAliases={editorPieMenuConfig.menuAliases}
                     />
                 </section>
                 <!-- --- UI: Main Content Area --- -->
                 {#if selectedMenuID !== undefined}
-                    <div class="main-content-area flex flex-col space-y-6">
+                    <div class="main-content-area flex flex-col space-y-6 flex-1 min-h-0">
                         <!-- --- UI: Pie Menus Section --- -->
                         <section class="pie-menus-section">
                             {#if sortedPagesForSelectedMenu.length > 0}
@@ -910,6 +1265,7 @@
                                                             buttonsOnPage={buttonsOnPage}
                                                             onButtonClick={handlePieButtonClick}
                                                             onRemovePage={(removedPageID) => handleRemovePage(currentMenuIDForCallback, removedPageID)}
+                                                            onContextMenu={handlePageContextMenu}
                                                             activeSlotIndex={selectedButtonDetails && selectedButtonDetails.menuID === currentMenuIDForCallback && selectedButtonDetails.pageID === pageIDOfLoop
                                                             ? selectedButtonDetails.slotIndex
                                                             : -1
@@ -935,44 +1291,56 @@
                             {/if}
                         </section>
                         <!-- --- UI: Button Details & Actions --- -->
-                        <div class="w-full flex flex-row items-start gap-4">
-                            <div class="min-w-[396px] max-w-[480px] w-full break-words">
+                        <div class="w-full flex flex-wrap items-stretch gap-4 flex-1">
+                            <div class="break-words flex flex-col min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-[calc((100%-1rem)/2)] max-[800px]:w-full transition-all duration-300">
                                 {#if selectedButtonDetails}
-                                    <ButtonInfoDisplay
-                                            selectedButtonDetails={selectedButtonDetails}
-                                            onConfigChange={handleButtonConfigUpdate}
-                                            menuConfig={editorButtonsConfig}
-                                            bind:isButtonShortcutDialogOpen={isButtonShortcutDialogOpen}
-                                            bind:buttonShortcutErrorMessage={buttonShortcutErrorMessage}
-                                    />
+                                    <div class="flex-1">
+                                        <ButtonInfoDisplay
+                                                selectedButtonDetails={selectedButtonDetails}
+                                                onConfigChange={handleButtonConfigUpdate}
+                                                menuConfig={editorButtonsConfig}
+                                                bind:isButtonShortcutDialogOpen={isButtonShortcutDialogOpen}
+                                                bind:buttonShortcutErrorMessage={buttonShortcutErrorMessage}
+                                        />
+                                    </div>
                                 {:else}
-                                    <div class="p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
+                                    <div class="flex-1 p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow text-center text-zinc-500 dark:text-zinc-400">
                                         Select a button from a pie menu preview to see its details, or add a page
                                         if the menu is
                                         empty.
                                     </div>
                                 {/if}
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[280px] max-w-[360px] self-start">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                    Page Settings
-                                </h3>
-                                <ButtonTypeSelector
-                                        currentType={resetType}
-                                        buttonTypeKeys={buttonTypeKeys}
-                                        buttonTypeFriendlyNames={buttonTypeFriendlyNames}
-                                        onChange={handleResetTypeChange}
-                                />
-                                <StandardButton
-                                        label="Reset Page with Type"
-                                        onClick={handleResetPageToDefault}
-                                        disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
-                                        style="margin-top: 0.5rem; margin-bottom: 0.5rem;"
-                                        variant="primary"
-                                />
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-[calc((100%-1rem)/2)] max-[800px]:w-full transition-all duration-300">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
+                                        Page Settings
+                                    </h3>
+                                    {#if selectedButtonDetails}
+                                        <p class="text-right text-zinc-600 dark:text-zinc-400 whitespace-nowrap">Page: {selectedButtonDetails.pageID + 1}</p>
+                                    {/if}
+                                </div>
+                                <span class="text-sm font-medium mt-2 mb-1 text-zinc-700 dark:text-zinc-400">Reset every button on this page to:</span>
+                                <div class="flex flex-row justify-between items-center w-full">
+                                    <div class="flex-1 mr-[0.5rem]">
+                                        <ButtonTypeSelector
+                                                currentType={resetType}
+                                                buttonTypeKeys={buttonTypeKeys}
+                                                buttonTypeFriendlyNames={buttonTypeFriendlyNames}
+                                                onChange={handleResetTypeChange}
+                                        />
+                                    </div>
+                                    <StandardButton
+                                            label="Reset Page"
+                                            onClick={handleResetPageToDefault}
+                                            disabled={selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
+                                            variant="primary"
+                                    />
+                                </div>
+                                <span class="text-sm mt-3 font-medium text-zinc-700 dark:text-zinc-400">Assign this Page to Quick Menu:</span>
                                 <button
                                         aria-label="Use for Quick Menu"
-                                        class="mt-2 px-4 py-2 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
+                                        class="mt-1 px-4 py-1 bg-zinc-900/30 dark:bg-white/5 rounded-lg border border-white dark:border-zinc-400 text-white dark:text-white transition-colors focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-900/20 disabled:text-white/60 disabled:dark:text-zinc-500 hover:bg-zinc-900/10 dark:hover:bg-white/10 disabled:hover:bg-white/0 disabled:dark:hover:bg-white/0 flex items-center w-full relative shadow-sm"
                                         onclick={handleUseForQuickMenu}
                                         disabled={isStarred || selectedMenuID === undefined || (selectedButtonDetails && selectedButtonDetails.pageID === undefined)}
                                 >
@@ -985,27 +1353,54 @@
                                 </span>
                                 </button>
                             </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-[396px] max-w-[480px] self-start">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-2 w-full text-left">
-                                    Menu Settings</h3>
-                                <div class="flex flex-row justify-between items-center w-full mt-2">
-                                    <div class="flex flex-col">
-                                        <span class="text-zinc-700 dark:text-zinc-200">Set Shortcut to open Menu:</span>
-                                        {#if selectedMenuID !== undefined && shortcutLabels[selectedMenuID] && shortcutUsage[shortcutLabels[selectedMenuID]] && shortcutUsage[shortcutLabels[selectedMenuID]].length > 1}
-                                            <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut is used multiple times!</span>
-                                        {/if}
+                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 min-w-0 w-[calc((100%-2rem)/3)] max-[1000px]:w-full max-[800px]:w-full transition-all duration-300">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 w-full text-left">
+                                        Menu Settings
+                                    </h3>
+                                    {#if selectedMenuID !== undefined}
+                                        <p class="text-right text-zinc-600 dark:text-zinc-400 whitespace-nowrap">Menu: {selectedMenuID + 1}</p>
+                                    {/if}
+                                </div>
+                                <div class="flex flex-col mt-2">
+                                    <span class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Custom Name:</span>
+                                    <div class="flex flex-row items-center gap-2 mt-1">
+                                        <input
+                                            type="text"
+                                            value={selectedMenuAlias}
+                                            oninput={handleMenuAliasChange}
+                                            placeholder={selectedMenuID !== undefined ? `Menu ${selectedMenuID + 1}` : ''}
+                                            disabled={selectedMenuID === undefined}
+                                            class="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        <StandardButton
+                                            label="Reset"
+                                            onClick={handleResetMenuAlias}
+                                            disabled={selectedMenuID === undefined || !selectedMenuAlias}
+                                            style="max-width: 100px;"
+                                            variant="primary"
+                                        />
                                     </div>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium mt-2 text-zinc-700 dark:text-zinc-400">Set Shortcut to open Menu:</span>
+                                    {#if shortcutConflictType === 'global'}
+                                        <span class="mt-1 text-xs text-red-500 font-semibold">Warning: Shortcut conflicts with another menu!</span>
+                                    {:else if shortcutConflictType === 'app-specific'}
+                                        <span class="mt-1 text-xs text-blue-500 dark:text-blue-400 font-semibold">Note: Same shortcut used in different apps (safe)</span>
+                                    {/if}
+                                </div>
+                                <div class="flex flex-row justify-between items-center w-full my-1">
                                     <StandardButton
                                             variant="special"
                                             onClick={handlePublishShortcutSetterUpdate}
                                             disabled={selectedMenuID === undefined}
+                                            style="max-width: 300px; min-width: 150px;"
                                             label={selectedMenuID !== undefined && shortcutLabels[selectedMenuID]
-                                        ? shortcutLabels[selectedMenuID]
-                                        : 'Set Shortcut'}
+                                            ? shortcutLabels[selectedMenuID]
+                                            : 'Set Shortcut'}
                                     />
-                                </div>
-                                <div class="flex flex-row justify-between items-center w-full mt-2">
-                                    <span class="text-zinc-700 dark:text-zinc-200">Clear Shortcut:</span>
+                                    <div class="flex-1 mx-2 my-1 h-[10px] rounded-lg bg-black/10"></div>
                                     <StandardButton
                                             label="Clear"
                                             onClick={handleClearShortcut}
@@ -1014,33 +1409,44 @@
                                             variant="primary"
                                     />
                                 </div>
-                            </div>
-                            <div class="flex flex-col items-stretch bg-zinc-200/60 dark:bg-neutral-900/60 opacity-90 rounded-xl shadow-md px-4 py-3 w-auto self-start">
-                                <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-200 mb-3 w-full text-left">
-                                    Pie Menu Config
-                                </h3>
-                                <div class="flex flex-col items-start gap-2 w-full">
-                                    <StandardButton
-                                            label="Save Config"
-                                            onClick={handleSaveConfigViaDialog}
-                                            style={`width: 100%;`}
-                                            variant="primary"
-                                    />
-                                    <StandardButton
-                                            label="Load Config"
-                                            onClick={openFileDialog}
-                                            style={`width: 100%;`}
-                                            variant="primary"
-                                    />
-                                    <StandardButton
-                                            label="Reset it all!"
-                                            variant="warning"
-                                            onClick={() => showResetAllConfirmDialog = true}
-                                            style={`width: 100%;`}
-                                    />
+                                <div class="mt-1.5">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Show Menu only in:</span>
+                                        <div class="flex">
+                                            <button
+                                                class="flex items-center justify-center w-4 h-4 mr-1 rounded-full bg-purple-800 dark:bg-purple-950 text-zinc-100 hover:bg-violet-800 dark:hover:bg-violet-950 active:bg-purple-700 dark:active:bg-indigo-950 transition-colors text-xs font-medium"
+                                                onclick={toggleTargetAppTooltip}
+                                                aria-label="Show target app explanation"
+                                                bind:this={targetAppQuestionMarkButton}
+                                            >
+                                                ?
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-row items-start gap-2 -mt-3">
+                                        <div class="flex-1">
+                                            <ApplicationSelector
+                                                    selectedAppName={selectedMenuTargetApp}
+                                                    installedAppsMap={installedAppsMap}
+                                                    onSelect={handleTargetAppSelect}
+                                                    labelText=""
+                                            />
+                                        </div>
+                                        <div class="flex flex-col" style="margin-top: 0.75rem;">
+                                            <StandardButton
+                                                    label="Clear"
+                                                    onClick={handleClearTargetApp}
+                                                    disabled={selectedMenuID === undefined || !selectedMenuTargetApp}
+                                                    style="max-width: 120px;"
+                                                    variant="primary"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <!-- Spacer to create gap at bottom when scrolling (flex-shrink-0 prevents it from being compressed) -->
+                        <div class="h-px bg-black/0 flex-shrink-0"></div>
                     </div>
                 {:else if selectedMenuID !== undefined}
                     <p class="text-zinc-900 dark:text-zinc-200">Loading pages for Menu {selectedMenuID + 1} or menu is
@@ -1059,17 +1465,133 @@
                     </button>
                 </div>
             {/if}
+        </div>
 
-            <!-- Compact Action Buttons -->
-            <div class="absolute bottom-4 right-4">
-                <div class="flex flex-row justify-end items-center gap-2 px-4 py-3 bg-zinc-200 dark:bg-neutral-900 opacity-90 rounded-xl shadow-md">
+        {#if showTargetAppTooltip && targetAppQuestionMarkButton}
+            {@const buttonRect = targetAppQuestionMarkButton.getBoundingClientRect()}
+            <div class="fixed inset-0 z-[100] pointer-events-none">
+                <div 
+                    class="absolute bg-white dark:bg-zinc-800 p-3 rounded-md shadow-lg w-80 text-sm text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 whitespace-pre-line pointer-events-auto"
+                    style="left: {Math.max(10, buttonRect.right - 320)}px; top: {Math.max(10, buttonRect.top - 10)}px; transform: translateY(-100%);"
+                >
+                    The shortcut will only work within the application selected here.
+                    Leave it empty for the shortcut to work globally (in all applications).
+                </div>
+            </div>
+        {/if}
+
+        {#if contextMenuVisible}
+            <div 
+                class="fixed z-[200] bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-300 dark:border-zinc-600 py-1 min-w-[180px]"
+                style="left: {contextMenuX}px; top: {contextMenuY}px;"
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => { if (e.key === 'Escape') closeContextMenu(); }}
+                role="menu"
+                aria-label="Context menu"
+                tabindex="-1"
+            >
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuCopyButton}
+                    type="button"
+                    disabled={!selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/copy.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Copy Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuCopyPage}
+                    type="button"
+                >
+                    <img src="/tabler_icons/copy.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Copy Page
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuPasteButton}
+                    type="button"
+                    disabled={!copiedButton || !selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/clipboard.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Paste into Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuPastePage}
+                    type="button"
+                    disabled={!copiedPageButtons}
+                >
+                    <img src="/tabler_icons/clipboard.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Paste into Page
+                </button>
+                <div class="h-px bg-zinc-300 dark:bg-zinc-600 my-1"></div>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleContextMenuResetButton}
+                    type="button"
+                    disabled={!selectedButtonDetails}
+                >
+                    <img src="/tabler_icons/restore.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Reset Button
+                </button>
+                <button
+                    class="w-full px-4 py-2 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                    onclick={handleContextMenuSetQuickMenu}
+                    type="button"
+                >
+                    <img src="/tabler_icons/star.svg" alt="" class="w-4 h-4 dark:invert" />
+                    Use for Quick Menu
+                </button>
+            </div>
+        {/if}
+
+        <div class="action-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-b-[0.875rem] border-t border-none flex-shrink-0">
+            <div class="w-full flex flex-row justify-between items-center gap-2 px-4 py-2 max-[450px]:flex-col max-[450px]:items-start">
+                <div class="w-auto flex flex-row justify-start items-center gap-2 max-[400px]:w-full">
+                    <StandardButton
+                            ariaLabel="Save Config"
+                            label=""
+                            onClick={handleSaveConfigViaDialog}
+                            variant="primary"
+                            iconSrc="/tabler_icons/device-floppy.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Save Config"
+                    />
+                    <StandardButton
+                            ariaLabel="Load Config"
+                            label=""
+                            onClick={openFileDialog}
+                            variant="primary"
+                            iconSrc="/tabler_icons/upload.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Load Config"
+                    />
+                    <StandardButton
+                            ariaLabel="Reset it all!"
+                            label=""
+                            onClick={() => showResetAllConfirmDialog = true}
+                            variant="warning"
+                            iconSrc="/tabler_icons/trash-x.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Reset it all!"
+                    />
+                </div>
+                <div class="w-auto flex flex-row justify-end items-center gap-2 max-[400px]:w-full max-[400px]:justify-start">
                     <StandardButton
                             ariaLabel="Undo"
                             bold={true}
                             disabled={undoHistory.length === 0}
-                            label="Undo"
+                            label=""
                             onClick={handleUndo}
                             variant="primary"
+                            iconSrc="/tabler_icons/player-skip-back.svg"
+                            iconImgClasses="w-5 h-5 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Undo"
                     />
                     <StandardButton
                             ariaLabel="Discard Changes"
@@ -1078,14 +1600,20 @@
                             label="Discard Changes"
                             onClick={() => showDiscardConfirmDialog = true}
                             variant="primary"
+                            tooltipText="Discard Changes and Exit"
                     />
                     <StandardButton
                             ariaLabel="Done"
                             bold={true}
-                            label="Done"
+                            label=""
                             onClick={() => { savePieMenuConfig(); goto('/'); }}
                             variant="primary"
+                            iconSrc="/tabler_icons/check.svg"
+                            iconImgClasses="w-6 h-6 invert"
+                            iconSlotClasses="w-5 h-5"
+                            tooltipText="Apply and Exit"
                     />
+
                 </div>
             </div>
         </div>
@@ -1114,6 +1642,15 @@
                 onCancel={cancelResetAllMenus}
                 onConfirm={confirmResetConfig}
                 title="Reset All Menus?"
+        />
+        <ConfirmationDialog
+                cancelText="Cancel"
+                confirmText="Remove Page"
+                isOpen={showRemovePageDialog}
+                message="This page contains buttons that are not simple buttons. Are you sure you want to remove it?"
+                onCancel={cancelRemovePage}
+                onConfirm={confirmRemovePage}
+                title="Remove Page"
         />
         <SetShortcutDialog isOpen={isShortcutDialogOpen} onCancel={closeShortcutDialog}/>
         <NotificationDialog

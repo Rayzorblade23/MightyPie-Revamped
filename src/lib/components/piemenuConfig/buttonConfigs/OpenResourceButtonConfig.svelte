@@ -79,7 +79,7 @@
         </label>
         <div class="relative">
             <input
-                    class="w-full pl-3 pr-3 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="w-full pl-3 pr-3 py-2 border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     id="openResourceButtonText"
                     oninput={e => { handleChange(DISPLAY_NAME_KEY, e.currentTarget.value || defaultDisplayName); }}
                     type="text"
@@ -106,7 +106,7 @@
                     ></span>
                 {/if}
                 <input
-                        class="w-full pl-3 pr-3 py-2 text-base border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-transparent placeholder:text-zinc-400 dark:placeholder:text-zinc-500 group-focus-within:text-zinc-900 group-focus-within:dark:text-zinc-100 caret-zinc-900 dark:caret-zinc-100"
+                        class="w-full pl-3 pr-3 py-2 border-2  border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm rounded-lg shadow-sm bg-zinc-100 dark:bg-zinc-700 text-transparent placeholder:text-zinc-400 dark:placeholder:text-zinc-500 group-focus-within:text-zinc-900 group-focus-within:dark:text-zinc-100 caret-zinc-900 dark:caret-zinc-100"
                         id="resourcePath"
                         oninput={e => { handleChange(RESOURCE_PATH_KEY, e.currentTarget.value); }}
                         type="text"

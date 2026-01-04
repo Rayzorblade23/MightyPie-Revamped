@@ -74,6 +74,7 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *PieButtonExecutionAdapter {
 		"Open Settings": NoArgButtonFunctionExecutor{fn: a.OpenSettings},
 		"Open Config":   NoArgButtonFunctionExecutor{fn: a.OpenConfig},
 		"Fuzzy Search":  NoArgButtonFunctionExecutor{fn: a.FuzzySearch},
+		"Pause Pie Menu Shortcuts":  NoArgButtonFunctionExecutor{fn: a.TogglePause},
 		// Virtual Desktops & Task Switching
 		"New Virtual Desktop":      NoArgButtonFunctionExecutor{fn: a.NewVirtualDesktop},
 		"Close Virtual Desktop":    NoArgButtonFunctionExecutor{fn: a.CloseVirtualDesktop},

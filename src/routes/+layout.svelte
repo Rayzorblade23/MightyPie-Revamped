@@ -20,13 +20,15 @@
         connectToNats,
         disconnectFromNats,
         fetchLatestFromStream,
-        getConnectionStatus
+        getConnectionStatus,
+        publishMessage
     } from "$lib/natsAdapter.svelte.ts";
     import {
         PUBLIC_APPNAME,
         PUBLIC_NATSSUBJECT_LIVEBUTTONCONFIG,
         PUBLIC_NATSSUBJECT_PIEMENUCONFIG_BACKEND_UPDATE,
         PUBLIC_NATSSUBJECT_SETTINGS_UPDATE,
+        PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED,
         PUBLIC_NATSSUBJECT_WINDOWMANAGER_INSTALLEDAPPSINFO,
         PUBLIC_PIEMENU_SIZE_X,
         PUBLIC_PIEMENU_SIZE_Y
@@ -40,10 +42,14 @@
     import {createLogger} from "$lib/logger";
     import {centerAndSizeWindowOnMonitor} from "$lib/windowUtils";
     import {getCurrentWindow, UserAttentionType} from '@tauri-apps/api/window';
+    import {WebviewWindow} from '@tauri-apps/api/webviewWindow';
+    import {invoke} from '@tauri-apps/api/core';
     import {exitApp} from "$lib/generalUtil.ts";
 
     // Create a logger for this component
     const logger = createLogger('Layout');
+
+    let isAuxWindow = $state(false);
 
     let validationHasRun = false;
 
@@ -54,7 +60,20 @@
     // Controls visibility of the crash/reconnect dialog
     let showDisconnectDialog = $state(false);
 
+    onMount(() => {
+        if (browser) {
+            isAuxWindow = window.location.pathname.startsWith('/shortcutPauseIndicator');
+        }
+        (async () => {
+            try {
+                isAuxWindow = getCurrentWindow().label === 'shortcut_pause_indicator';
+            } catch {
+            }
+        })();
+    });
+
     $effect(() => {
+        if (isAuxWindow) return;
         const pieMenuConfig = getPieMenuConfig();
         const installedAppsInfo = getInstalledAppsInfo();
 
@@ -81,7 +100,7 @@
             event.stopImmediatePropagation();
         };
 
-        const opts: AddEventListenerOptions = { capture: true, passive: false };
+        const opts: AddEventListenerOptions = {capture: true, passive: false};
         window.addEventListener('pointerdown', block, opts);
         window.addEventListener('pointerup', block, opts);
         window.addEventListener('mousedown', block, opts);
@@ -109,6 +128,7 @@
     let connectingDelayTimer: number | null = null;
 
     $effect(() => {
+        if (isAuxWindow) return;
         const actualStatus = getConnectionStatus();
 
         // Handle connection status changes
@@ -211,7 +231,47 @@
         );
     };
 
+    const handleShortcutsPausedMessage = async (message: string) => {
+        try {
+            const data = JSON.parse(message);
+            const isPaused = data.paused === true;
+
+            const indicator = await WebviewWindow.getByLabel('shortcut_pause_indicator');
+            if (!indicator) {
+                logger.warn('Shortcut pause indicator window not found');
+                return;
+            }
+
+            if (isPaused) {
+                try {
+                    await invoke('show_pause_indicator_without_focus');
+                    logger.debug('Showing shortcut pause indicator (without focus)');
+                } catch (err) {
+                    logger.error('Failed to show pause indicator:', err);
+                }
+            } else {
+                try {
+                    await invoke('hide_pause_indicator');
+                    logger.debug('Hiding shortcut pause indicator');
+                } catch (err) {
+                    logger.error('Failed to hide pause indicator:', err);
+                }
+            }
+
+            // Update tray menu item text
+            try {
+                await invoke('update_tray_pause_menu_item', {isPaused});
+                logger.debug('Updated tray pause menu item:', isPaused ? 'Resume Detection' : 'Pause Detection');
+            } catch (err) {
+                logger.error('Failed to update tray pause menu item:', err);
+            }
+        } catch (error) {
+            logger.error('[+layout.svelte] Failed to process shortcuts paused message:', error);
+        }
+    };
+
     $effect(() => {
+        if (isAuxWindow) return;
         const settings = getSettings();
         if (!settings) return;
         const map = {
@@ -241,6 +301,7 @@
     });
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopLiveButtons: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -255,6 +316,7 @@
 
     // Subscribe to BACKEND update (full config)
     $effect(() => {
+        if (isAuxWindow) return;
         let stopBackendFull: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -268,6 +330,7 @@
     });
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopInstalledApps: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -284,6 +347,7 @@
 
 
     $effect(() => {
+        if (isAuxWindow) return;
         let stopSettingsUpdate: (() => void) | null = null;
         if (getConnectionStatus() === "connected") {
             (async () => {
@@ -294,6 +358,20 @@
             })();
         }
         return () => stopSettingsUpdate?.();
+    });
+
+    $effect(() => {
+        if (isAuxWindow) return;
+        let stopShortcutsPaused: (() => void) | null = null;
+        if (getConnectionStatus() === "connected") {
+            (async () => {
+                stopShortcutsPaused = await fetchLatestFromStream(
+                    PUBLIC_NATSSUBJECT_SHORTCUTS_PAUSED,
+                    handleShortcutsPausedMessage
+                );
+            })();
+        }
+        return () => stopShortcutsPaused?.();
     });
 
     // Function to exit the application
@@ -327,6 +405,8 @@
         if (browser) {
             const initializeConnection = async () => {
                 try {
+                    if (isAuxWindow) return;
+
                     // Center the window on startup
                     await centerAndSizeWindowOnMonitor(getCurrentWindow(), Number(PUBLIC_PIEMENU_SIZE_X), Number(PUBLIC_PIEMENU_SIZE_Y));
 
@@ -352,6 +432,7 @@
     let unlistenPieMenuConfig: (() => void) | undefined;
 
     onMount(() => {
+        if (isAuxWindow) return;
         // Tauri tray event listeners
         listen('show-quickMenu', () => goto('/quickMenu')).then(unlisten => {
             unlistenQuickMenu = unlisten;
@@ -361,6 +442,13 @@
         });
         listen('show-piemenuconfig', () => goto('/piemenuConfigEditor')).then(unlisten => {
             unlistenPieMenuConfig = unlisten;
+        });
+        listen('toggle-pause', () => {
+            const toggleSubject = 'mightyPie.events.shortcuts.togglePause';
+            publishMessage(toggleSubject, {});
+            logger.info('Toggle pause requested from tray icon');
+        }).then(unlisten => {
+            // Store unlisten function if needed for cleanup
         });
         return () => {
             if (unlistenQuickMenu) unlistenQuickMenu();
@@ -383,7 +471,9 @@
     }
 </script>
 
-{#if showSuccessScreen}
+{#if isAuxWindow}
+    {@render children()}
+{:else if showSuccessScreen}
     <div class="w-full min-h-screen overflow-hidden flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-lg relative">
         <div class="flex flex-col items-center space-y-13">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{PUBLIC_APPNAME}</h1>

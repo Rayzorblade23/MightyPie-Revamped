@@ -204,12 +204,16 @@ func (a *NatsAdapter) SubscribeJetStreamPull(subject, durableName string, handle
 	}
 
 	go func() {
+		log.Debug("[JetStream] Started pull consumer for subject: %s (durable: %s)", subject, durableName)
 		for {
 			msgs, err := sub.Fetch(10, nats.MaxWait(2*time.Second))
 			if err != nil && err != nats.ErrTimeout {
-				log.Error("Error fetching JetStream messages: %v", err)
+				log.Error("[JetStream] Error fetching messages for %s: %v", subject, err)
 				time.Sleep(time.Second)
 				continue
+			}
+			if len(msgs) > 0 {
+				log.Debug("[JetStream] Fetched %d messages for subject: %s", len(msgs), subject)
 			}
 			for _, msg := range msgs {
 				handler(msg)

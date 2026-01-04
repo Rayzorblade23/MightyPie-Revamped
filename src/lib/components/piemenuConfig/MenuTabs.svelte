@@ -11,6 +11,7 @@
         onRemoveMenu: (menuIndex: number) => void;
         disableRemove?: boolean;
         onAddMenu: () => void;
+        menuAliases?: Record<string, string>;
     }
 
     // Use the prop types
@@ -20,7 +21,8 @@
         currentSelectedMenuID,
         onRemoveMenu,
         disableRemove = false,
-        onAddMenu
+        onAddMenu,
+        menuAliases = {}
     }: MenuTabsProps = $props();
 
     let scrollDiv = $state(null) as HTMLDivElement | null;
@@ -28,20 +30,32 @@
 
     function checkOverflow() {
         if (!scrollDiv) return;
-        isOverflowing = scrollDiv.scrollWidth > scrollDiv.clientWidth + 1;
+        // Check if content actually overflows (with small tolerance for rounding)
+        isOverflowing = scrollDiv.scrollWidth > scrollDiv.clientWidth;
     }
 
     $effect(() => {
-        queueMicrotask(() => {
+        if (!scrollDiv) return;
+        
+        // Check overflow immediately
+        checkOverflow();
+        
+        // Set up observer for future changes
+        const mutationObs = new MutationObserver(() => {
             checkOverflow();
-            if (!scrollDiv) return;
-            const mutationObs = new MutationObserver(checkOverflow);
-            mutationObs.observe(scrollDiv, {childList: true, subtree: true});
-
-            return () => {
-                mutationObs.disconnect();
-            };
         });
+        mutationObs.observe(scrollDiv, {childList: true, subtree: true});
+        
+        // Also listen for resize events
+        const resizeObs = new ResizeObserver(() => {
+            checkOverflow();
+        });
+        resizeObs.observe(scrollDiv);
+
+        return () => {
+            mutationObs.disconnect();
+            resizeObs.disconnect();
+        };
     });
 </script>
 
@@ -57,7 +71,7 @@
                     : 'rounded-t-lg  border-t-1 border-r-1 border-zinc-300 dark:border-zinc-700  bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 hover:text-amber-400 hover:bg-white hover:border-zinc-300  dark:hover:bg-zinc-800 dark:hover:border-zinc-600 '}"
                     onclick={() => onSelectMenu(menuIndex)}
             >
-                <span>Menu {menuIndex + 1}</span>
+                <span>{menuAliases?.[menuIndex.toString()] || `Menu ${menuIndex + 1}`}</span>
                 <RemovePageButton
                         title="Remove Menu"
                         onClick={(e) => {

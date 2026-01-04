@@ -91,6 +91,10 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 	buttonAbortSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_ABORT")
 	buttonUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_BUTTON_UPDATE")
 
+	// Settings shortcut subjects
+	settingsCaptureSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_CAPTURE")
+	settingsUpdateSubject := os.Getenv("PUBLIC_NATSSUBJECT_SHORTCUTSETTER_SETTINGS_UPDATE")
+
 	// Stateless: do not read or publish existing shortcuts here. Persistence is handled by piemenuConfigManager.
 
 	// Subscribe to requests to record a new shortcut at a given index.
@@ -126,6 +130,12 @@ func New(natsAdapter *natsAdapter.NatsAdapter) *ShortcutSetterAdapter {
 		if shortcutSetterAdapter.keyboardHook != nil {
 			shortcutSetterAdapter.keyboardHook.Stop()
 		}
+	})
+
+	// Subscribe to settings shortcut capture requests
+	natsAdapter.SubscribeToSubject(settingsCaptureSubject, func(msg *nats.Msg) {
+		log.Info("Received settings shortcut capture request")
+		shortcutSetterAdapter.ListenForSettingsShortcut(settingsUpdateSubject)
 	})
 
 	// No delete subscription here; UI publishes delete directly to piemenuConfigManager.
@@ -227,6 +237,66 @@ func (a *ShortcutSetterAdapter) ListenForButtonShortcut(buttonUpdateSubject stri
 	go func() {
 		if err := a.keyboardHook.Run(); err != nil {
 			log.Error("Button shortcut keyboard hook error: %v", err)
+		}
+	}()
+}
+
+// ListenForSettingsShortcut captures a keyboard shortcut for settings use and converts it to RobotGo format
+func (a *ShortcutSetterAdapter) ListenForSettingsShortcut(settingsUpdateSubject string) {
+	var once sync.Once
+
+	// Stop any previous hook before starting a new one
+	if a.keyboardHook != nil {
+		a.keyboardHook.Stop()
+	}
+
+	a.keyboardHook = newSetterKeyboardHook(func(shortcut []int) {
+		once.Do(func() {
+			// Always stop the hook after the first detected shortcut
+			defer a.keyboardHook.Stop()
+
+			if !IsValidShortcut(shortcut) {
+				log.Debug("Invalid settings shortcut, ignoring")
+				return
+			}
+
+			// Normalize modifiers and deduplicate before processing
+			norm := NormalizeShortcut(shortcut)
+			// Convert key codes to RobotGo-compatible format and build display label
+			robotGoKeys := ConvertToRobotGoFormat(norm)
+			displayLabel := ShortcutCodesToString(norm)
+			if robotGoKeys == "" {
+				log.Warn("Settings shortcut could not be converted to RobotGo format; ignoring. Label=%s", displayLabel)
+				// Notify frontend to close dialog gracefully
+				if settingsUpdateSubject != "" {
+					a.natsAdapter.PublishMessage(settingsUpdateSubject, map[string]string{
+						"error": "unmappable",
+						"label": displayLabel,
+					})
+				}
+				return
+			}
+			log.Info("Settings shortcut captured: %s (label: %s)", robotGoKeys, displayLabel)
+
+			// Publish the captured shortcut with execution keys and display label
+			update := map[string]string{
+				"keys":  robotGoKeys,
+				"label": displayLabel,
+			}
+
+			if settingsUpdateSubject == "" {
+				log.Error("Settings shortcut update subject is empty; cannot publish update")
+				return
+			}
+
+			a.natsAdapter.PublishMessage(settingsUpdateSubject, update)
+			log.Info("Settings shortcut published: keys=%s, label=%s", robotGoKeys, displayLabel)
+		})
+	})
+
+	go func() {
+		if err := a.keyboardHook.Run(); err != nil {
+			log.Error("Settings shortcut keyboard hook error: %v", err)
 		}
 	}()
 }

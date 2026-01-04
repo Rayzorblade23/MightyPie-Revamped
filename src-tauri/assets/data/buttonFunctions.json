@@ -102,5 +102,9 @@
   "Task View": {
     "icon_path": "/tabler_icons/layout-dashboard.svg",
     "description": "Opens Task View to manage windows and desktops. (Win+Tab)"
+  },
+  "Pause Pie Menu Shortcuts": {
+    "icon_path": "/tabler_icons/player-pause.svg",
+    "description": "Pause shortcut detection for Pie Menus. Unpause via Tray or (if enabled) Pause toggle key or Screen Edge Proximity."
   }
 }

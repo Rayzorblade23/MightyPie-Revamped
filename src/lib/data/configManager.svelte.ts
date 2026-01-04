@@ -373,9 +373,27 @@ export function addPageToMenuConfiguration(
 export function addMenuToMenuConfiguration(
     currentMenuConfig: ButtonsConfig
 ): { newConfig: ButtonsConfig; newMenuID: number } {
-    // Find the next available menu ID
-    const existingMenuKeys = Array.from(currentMenuConfig.keys());
-    const newMenuId = existingMenuKeys.length > 0 ? Math.max(...existingMenuKeys) + 1 : 0;
+    // Find the lowest available menu ID (fill gaps first, then use next highest)
+    const existingMenuKeys = Array.from(currentMenuConfig.keys()).sort((a, b) => a - b);
+    let newMenuId = 0;
+    
+    if (existingMenuKeys.length === 0) {
+        newMenuId = 0;
+    } else {
+        // Look for gaps in the sequence
+        let foundGap = false;
+        for (let i = 0; i < existingMenuKeys.length; i++) {
+            if (existingMenuKeys[i] !== i) {
+                newMenuId = i;
+                foundGap = true;
+                break;
+            }
+        }
+        // If no gap found, use next highest
+        if (!foundGap) {
+            newMenuId = existingMenuKeys[existingMenuKeys.length - 1] + 1;
+        }
+    }
 
     // Create default buttons for the new page (8 slots)
     const buttonsOnPage: ButtonsOnPageMap = new Map();
