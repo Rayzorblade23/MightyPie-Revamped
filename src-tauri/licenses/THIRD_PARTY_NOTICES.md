@@ -8,17 +8,18 @@ repositories of each dependency.
 
 ### JavaScript/TypeScript Dependencies
 
-| Dependency                 | License                                      | Copyright                                                                                                     | Repository                                              |
-|----------------------------|----------------------------------------------|---------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| Svelte                     | [MIT](./texts/MIT_license.txt)               | Copyright (c) 2016-2025 Svelte Contributors                                                                   | https://github.com/sveltejs/svelte                      |
-| SvelteKit                  | [MIT](./texts/MIT_license.txt)               | Copyright (c) 2020 SvelteKit Contributors [these people](https://github.com/sveltejs/kit/graphs/contributors) | https://github.com/sveltejs/kit                         |
-| Vite                       | [MIT](./texts/MIT_license.txt)               | Copyright (c) 2019-present, VoidZero Inc. and Vite contributors                                               | https://github.com/vitejs/vite                          |
-| vite-plugin-node-polyfills | [MIT](./texts/MIT_license.txt)               | Copyright (c) 2022 David R. Myers                                                                             | https://github.com/voracious/vite-plugin-node-polyfills |
-| Fuse.js                    | [Apache-2.0](./texts/Apache-2.0_license.txt) | Copyright (c) 2017 Kirollos Risk                                                                              | https://github.com/krisk/Fuse                           |
-| tailwindcss                | [MIT](./texts/MIT_license.txt)               | Copyright (c) Tailwind Labs, Inc.                                                                             | https://github.com/tailwindlabs/tailwindcss             |
-| NATS Websocket             | [Apache-2.0](./texts/Apache-2.0_license.txt) | Copyright (c) NATS Authors                                                                                    | https://github.com/nats-io/nats.ws                      |
-| chalk                      | [MIT](./texts/MIT_license.txt)               | Copyright (c) Sindre Sorhus                                                                                   | https://github.com/chalk/chalk                          |
-| Svelte UX                  | [MIT](./texts/MIT_license.txt)               | Copyright (c) 2024 Sean Lynch                                                                                 | https://github.com/techniq/svelte-ux                    |
+| Dependency                 | License                                          | Copyright                                                                                                       | Repository                                              |
+|----------------------------|--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| Svelte                     | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2016-2025 Svelte Contributors                                                                     | https://github.com/sveltejs/svelte                      |
+| SvelteKit                  | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2020 SvelteKit Contributors [these people](https://github.com/sveltejs/kit/graphs/contributors)   | https://github.com/sveltejs/kit                         |
+| Vite                       | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2019-present, VoidZero Inc. and Vite contributors                                                 | https://github.com/vitejs/vite                          |
+| vite-plugin-node-polyfills | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2022 David R. Myers                                                                               | https://github.com/voracious/vite-plugin-node-polyfills |
+| Fuse.js                    | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) 2017 Kirollos Risk                                                                                | https://github.com/krisk/Fuse                           |
+| tailwindcss                | [MIT](./texts/MIT_license.txt)                   | Copyright (c) Tailwind Labs, Inc.                                                                               | https://github.com/tailwindlabs/tailwindcss             |
+| NATS Websocket             | [Apache-2.0](./texts/Apache-2.0_license.txt)     | Copyright (c) NATS Authors                                                                                      | https://github.com/nats-io/nats.ws                      |
+| chalk                      | [MIT](./texts/MIT_license.txt)                   | Copyright (c) Sindre Sorhus                                                                                     | https://github.com/chalk/chalk                          |
+| Svelte UX                  | [MIT](./texts/MIT_license.txt)                   | Copyright (c) 2024 Sean Lynch                                                                                   | https://github.com/techniq/svelte-ux                    |
+| qs                         | [BSD-3-Clause](./texts/BSD-3-Clause_license.txt) | Copyright (c) 2014 Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | https://github.com/ljharb/qs                            |
 
 ### Go Dependencies
 
