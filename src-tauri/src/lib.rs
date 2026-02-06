@@ -10,6 +10,7 @@ mod port_checker;
 mod shutdown;
 mod admin;
 mod task_scheduler;
+mod text_scale;
 
 // Re-export items from modules for external use
 pub use env_utils::{get_private_env_var, set_env_var, get_app_data_dir};
@@ -18,6 +19,7 @@ pub use logging::{get_log_dir, get_log_file_path, get_logs, log_from_frontend, g
 pub use mouse::{get_mouse_pos, set_mouse_pos};
 pub use admin::{is_running_as_admin, restart_as_admin};
 pub use task_scheduler::{create_startup_task, remove_startup_task, is_startup_task_enabled, is_startup_task_admin};
+pub use text_scale::get_text_scale_factor;
 
 #[cfg(target_os = "windows")]
 #[tauri::command]
@@ -342,7 +344,8 @@ pub fn run() {
             is_startup_task_admin,
             show_pause_indicator_without_focus,
             hide_pause_indicator,
-            update_tray_pause_menu_item
+            update_tray_pause_menu_item,
+            get_text_scale_factor
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -15,6 +15,7 @@
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
     import {createLogger} from "$lib/logger";
     import {goto} from "$app/navigation";
+    import {getTextScaleFactor} from "$lib/windowUtils";
 
     // Create a logger for this component
     const logger = createLogger('FuzzySearch');
@@ -100,7 +101,11 @@
             setTimeout(() => {
                 window.setFocus();
             }, 200);
-            await window.setSize(new LogicalSize(Number(PUBLIC_QUICKMENU_SIZE_X), Number(PUBLIC_QUICKMENU_SIZE_Y)));
+            // Get text scale factor and adjust window size
+            const textScaleFactor = await getTextScaleFactor();
+            const adjustedWidth = Number(PUBLIC_QUICKMENU_SIZE_X) * textScaleFactor;
+            const adjustedHeight = Number(PUBLIC_QUICKMENU_SIZE_Y) * textScaleFactor;
+            await window.setSize(new LogicalSize(adjustedWidth, adjustedHeight));
             await ensureWindowWithinMonitorBounds();
         };
         initialize();
