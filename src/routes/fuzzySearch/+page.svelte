@@ -15,7 +15,7 @@
     import {publishMessage} from '$lib/natsAdapter.svelte.ts';
     import {createLogger} from "$lib/logger";
     import {goto} from "$app/navigation";
-    import {getTextScaleFactor} from "$lib/windowUtils";
+    import {getCombinedScaleFactor} from "$lib/windowUtils";
 
     // Create a logger for this component
     const logger = createLogger('FuzzySearch');
@@ -101,10 +101,10 @@
             setTimeout(() => {
                 window.setFocus();
             }, 200);
-            // Get text scale factor and adjust window size
-            const textScaleFactor = await getTextScaleFactor();
-            const adjustedWidth = Number(PUBLIC_QUICKMENU_SIZE_X) * textScaleFactor;
-            const adjustedHeight = Number(PUBLIC_QUICKMENU_SIZE_Y) * textScaleFactor;
+            // Get combined scale factor (user UI scale * Windows Text Size) and adjust window size
+            const combinedScale = await getCombinedScaleFactor();
+            const adjustedWidth = Number(PUBLIC_QUICKMENU_SIZE_X) * combinedScale;
+            const adjustedHeight = Number(PUBLIC_QUICKMENU_SIZE_Y) * combinedScale;
             await window.setSize(new LogicalSize(adjustedWidth, adjustedHeight));
             await ensureWindowWithinMonitorBounds();
         };
@@ -153,8 +153,8 @@
     }
 </script>
 
-<div class="w-full h-screen p-1">
-    <div class="w-full h-full flex flex-col items-center justify-start pt-12 bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)] relative">
+<div class="fixed inset-0 p-1">
+    <div class="w-full h-full flex flex-col items-center justify-start pt-12 bg-zinc-100 dark:bg-zinc-900 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <input
                 bind:this={inputEl}
                 bind:value={search}

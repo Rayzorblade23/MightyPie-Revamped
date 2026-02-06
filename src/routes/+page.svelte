@@ -20,7 +20,7 @@
     import {getSettings} from "$lib/data/settingsManager.svelte.ts";
     import {beforeNavigate, goto} from "$app/navigation";
     import {createLogger} from "$lib/logger";
-    import {getTextScaleFactor} from "$lib/windowUtils";
+    import {getCombinedScaleFactor} from "$lib/windowUtils";
 
     // Create a logger for this component
     const logger = createLogger('PieMenu');
@@ -385,10 +385,10 @@
 
     onMount(async () => {
         const currentWindow = getCurrentWindow();
-        // Get text scale factor and adjust window size
-        const textScaleFactor = await getTextScaleFactor();
-        const adjustedWidth = Number(PUBLIC_PIEMENU_SIZE_X) * textScaleFactor;
-        const adjustedHeight = Number(PUBLIC_PIEMENU_SIZE_Y) * textScaleFactor;
+        // Get combined scale factor (user UI scale * Windows Text Size) and adjust window size
+        const combinedScale = await getCombinedScaleFactor();
+        const adjustedWidth = Number(PUBLIC_PIEMENU_SIZE_X) * combinedScale;
+        const adjustedHeight = Number(PUBLIC_PIEMENU_SIZE_Y) * combinedScale;
         await currentWindow.setSize(new LogicalSize(adjustedWidth, adjustedHeight));
         logger.debug("[onMount] Forcing initial hidden state.");
         await handlePieMenuHidden();

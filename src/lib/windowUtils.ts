@@ -1,6 +1,7 @@
 import {LogicalPosition, LogicalSize, monitorFromPoint, Window} from "@tauri-apps/api/window";
 import {invoke} from "@tauri-apps/api/core";
 import {createLogger} from "$lib/logger";
+import {getSettings} from "$lib/data/settingsManager.svelte";
 
 // Create a logger for this module
 const logger = createLogger('WindowUtils');
@@ -20,6 +21,23 @@ export async function getTextScaleFactor(): Promise<number> {
 }
 
 /**
+ * Gets the combined scale factor for window sizing (uiScale * textScaleFactor).
+ * Windows must scale to match the CSS zoom applied to content.
+ * @returns Promise<number> The combined scale factor
+ */
+export async function getCombinedScaleFactor(): Promise<number> {
+    const settings = getSettings();
+    const uiScale = (settings.uiScale?.value as number) ?? 1.0;
+    const textScaleFactor = await getTextScaleFactor();
+    
+    // Clamp uiScale to reasonable bounds (0.5 to 2.0)
+    const clampedUiScale = Math.max(0.5, Math.min(2.0, uiScale));
+    
+    // Return combined factor to match CSS zoom
+    return clampedUiScale * textScaleFactor;
+}
+
+/**
  * Centers and sizes a Tauri window on the monitor it currently resides on, DPI-aware.
  * Accounts for Windows Text Size accessibility setting by multiplying window dimensions.
  * @param currentWindow The Tauri window instance
@@ -36,12 +54,12 @@ export async function centerAndSizeWindowOnMonitor(currentWindow: Window, desire
     }
     const monitorScaleFactor = monitor.scaleFactor;
     
-    // Get Windows Text Size setting
-    const textScaleFactor = await getTextScaleFactor();
+    // Get combined scale factor (user UI scale * Windows Text Size)
+    const combinedScale = await getCombinedScaleFactor();
     
-    // Multiply window dimensions by text scale factor to compensate for content scaling
-    const adjustedWidth = desiredWidth * textScaleFactor;
-    const adjustedHeight = desiredHeight * textScaleFactor;
+    // Multiply window dimensions by combined scale factor
+    const adjustedWidth = desiredWidth * combinedScale;
+    const adjustedHeight = desiredHeight * combinedScale;
     
     // Convert monitor size/position to logical pixels
     const logicalMonitorWidth = monitor.size.width / monitorScaleFactor;

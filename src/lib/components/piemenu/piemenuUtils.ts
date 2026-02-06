@@ -9,7 +9,7 @@ import {
 } from "@tauri-apps/api/window";
 import {PhysicalSize} from "@tauri-apps/api/dpi";
 import {createLogger} from "$lib/logger";
-import {getTextScaleFactor} from "$lib/windowUtils";
+import {getCombinedScaleFactor} from "$lib/windowUtils";
 import { PUBLIC_PIEMENU_SIZE_X, PUBLIC_PIEMENU_SIZE_Y } from "$env/static/public";
 
 // Create a logger for this module
@@ -300,10 +300,10 @@ export async function centerWindowAtCursor(monitorScaleFactor: number): Promise<
     await window.setPosition(new LogicalPosition(logicalX, logicalY));
 
     // Always set the window to the configured logical size so content fits regardless of DPI
-    // Multiply by text scale factor to compensate for Windows Text Size setting
-    const textScaleFactor = await getTextScaleFactor();
-    const desiredLogicalWidth = Number(PUBLIC_PIEMENU_SIZE_X) * textScaleFactor;
-    const desiredLogicalHeight = Number(PUBLIC_PIEMENU_SIZE_Y) * textScaleFactor;
+    // Multiply by combined scale factor (user UI scale * Windows Text Size)
+    const combinedScale = await getCombinedScaleFactor();
+    const desiredLogicalWidth = Number(PUBLIC_PIEMENU_SIZE_X) * combinedScale;
+    const desiredLogicalHeight = Number(PUBLIC_PIEMENU_SIZE_Y) * combinedScale;
     await window.setSize(new LogicalSize(desiredLogicalWidth, desiredLogicalHeight));
 
     return newScaleFactor;
