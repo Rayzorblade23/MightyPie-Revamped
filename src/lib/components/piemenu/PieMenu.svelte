@@ -256,8 +256,9 @@
         activeSlice = -1;
         indicatorRotation = 0;
         indicatorReady = false;
+        
+        // Calculate button positions once on mount
         let newButtonPositions: { x: number; y: number }[] = [];
-
         for (let i = 0; i < numButtons; i++) {
             const {offsetX, offsetY} = calculatePieButtonOffsets(i, buttonWidth, buttonHeight);
             const {x, y} = calculatePieButtonPosition(i, numButtons, offsetX, offsetY, radius, width, height);

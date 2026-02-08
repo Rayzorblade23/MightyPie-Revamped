@@ -1192,7 +1192,7 @@
         }}
 />
 
-<div class="w-full h-screen p-1">
+<div class="fixed inset-0 p-1">
     <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-t-3xl rounded-b-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)]">
         <!-- --- Title Bar --- -->
         <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-2xl border-b border-none h-8 flex-shrink-0">

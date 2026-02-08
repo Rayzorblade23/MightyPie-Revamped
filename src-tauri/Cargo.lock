@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "MightyPieRevamped"
-version = "1.1.1"
+version = "1.2.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -28,6 +28,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "url",
  "windows 0.58.0",
+ "winreg",
 ]
 
 [[package]]

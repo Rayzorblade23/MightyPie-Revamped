@@ -72,6 +72,19 @@
         })();
     });
 
+    // Apply CSS zoom to scale ALL content uniformly
+    $effect(() => {
+        if (isAuxWindow || !browser) return;
+        
+        const settings = getSettings();
+        const uiScale = (settings.uiScale?.value as number) ?? 1.0;
+        const clampedUiScale = Math.max(0.5, Math.min(2.0, uiScale));
+        
+        // Use CSS zoom to scale everything: pixels, rem, SVG, images, etc.
+        document.body.style.zoom = `${clampedUiScale}`;
+        logger.debug(`Applied UI scale: ${clampedUiScale.toFixed(2)}x (CSS zoom)`);
+    });
+
     $effect(() => {
         if (isAuxWindow) return;
         const pieMenuConfig = getPieMenuConfig();

@@ -523,7 +523,7 @@
     }
 </script>
 
-<div class="w-full h-screen p-1">
+<div class="fixed inset-0 p-1">
     <div class="w-full h-full flex flex-col bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)]">
         <!-- Title Bar -->
         <div class="title-bar relative flex items-center py-1 bg-zinc-200 dark:bg-neutral-800 rounded-t-lg border-b border-none h-8 flex-shrink-0">
@@ -533,7 +533,7 @@
             </div>
             <div class="flex-1 h-full" data-tauri-drag-region></div>
         </div>
-        <div class="flex-1 w-full p-4 space-y-6 relative overflow-y-auto horizontal-scrollbar">
+        <div class="flex-1 w-full p-4 space-y-6 relative overflow-y-auto overflow-x-hidden horizontal-scrollbar min-h-0">
             {#if Object.keys(settings).length === 0}
                 <p class="text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/70 rounded-lg shadow p-6 text-center text-lg font-medium">
                     No settings available.</p>
@@ -609,10 +609,28 @@
                                             </div>
                                         </div>
                                     {:else if entry.type === 'number' || entry.type === 'float'}
-                                        <input type="number" id={key}
-                                               class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
-                                               value={entry.value}
-                                               onchange={e => handleNumberChange(e, key)}/>
+                                        {#if key === 'uiScale'}
+                                            <!-- Special handling for UI Scale: display as percentage -->
+                                            <div class="flex flex-row items-center gap-2 min-w-0">
+                                                <input type="range" id={key}
+                                                       min="50"
+                                                       max="200"
+                                                       step="5"
+                                                       class="flex-1"
+                                                       value={entry.value * 100}
+                                                       oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
+                                                           const percentValue = Number(e.currentTarget.value);
+                                                           handleValueChange(key, percentValue / 100);
+                                                       }}/>
+                                                <span class="text-zinc-900 dark:text-zinc-100 w-16 text-right">{Math.round(entry.value * 100)}
+                                                    %</span>
+                                            </div>
+                                        {:else}
+                                            <input type="number" id={key}
+                                                   class="bg-zinc-200 dark:bg-neutral-800 border border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all w-full shadow-sm text-zinc-900 dark:text-zinc-100"
+                                                   value={entry.value}
+                                                   onchange={e => handleNumberChange(e, key)}/>
+                                        {/if}
                                     {:else if entry.type === 'int' || entry.type === 'integer'}
                                         <div class="flex flex-row items-center gap-2 min-w-0">
                                             <div class="w-10 flex-shrink-0"></div>

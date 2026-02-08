@@ -16,6 +16,7 @@
     import {ensureWindowWithinMonitorBounds} from "$lib/components/piemenu/piemenuUtils.ts";
     import {createLogger} from "$lib/logger";
     import {exitApp} from "$lib/generalUtil.ts";
+    import {getCombinedScaleFactor} from "$lib/windowUtils";
 
     // Create a logger for this component
     const logger = createLogger('QuickMenu');
@@ -82,7 +83,11 @@
             setTimeout(() => {
                 window.setFocus();
             }, 200);
-            await window.setSize(new LogicalSize(Number(PUBLIC_QUICKMENU_SIZE_X), Number(PUBLIC_QUICKMENU_SIZE_Y)));
+            // Get combined scale factor (user UI scale * Windows Text Size) and adjust window size
+            const combinedScale = await getCombinedScaleFactor();
+            const adjustedWidth = Number(PUBLIC_QUICKMENU_SIZE_X) * combinedScale;
+            const adjustedHeight = Number(PUBLIC_QUICKMENU_SIZE_Y) * combinedScale;
+            await window.setSize(new LogicalSize(adjustedWidth, adjustedHeight));
             await ensureWindowWithinMonitorBounds();
         };
 
@@ -103,8 +108,8 @@
     });
 </script>
 
-<div class="w-full h-screen p-1">
-    <div class="w-full h-full flex flex-col items-center justify-start pt-8 bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)] relative">
+<div class="fixed inset-0 p-1">
+    <div class="w-full h-full flex flex-col items-center justify-start pt-8 bg-gradient-to-br from-amber-500 to-purple-700 rounded-2xl shadow-[0px_1px_4px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <button
                 aria-label="Toggle dark mode"
                 class="absolute top-4 right-4 py-2 px-2 rounded-lg bg-amber-500 text-white hover:bg-orange-400 dark:bg-purple-900 dark:hover:bg-purple-800 transition text-base focus:outline-none z-10"

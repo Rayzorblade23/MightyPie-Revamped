@@ -53,6 +53,7 @@ repositories of each dependency.
 | OnceCell                                                                                        | [MIT](./texts/MIT_license.txt) | Copyright (c) 2018 matklad and contributors                                                          | https://github.com/matklad/once_cell                        |
 | rust-url                                                                                        | [MIT](./texts/MIT_license.txt) | Copyright (c) 2013-2025 The rust-url developers                                                      | https://github.com/servo/rust-url                           |
 | raw-window-handle                                                                               | [MIT](./texts/MIT_license.txt) | Copyright (c) 2019 Osspial                                                                           | https://github.com/rust-windowing/raw-window-handle         |
+| winreg                                                                                          | [MIT](./texts/MIT_license.txt) | Copyright (c) 2015 Igor Shaula                                                                       | https://github.com/gentoo90/winreg-rs                       |
 
 ### External Icons
 
